@@ -22,7 +22,6 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
         <Router>
           <div className="App min-h-screen w-full">
             <Routes>
@@ -58,7 +57,6 @@ function App() {
             </Routes>
           </div>
         </Router>
-      </AuthProvider>
     </ThemeProvider>
   );
 }
