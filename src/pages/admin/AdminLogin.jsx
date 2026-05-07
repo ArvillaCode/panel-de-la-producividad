@@ -9,7 +9,7 @@ import {
   AlertTriangle,
   CheckCircle,
   ArrowRight,
-  Loader
+  Loader2 as Loader
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
