@@ -226,8 +226,8 @@ export const AuthProvider = ({ children }) => {
     expelUser,
     addNotification,
     broadcastNotification,
-    getUserInfo: () => user,
-    getAllUsers: () => users,
+    getUserInfo: user,
+    getAllUsers: users,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     getProfile

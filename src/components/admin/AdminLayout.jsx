@@ -22,7 +22,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const user = getUserInfo();
+  const user = getUserInfo;
 
   // Determinar la página actual basada en la URL
   const getCurrentPage = () => {

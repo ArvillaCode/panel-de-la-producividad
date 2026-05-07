@@ -150,7 +150,7 @@ const AdminUsers = () => {
         throw new Error('La contraseña debe tener al menos 6 caracteres');
       }
 
-      const existingUsers = getAllUsers();
+      const existingUsers = getAllUsers;
       if (existingUsers.some(user => user.email === formData.email)) {
         throw new Error('Ya existe un usuario con este email');
       }
@@ -216,7 +216,7 @@ const AdminUsers = () => {
         }
       }
 
-      const existingUsers = getAllUsers();
+      const existingUsers = getAllUsers;
       if (existingUsers.some(user => user.email === formData.email && user.id !== selectedUser.id)) {
         throw new Error('Ya existe un usuario con este email');
       }
