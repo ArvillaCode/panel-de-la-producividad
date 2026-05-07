@@ -228,8 +228,8 @@ export const AuthProvider = ({ children }) => {
     broadcastNotification,
     getUserInfo: () => user,
     getAllUsers: () => users,
-    isAuthenticated: () => !!user,
-    isAdmin: () => user?.role === 'admin',
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin',
     getProfile
   }), [user, users, loading, notifications, fetchUsers]);
 

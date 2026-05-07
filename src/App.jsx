@@ -14,9 +14,9 @@ import './App.css';
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isAdmin } = useAuth();
   
-  console.log('ProtectedRoute check - isAuthenticated:', isAuthenticated(), 'isAdmin:', isAdmin());
+  console.log('ProtectedRoute check - isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin);
   
-  return isAuthenticated() && isAdmin() ? children : <Navigate to="/login" replace />;
+  return isAuthenticated && isAdmin ? children : <Navigate to="/login" replace />;
 };
 
 function App() {

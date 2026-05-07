@@ -263,7 +263,7 @@ const AgentPanel = () => {
         ))}
       </div>
 
-      {isAuthenticated() && (
+      {isAuthenticated && (
         <UserSidebar 
           setActiveTab={setActiveTab}
           setShowProfileModal={setShowProfileModal}
@@ -278,7 +278,7 @@ const AgentPanel = () => {
         <div className="max-w-7xl mx-auto min-h-full">
           {/* Header */}
           <div className="mb-8">
-            {isAuthenticated() && (
+            {isAuthenticated && (
               <div className="text-left mb-4">
                 <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">
                   ¡Hola, {user?.displayName || user?.name || user?.username}! 👋

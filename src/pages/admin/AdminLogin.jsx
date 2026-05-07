@@ -35,7 +35,7 @@ const AdminLogin = () => {
 
   // Redireccionar si ya está autenticado
   useEffect(() => {
-    if (isAuthenticated()) {
+    if (isAuthenticated) {
       const user = getUserInfo?.();
       if (user?.role === 'admin') {
         navigate('/admin', { replace: true });
