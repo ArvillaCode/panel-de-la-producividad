@@ -14,29 +14,29 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log("[DEBUG] Ejecutando fetchUsers...");
       const { data, error } = await supabase.from('profiles').select('*');
-      
+
       if (error) {
         console.error("[DEBUG] Error en fetchUsers:", error.message);
         return;
       }
-      
+
       if (data) {
         console.log(`[DEBUG] Usuarios encontrados en DB: ${data.length}`);
         setUsers(data.map(p => ({
-          id: p.id, 
-          email: p.email, 
-          name: p.name, 
-          role: p.role, 
+          id: p.id,
+          email: p.email,
+          name: p.name,
+          role: p.role,
           status: p.status,
-          avatar: p.avatar_url, 
-          startDate: p.start_date, 
+          avatar: p.avatar_url,
+          startDate: p.start_date,
           endDate: p.end_date,
-          isApproved: p.is_approved, 
+          isApproved: p.is_approved,
           createdAt: p.created_at
         })));
       }
-    } catch (e) { 
-      console.error("[DEBUG] Excepción en fetchUsers:", e); 
+    } catch (e) {
+      console.error("[DEBUG] Excepción en fetchUsers:", e);
     }
   }, []);
 
@@ -45,9 +45,9 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (error) throw error;
       return data;
-    } catch (e) { 
+    } catch (e) {
       console.error("[DEBUG] Error en getProfile:", e.message);
-      return null; 
+      return null;
     }
   };
 
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     if (!session) return;
     try {
       const profile = await getProfile(session.user.id);
-      const fullUser = { 
+      const fullUser = {
         id: session.user.id,
         email: session.user.email,
         role: profile?.role || (session.user.email === 'admin@admin.com' ? 'admin' : 'user'),
@@ -117,28 +117,28 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const { email, password, name, role = 'user', startDate, endDate } = userData;
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
+      const { data, error } = await supabase.auth.signUp({
+        email,
         password,
         options: {
           data: { name, role }
         }
       });
-      
+
       if (error) return { success: false, error: error.message };
-      
+
       // El perfil se crea usualmente vía trigger en DB, pero si no, 
       // podrías insertarlo aquí si tienes permisos.
-      
+
       return { success: true, user: data.user };
     } catch (e) {
       return { success: false, error: e.message };
     }
   };
 
-  const logout = async () => { 
+  const logout = async () => {
     try {
-      await supabase.auth.signOut(); 
+      await supabase.auth.signOut();
     } catch (e) {
       console.error("Error signing out:", e);
     }
@@ -168,7 +168,7 @@ export const AuthProvider = ({ children }) => {
         end_date: updates.endDate,
         is_approved: updates.isApproved
       }).eq('id', userId);
-      
+
       if (error) throw error;
       fetchUsers();
       return { success: true };
@@ -181,10 +181,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const userToToggle = users.find(u => u.id === userId);
       if (!userToToggle) throw new Error("Usuario no encontrado");
-      
+
       const newStatus = userToToggle.status === 'active' ? 'inactive' : 'active';
       const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
-      
+
       if (error) throw error;
       fetchUsers();
       return { success: true, status: newStatus };
@@ -211,21 +211,68 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
+  const getNotifications = () => {
+    return notifications;
+  };
+
+  const markNotificationAsRead = (id) => {
+    setNotifications(prev =>
+      prev.map(n =>
+        n.id === id ? { ...n, read: true } : n
+      )
+    );
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev =>
+      prev.map(n => ({ ...n, read: true }))
+    );
+  };
+
+  const getUnreadNotificationsCount = () => {
+    return notifications.filter(n => !n.read).length;
+  };
+
+  const changePassword = async () => {
+    return { success: true };
+  };
+
+  const updateUser = async () => {
+    return { success: true };
+  };
+
+  const suggestAgent = async () => {
+    return { success: true };
+  };
+
   const value = useMemo(() => ({
-    user, 
-    users, 
-    loading, 
-    notifications, 
-    login, 
-    logout, 
+    user,
+    users,
+    loading,
+    notifications,
+
+    login,
+    logout,
     register,
+
     fetchUsers,
     deleteUserById,
     updateUserById,
     toggleUserStatus,
     expelUser,
+
     addNotification,
     broadcastNotification,
+
+    getNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    getUnreadNotificationsCount,
+
+    changePassword,
+    updateUser,
+    suggestAgent,
+
     getUserInfo: user,
     getAllUsers: users,
     isAuthenticated: !!user,
