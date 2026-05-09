@@ -88,15 +88,21 @@ export const AuthProvider = ({ children }) => {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("[DEBUG] Auth State Change:", event);
+
       if (session) {
-        await initializeUserData(session);
+        setTimeout(() => {
+          initializeUserData(session)
+            .finally(() => {
+              setLoading(false);
+            });
+        }, 0);
       } else {
         setUser(null);
         setUsers([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
@@ -202,7 +208,7 @@ export const AuthProvider = ({ children }) => {
   const addNotification = (userId, notification) => {
     const newNotification = { ...notification, id: Date.now(), timestamp: new Date().toISOString() };
     setNotifications(prev => [...prev, { ...newNotification, userId }]);
-    return { success: true };
+    return { success: false };
   };
 
   const broadcastNotification = (notification) => {
