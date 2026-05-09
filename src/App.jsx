@@ -34,32 +34,15 @@ function App() {
       <Router>
         <div className="App min-h-screen w-full">
           <Routes>
-            {/* Ruta principal - Página en Construcción */}
-            <Route path="/" element={<ComingSoon />} />
-            
-            {/* El panel original se mueve a /app */}
-            <Route path="/app" element={<AgentPanel />} />
-            
-            {/* Rutas administrativas y login general */}
+            <Route path="/" element={<AgentPanel />} />
+            <Route path="/coming-soon" element={<ComingSoon />} />
             <Route path="/login" element={<AdminLogin />} />
-            
-            {/* Rutas administrativas protegidas */}
-            <Route 
-              path="/admin/dashboard" 
-              element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/admin/users" 
-              element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/admin/agents" 
-              element={<ProtectedRoute><AdminAgents /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/admin/config" 
-              element={<ProtectedRoute><AdminConfig /></ProtectedRoute>} 
-            />
+
+            {/* Rutas administrativas protegidas - DESBLOQUEADAS para trabajo */}
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/agents" element={<AdminAgents />} />
+            <Route path="/admin/config" element={<AdminConfig />} />
             
             {/* Redirect /admin a /admin/dashboard */}
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

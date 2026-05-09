@@ -56,13 +56,15 @@ export const AuthProvider = ({ children }) => {
     try {
       const profile = await getProfile(session.user.id);
       
-      // Bloqueo si no está aprobado o está inactivo/baneado
+      // Bloqueo suspendido por petición del usuario para trabajo fluido
+      /*
       if (profile && (!profile.is_approved || profile.status !== 'active')) {
         console.warn("[DEBUG] Acceso denegado: Usuario no aprobado o inactivo.");
         await supabase.auth.signOut();
         setUser(null);
         return { success: false, error: !profile.is_approved ? "Tu cuenta está pendiente de aprobación." : "Tu cuenta ha sido suspendida." };
       }
+      */
 
       const fullUser = {
         id: session.user.id,
@@ -178,7 +180,7 @@ export const AuthProvider = ({ children }) => {
           status: 'active',
           start_date: startDate || null,
           end_date: endDate || null,
-          is_approved: role === 'admin' // Solo los admins se aprueban solos
+          is_approved: true // Auto-aprobación habilitada por petición del usuario
         });
 
         if (profileError) {
@@ -186,14 +188,9 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      await supabase.auth.signOut();
-      setUser(null);
-
       return { 
         success: true, 
-        message: role === 'admin' 
-          ? 'Cuenta creada exitosamente.' 
-          : 'Registro exitoso. Tu cuenta está en espera de aprobación por un administrador.' 
+        message: 'Cuenta creada y aprobada exitosamente.' 
       };
     } catch (e) {
       await supabase.auth.signOut();
