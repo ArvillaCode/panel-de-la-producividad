@@ -55,6 +55,15 @@ export const AuthProvider = ({ children }) => {
     if (!session) return;
     try {
       const profile = await getProfile(session.user.id);
+      
+      // Bloqueo si no está aprobado o está inactivo/baneado
+      if (profile && (!profile.is_approved || profile.status !== 'active')) {
+        console.warn("[DEBUG] Acceso denegado: Usuario no aprobado o inactivo.");
+        await supabase.auth.signOut();
+        setUser(null);
+        return { success: false, error: !profile.is_approved ? "Tu cuenta está pendiente de aprobación." : "Tu cuenta ha sido suspendida." };
+      }
+
       const fullUser = {
         id: session.user.id,
         email: session.user.email,
@@ -62,62 +71,84 @@ export const AuthProvider = ({ children }) => {
         name: profile?.name || session.user.email.split('@')[0],
         avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.email)}`,
         status: profile?.status || 'active',
-        isApproved: profile?.is_approved ?? true
+        isApproved: profile?.is_approved ?? true,
+        startDate: profile?.start_date,
+        endDate: profile?.end_date
       };
+      
       setUser(fullUser);
       if (fullUser.role === 'admin') {
         fetchUsers();
       }
+      return { success: true, user: fullUser };
     } catch (e) {
       console.error("[DEBUG] Error en initializeUserData:", e);
+      return { success: false, error: e.message };
     }
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const init = async () => {
       setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) await initializeUserData(session);
+        if (session && mounted) {
+          await initializeUserData(session);
+        }
       } catch (e) {
         console.error("[DEBUG] Error en init session:", e);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("[DEBUG] Auth State Change:", event);
 
       if (session) {
-        setTimeout(() => {
-          initializeUserData(session)
-            .finally(() => {
-              setLoading(false);
-            });
-        }, 0);
+        setLoading(true);
+        const result = await initializeUserData(session);
+        if (mounted) setLoading(false);
+        
+        // Si el login fue denegado por falta de aprobación, forzamos redirección manual si fuera necesario
+        if (result && !result.success && event === 'SIGNED_IN') {
+           // initializeUserData ya hace signOut()
+        }
       } else {
-        setUser(null);
-        setUsers([]);
-        setLoading(false);
+        if (mounted) {
+          setUser(null);
+          setUsers([]);
+          setLoading(false);
+        }
       }
     });
 
     return () => {
+      mounted = false;
       if (subscription) subscription.unsubscribe();
     };
   }, [fetchUsers]);
 
   const login = async (email, password) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { success: false, error: error.message };
-      return { success: true, user: data.user };
+      if (error) {
+        setLoading(false);
+        return { success: false, error: error.message };
+      }
+      
+      // initializeUserData se ejecutará por el onAuthStateChange, 
+      // pero aquí podemos validar si queremos devolver el error de aprobación de inmediato
+      const result = await initializeUserData(data.session);
+      setLoading(false);
+      return result;
     } catch (e) {
-      await supabase.auth.signOut();
-      setUser(null);
+      setLoading(false);
       return { success: false, error: e.message };
     }
   };
@@ -147,7 +178,7 @@ export const AuthProvider = ({ children }) => {
           status: 'active',
           start_date: startDate || null,
           end_date: endDate || null,
-          is_approved: role === 'admin'
+          is_approved: role === 'admin' // Solo los admins se aprueban solos
         });
 
         if (profileError) {
@@ -155,7 +186,15 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      return { success: true, user: data.user };
+      await supabase.auth.signOut();
+      setUser(null);
+
+      return { 
+        success: true, 
+        message: role === 'admin' 
+          ? 'Cuenta creada exitosamente.' 
+          : 'Registro exitoso. Tu cuenta está en espera de aprobación por un administrador.' 
+      };
     } catch (e) {
       await supabase.auth.signOut();
       setUser(null);
@@ -221,9 +260,17 @@ const toggleUserStatus = async (userId) => {
 };
 
 const expelUser = async (userId) => {
-  // En Supabase, esto requeriría invalidar sesiones vía Admin API.
-  // Simulamos éxito para la UI.
-  return { success: true };
+  try {
+    // Para expulsar a un usuario, marcamos su estado como inactivo.
+    // El sistema de auth (initializeUserData) lo sacará automáticamente en la siguiente comprobación.
+    const { error } = await supabase.from('profiles').update({ status: 'inactive' }).eq('id', userId);
+    if (error) throw error;
+    
+    fetchUsers();
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 };
 
 const addNotification = (userId, notification) => {

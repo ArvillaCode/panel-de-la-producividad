@@ -85,29 +85,6 @@ const AdminLogin = () => {
         throw new Error(result.error || 'Credenciales incorrectas');
       }
 
-      // Validar aprobación para usuarios normales
-      if (formData.email !== 'admin@admin.com') {
-        const profile = await getProfile(result.user.id);
-
-        console.log('[DEBUG] Perfil del usuario:', profile);
-
-        if (profile && !profile.is_approved) {
-          await logout();
-
-          throw new Error(
-            'Tu cuenta está registrada pero aún no ha sido aprobada por un administrador.'
-          );
-        }
-
-        if (profile && profile.status === 'inactive') {
-          await logout();
-
-          throw new Error(
-            'Tu cuenta está desactivada temporalmente.'
-          );
-        }
-      }
-
       // Recordar usuario
       if (rememberMe) {
         localStorage.setItem(

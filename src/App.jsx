@@ -13,9 +13,17 @@ import './App.css';
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, loading } = useAuth();
   
-  console.log('ProtectedRoute check - isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin);
+  console.log('ProtectedRoute check - loading:', loading, 'isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin);
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#020203] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
   
   return isAuthenticated && isAdmin ? children : <Navigate to="/login" replace />;
 };

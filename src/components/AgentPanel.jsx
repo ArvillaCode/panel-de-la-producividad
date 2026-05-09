@@ -42,18 +42,9 @@ const AgentPanel = () => {
   const { toggleFavorite, isFavorite, getFavoriteAgents } = useFavorites();
   const { theme, toggleTheme } = useTheme();
   const { 
-    user, 
-    isAuthenticated, 
-    logout, 
-    getNotifications, 
-    markNotificationAsRead, 
-    markAllNotificationsAsRead, 
-    getUnreadNotificationsCount,
-    changePassword,
-    updateUser,
-    suggestAgent,
     addNotification,
-    notifications: userNotifications
+    notifications: userNotifications,
+    loading: authLoading
   } = useAuth();
 
   const navigate = useNavigate();
@@ -250,6 +241,14 @@ const AgentPanel = () => {
       </button>
     </div>
   );
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
