@@ -116,6 +116,8 @@ export const AuthProvider = ({ children }) => {
       if (error) return { success: false, error: error.message };
       return { success: true, user: data.user };
     } catch (e) {
+      await supabase.auth.signOut();
+      setUser(null);
       return { success: false, error: e.message };
     }
   };
@@ -123,6 +125,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const { email, password, name, role = 'user', startDate, endDate } = userData;
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -131,162 +134,192 @@ export const AuthProvider = ({ children }) => {
         }
       });
 
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
 
-      // El perfil se crea usualmente vía trigger en DB, pero si no, 
-      // podrías insertarlo aquí si tienes permisos.
+      if (data.user) {
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email,
+          name,
+          role,
+          status: 'active',
+          start_date: startDate || null,
+          end_date: endDate || null,
+          is_approved: role === 'admin'
+        });
+
+        if (profileError) {
+          return { success: false, error: profileError.message };
+        }
+      }
+
+      await supabase.auth.signOut();
+      setUser(null);
 
       return { success: true, user: data.user };
     } catch (e) {
-      return { success: false, error: e.message };
-    }
-  };
-
-  const logout = async () => {
-    try {
       await supabase.auth.signOut();
-    } catch (e) {
-      console.error("Error signing out:", e);
-    }
-  };
+      setUser(null);
 
-  const deleteUserById = async (userId) => {
-    try {
-      // Nota: Eliminar de auth requiere permisos de service_role. 
-      // Generalmente se marca como inactivo en profiles.
-      const { error } = await supabase.from('profiles').delete().eq('id', userId);
-      if (error) throw error;
-      fetchUsers();
-      return { success: true };
-    } catch (e) {
       return { success: false, error: e.message };
     }
   };
+  // El perfil se crea usualmente vía trigger en DB, pero si no, 
+  // podrías insertarlo aquí si tienes permisos.
 
-  const updateUserById = async (userId, updates) => {
-    try {
-      const { error } = await supabase.from('profiles').update({
-        name: updates.name,
-        role: updates.role,
-        status: updates.status,
-        avatar_url: updates.avatar_url || updates.avatar,
-        start_date: updates.startDate,
-        end_date: updates.endDate,
-        is_approved: updates.isApproved
-      }).eq('id', userId);
-
-      if (error) throw error;
-      fetchUsers();
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+  return { success: true, user: data.user };
+} catch (e) {
+  return { success: false, error: e.message };
+}
   };
 
-  const toggleUserStatus = async (userId) => {
-    try {
-      const userToToggle = users.find(u => u.id === userId);
-      if (!userToToggle) throw new Error("Usuario no encontrado");
+const logout = async () => {
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    console.error("Error signing out:", e);
+  }
+};
 
-      const newStatus = userToToggle.status === 'active' ? 'inactive' : 'active';
-      const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
-
-      if (error) throw error;
-      fetchUsers();
-      return { success: true, status: newStatus };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  };
-
-  const expelUser = async (userId) => {
-    // En Supabase, esto requeriría invalidar sesiones vía Admin API.
-    // Simulamos éxito para la UI.
+const deleteUserById = async (userId) => {
+  try {
+    // Nota: Eliminar de auth requiere permisos de service_role. 
+    // Generalmente se marca como inactivo en profiles.
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) throw error;
+    fetchUsers();
     return { success: true };
-  };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+};
 
-  const addNotification = (userId, notification) => {
-    const newNotification = { ...notification, id: Date.now(), timestamp: new Date().toISOString() };
-    setNotifications(prev => [...prev, { ...newNotification, userId }]);
-    return { success: false };
-  };
+const updateUserById = async (userId, updates) => {
+  try {
+    const { error } = await supabase.from('profiles').update({
+      name: updates.name,
+      role: updates.role,
+      status: updates.status,
+      avatar_url: updates.avatar_url || updates.avatar,
+      start_date: updates.startDate,
+      end_date: updates.endDate,
+      is_approved: updates.isApproved
+    }).eq('id', userId);
 
-  const broadcastNotification = (notification) => {
-    const newNotification = { ...notification, id: Date.now(), timestamp: new Date().toISOString() };
-    setNotifications(prev => [...prev, { ...newNotification, target: 'all' }]);
+    if (error) throw error;
+    fetchUsers();
     return { success: true };
-  };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+};
 
-  const getNotifications = () => {
-    return notifications;
-  };
+const toggleUserStatus = async (userId) => {
+  try {
+    const userToToggle = users.find(u => u.id === userId);
+    if (!userToToggle) throw new Error("Usuario no encontrado");
 
-  const markNotificationAsRead = (id) => {
-    setNotifications(prev =>
-      prev.map(n =>
-        n.id === id ? { ...n, read: true } : n
-      )
-    );
-  };
+    const newStatus = userToToggle.status === 'active' ? 'inactive' : 'active';
+    const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev =>
-      prev.map(n => ({ ...n, read: true }))
-    );
-  };
+    if (error) throw error;
+    fetchUsers();
+    return { success: true, status: newStatus };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+};
 
-  const getUnreadNotificationsCount = () => {
-    return notifications.filter(n => !n.read).length;
-  };
+const expelUser = async (userId) => {
+  // En Supabase, esto requeriría invalidar sesiones vía Admin API.
+  // Simulamos éxito para la UI.
+  return { success: true };
+};
 
-  const changePassword = async () => {
-    return { success: true };
-  };
+const addNotification = (userId, notification) => {
+  const newNotification = { ...notification, id: Date.now(), timestamp: new Date().toISOString() };
+  setNotifications(prev => [...prev, { ...newNotification, userId }]);
+  return { success: false };
+};
 
-  const updateUser = async () => {
-    return { success: true };
-  };
+const broadcastNotification = (notification) => {
+  const newNotification = { ...notification, id: Date.now(), timestamp: new Date().toISOString() };
+  setNotifications(prev => [...prev, { ...newNotification, target: 'all' }]);
+  return { success: true };
+};
 
-  const suggestAgent = async () => {
-    return { success: true };
-  };
+const getNotifications = () => {
+  return notifications;
+};
 
-  const value = useMemo(() => ({
-    user,
-    users,
-    loading,
-    notifications,
+const markNotificationAsRead = (id) => {
+  setNotifications(prev =>
+    prev.map(n =>
+      n.id === id ? { ...n, read: true } : n
+    )
+  );
+};
 
-    login,
-    logout,
-    register,
+const markAllNotificationsAsRead = () => {
+  setNotifications(prev =>
+    prev.map(n => ({ ...n, read: true }))
+  );
+};
 
-    fetchUsers,
-    deleteUserById,
-    updateUserById,
-    toggleUserStatus,
-    expelUser,
+const getUnreadNotificationsCount = () => {
+  return notifications.filter(n => !n.read).length;
+};
 
-    addNotification,
-    broadcastNotification,
+const changePassword = async () => {
+  return { success: true };
+};
 
-    getNotifications,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-    getUnreadNotificationsCount,
+const updateUser = async () => {
+  return { success: true };
+};
 
-    changePassword,
-    updateUser,
-    suggestAgent,
+const suggestAgent = async () => {
+  return { success: true };
+};
 
-    getUserInfo: user,
-    getAllUsers: users,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    getProfile
-  }), [user, users, loading, notifications, fetchUsers]);
+const value = useMemo(() => ({
+  user,
+  users,
+  loading,
+  notifications,
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  login,
+  logout,
+  register,
+
+  fetchUsers,
+  deleteUserById,
+  updateUserById,
+  toggleUserStatus,
+  expelUser,
+
+  addNotification,
+  broadcastNotification,
+
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getUnreadNotificationsCount,
+
+  changePassword,
+  updateUser,
+  suggestAgent,
+
+  getUserInfo: user,
+  getAllUsers: users,
+  isAuthenticated: !!user,
+  isAdmin: user?.role === 'admin',
+  getProfile
+}), [user, users, loading, notifications, fetchUsers]);
+
+return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => useContext(AuthContext);

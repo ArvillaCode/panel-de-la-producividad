@@ -1,6 +1,6 @@
-// Build v2.5.1-force
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ComingSoon from './pages/ComingSoon';
 import AgentPanel from './components/AgentPanel';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -23,41 +23,44 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <ThemeProvider>
-        <Router>
-          <div className="App min-h-screen w-full">
-            <Routes>
-              {/* Ruta principal - Panel de Agentes */}
-              <Route path="/" element={<AgentPanel />} />
-              
-              {/* Rutas administrativas y login general */}
-              <Route path="/login" element={<AdminLogin />} />
-              
-              {/* Rutas administrativas protegidas - SIN ProtectedRoute para probar */}
-              <Route 
-                path="/admin/dashboard" 
-                element={<AdminDashboard />} 
-              />
-              <Route 
-                path="/admin/users" 
-                element={<AdminUsers />} 
-              />
-              <Route 
-                path="/admin/agents" 
-                element={<AdminAgents />} 
-              />
-              <Route 
-                path="/admin/config" 
-                element={<AdminConfig />} 
-              />
-              
-              {/* Redirect /admin a /admin/dashboard */}
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-              
-              {/* Ruta catch-all */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
-        </Router>
+      <Router>
+        <div className="App min-h-screen w-full">
+          <Routes>
+            {/* Ruta principal - Página en Construcción */}
+            <Route path="/" element={<ComingSoon />} />
+            
+            {/* El panel original se mueve a /app */}
+            <Route path="/app" element={<AgentPanel />} />
+            
+            {/* Rutas administrativas y login general */}
+            <Route path="/login" element={<AdminLogin />} />
+            
+            {/* Rutas administrativas protegidas */}
+            <Route 
+              path="/admin/dashboard" 
+              element={<AdminDashboard />} 
+            />
+            <Route 
+              path="/admin/users" 
+              element={<AdminUsers />} 
+            />
+            <Route 
+              path="/admin/agents" 
+              element={<AdminAgents />} 
+            />
+            <Route 
+              path="/admin/config" 
+              element={<AdminConfig />} 
+            />
+            
+            {/* Redirect /admin a /admin/dashboard */}
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            
+            {/* Ruta catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </Router>
     </ThemeProvider>
   );
 }
