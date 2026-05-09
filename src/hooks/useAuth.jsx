@@ -155,33 +155,21 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      await supabase.auth.signOut();
-      setUser(null);
-
       return { success: true, user: data.user };
     } catch (e) {
       await supabase.auth.signOut();
       setUser(null);
-
       return { success: false, error: e.message };
     }
   };
-  // El perfil se crea usualmente vía trigger en DB, pero si no, 
-  // podrías insertarlo aquí si tienes permisos.
 
-  return { success: true, user: data.user };
-} catch (e) {
-  return { success: false, error: e.message };
-}
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Error signing out:", e);
+    }
   };
-
-const logout = async () => {
-  try {
-    await supabase.auth.signOut();
-  } catch (e) {
-    console.error("Error signing out:", e);
-  }
-};
 
 const deleteUserById = async (userId) => {
   try {
@@ -241,7 +229,7 @@ const expelUser = async (userId) => {
 const addNotification = (userId, notification) => {
   const newNotification = { ...notification, id: Date.now(), timestamp: new Date().toISOString() };
   setNotifications(prev => [...prev, { ...newNotification, userId }]);
-  return { success: false };
+  return { success: true };
 };
 
 const broadcastNotification = (notification) => {

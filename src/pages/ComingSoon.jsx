@@ -59,6 +59,7 @@ const ComingSoon = () => {
             </button>
             
             <button 
+              onClick={() => alert('¡Gracias! Te avisaremos en cuanto el sistema esté listo.')}
               className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white/10 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
             >
               <Bell className="w-6 h-6 animate-push-bell" />

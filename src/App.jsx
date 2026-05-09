@@ -38,19 +38,19 @@ function App() {
             {/* Rutas administrativas protegidas */}
             <Route 
               path="/admin/dashboard" 
-              element={<AdminDashboard />} 
+              element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} 
             />
             <Route 
               path="/admin/users" 
-              element={<AdminUsers />} 
+              element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} 
             />
             <Route 
               path="/admin/agents" 
-              element={<AdminAgents />} 
+              element={<ProtectedRoute><AdminAgents /></ProtectedRoute>} 
             />
             <Route 
               path="/admin/config" 
-              element={<AdminConfig />} 
+              element={<ProtectedRoute><AdminConfig /></ProtectedRoute>} 
             />
             
             {/* Redirect /admin a /admin/dashboard */}
