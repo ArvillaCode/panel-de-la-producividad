@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { X, Sparkles, CheckCircle, AlertTriangle, ShieldCheck, Calendar, ChevronRight, Info, Shield } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useReleaseNotes } from '../hooks/useReleaseNotes';
