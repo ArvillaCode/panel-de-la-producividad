@@ -66,6 +66,7 @@ const AdminUsers = () => {
   const [selectedRows, setSelectedRows] = useState([]);
 
   useEffect(() => {
+    console.log("[DEBUG] AdminUsers montado. Llamando a fetchUsers...");
     fetchUsers();
     
     const handleKeyDown = (e) => {

@@ -112,7 +112,11 @@ const AdminDashboard = () => {
               {title}
             </p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              <Counter value={value} duration={1500} />
+              {typeof value === 'number' ? (
+                <Counter value={value} duration={1500} />
+              ) : (
+                value
+              )}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {description}

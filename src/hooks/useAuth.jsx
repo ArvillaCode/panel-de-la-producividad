@@ -12,17 +12,23 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUsers = useCallback(async () => {
     try {
-      console.log("[DEBUG] Ejecutando fetchUsers...");
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("[DEBUG] Iniciando fetchUsers. Usuario actual:", session?.user?.email);
+      
       const { data, error, status, statusText } = await supabase.from('profiles').select('*');
 
       if (error) {
-        console.error("[DEBUG] Error en fetchUsers:", error.message, "Status:", status);
+        console.error("[DEBUG] Error CRÍTICO en fetchUsers:", error.message, "Status:", status);
         return;
       }
 
-      console.log(`[DEBUG] Fetch completado. Status: ${status} (${statusText}). Registros: ${data?.length || 0}`);
-
-      if (data) {
+      console.log(`[DEBUG] Respuesta Supabase: Status ${status}. Registros encontrados: ${data?.length || 0}`);
+      
+      if (data && data.length > 0) {
+        console.log("[DEBUG] Mapeando usuarios:", data[0]);
+      } else {
+        console.warn("[DEBUG] La base de datos devolvió una lista VACÍA. Posible RLS bloqueando.");
+      }
         setUsers(data.map(p => ({
           id: p.id,
           email: p.email,
@@ -91,18 +97,32 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    console.log("[DEBUG] AdminUsers montado. Llamando a fetchUsers...");
     let mounted = true;
+    fetchUsers();
 
     const init = async () => {
       setLoading(true);
+      
+      // Seguridad: Timeout de 5 segundos para evitar bucles infinitos de carga
+      const timeout = setTimeout(() => {
+        if (mounted) {
+          console.warn("[DEBUG] Timeout de carga alcanzado. Forzando setLoading(false)");
+          setLoading(false);
+        }
+      }, 5000);
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("[DEBUG] Sesión recuperada:", session ? "Activa" : "Nula");
+        
         if (session && mounted) {
           await initializeUserData(session);
         }
       } catch (e) {
         console.error("[DEBUG] Error en init session:", e);
       } finally {
+        clearTimeout(timeout);
         if (mounted) setLoading(false);
       }
     };
@@ -114,11 +134,16 @@ export const AuthProvider = ({ children }) => {
 
       if (session) {
         setLoading(true);
+        const timeout = setTimeout(() => {
+          if (mounted) setLoading(false);
+        }, 5000);
+
         try {
           await initializeUserData(session);
         } catch (error) {
           console.error("[DEBUG] Error en onAuthStateChange init:", error);
         } finally {
+          clearTimeout(timeout);
           if (mounted) setLoading(false);
         }
       } else {
