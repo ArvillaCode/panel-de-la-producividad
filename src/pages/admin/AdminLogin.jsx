@@ -6,6 +6,7 @@ import {
   EyeOff,
   AlertTriangle,
   CheckCircle,
+  Check,
   Loader2 as Loader
 } from 'lucide-react';
 
@@ -39,8 +40,16 @@ const AdminLogin = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Redireccionar si ya está autenticado
+  // Redireccionar si ya está autenticado y manejar errores de URL
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlError = params.get('error');
+    if (urlError) {
+      setError(urlError);
+      // Limpiar el parámetro de la URL sin recargar
+      window.history.replaceState({}, document.title, location.pathname);
+    }
+
     if (isAuthenticated && user) {
       if (user.role === 'admin' || user.email === 'admin@admin.com') {
         navigate('/admin/dashboard', { replace: true });
@@ -48,7 +57,7 @@ const AdminLogin = () => {
         navigate('/', { replace: true });
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, location.search]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -117,159 +126,163 @@ const AdminLogin = () => {
 
   if (isRegistering) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-700">
+      <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-4 relative overflow-hidden pointer-events-auto">
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
+        </div>
 
-          <div className="text-center mb-6">
-            <Shield className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-
-            <h2 className="text-2xl font-bold text-white">
+        <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-700">
+          <div className="text-center mb-10">
+            <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 border border-blue-500/20 mb-6 shadow-2xl shadow-blue-500/10">
+              <Shield className="w-12 h-12 text-blue-500" />
+            </div>
+            <h2 className="text-3xl font-black text-white tracking-tight mb-2">
               Crear Cuenta
             </h2>
-
-            <p className="text-gray-400">
-              Regístrate para acceder
+            <p className="text-slate-400 font-medium">
+              Únete a la matriz de productividad <span className="text-blue-500 font-black">AI</span>
             </p>
           </div>
 
-          <RegisterForm
-            onSuccess={() => setIsRegistering(false)}
-            onCancel={() => setIsRegistering(false)}
-          />
+          <div className="bg-[#0f172a]/40 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-15px_rgba(0,0,0,0.5)] p-10 border border-white/10 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            
+            <RegisterForm
+              onSuccess={() => setIsRegistering(false)}
+              onCancel={() => setIsRegistering(false)}
+            />
 
-          <button
-            onClick={() => setIsRegistering(false)}
-            className="w-full mt-4 text-blue-400 text-sm hover:underline"
-          >
-            ¿Ya tienes cuenta? Inicia sesión
-          </button>
-
+            <div className="mt-8 pt-6 border-t border-white/5 text-center">
+              <button
+                onClick={() => setIsRegistering(false)}
+                className="text-slate-400 hover:text-white text-sm font-bold transition-all duration-300"
+              >
+                ¿Ya tienes cuenta? <span className="text-blue-500 underline underline-offset-4">Inicia sesión aquí</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-4 relative overflow-hidden pointer-events-auto">
+      {/* Dynamic Background Glows */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
 
-      <div className="w-full max-w-md">
-
-        <div className="text-center mb-8">
-          <Shield className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-
-          <h1 className="text-3xl font-bold text-white">
+      <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-700">
+        <div className="text-center mb-10">
+          <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 border border-blue-500/20 mb-6 shadow-2xl shadow-blue-500/10">
+            <Shield className="w-12 h-12 text-blue-500" />
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-tight mb-2">
             Iniciar Sesión
           </h1>
-
-          <p className="text-gray-400">
-            Panel de Productividad
+          <p className="text-slate-400 font-medium">
+            Panel de Productividad <span className="text-blue-500 font-black">AI</span>
           </p>
         </div>
 
-        <div className="bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-700">
-
+        <div className="bg-[#0f172a]/40 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-15px_rgba(0,0,0,0.5)] p-10 border border-white/10 relative overflow-hidden">
+          {/* Top accent line */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          
           {error && (
-            <div className="mb-4 p-3 bg-red-900/30 border border-red-500 text-red-200 rounded-lg text-sm flex items-start">
-              <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-              {error}
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-sm flex items-start animate-in slide-in-from-top-2">
+              <AlertTriangle className="w-4 h-4 mr-3 mt-0.5 flex-shrink-0" />
+              <span className="font-medium">{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-900/30 border border-green-500 text-green-200 rounded-lg text-sm flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              {success}
+            <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl text-sm flex items-center animate-in slide-in-from-top-2">
+              <CheckCircle className="w-4 h-4 mr-3" />
+              <span className="font-medium">{success}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Email
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
+                Email Corporativo
               </label>
-
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full bg-gray-700 border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="admin@ejemplo.com"
-                disabled={loading}
-              />
+              <div className="relative group">
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-5 py-4 text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-600"
+                  placeholder="admin@ejemplo.com"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
+            <div className="space-y-2">
+              <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
                 Contraseña
               </label>
-
-              <div className="relative">
-
+              <div className="relative group">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full bg-gray-700 border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-5 py-4 text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-600"
                   placeholder="••••••••"
                   disabled={loading}
                 />
-
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                 >
-                  {showPassword
-                    ? <EyeOff className="w-4 h-4" />
-                    : <Eye className="w-4 h-4" />
-                  }
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
-
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-
-              <label className="flex items-center text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="mr-2 rounded bg-gray-700 border-gray-600 text-blue-500"
-                />
-
-                Recordarme
+            <div className="flex items-center justify-between px-1">
+              <label className="flex items-center group cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="w-5 h-5 bg-slate-900 border border-white/10 rounded-lg peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all duration-300" />
+                  <Check className="absolute top-0.5 left-0.5 w-4 h-4 text-white scale-0 peer-checked:scale-100 transition-transform duration-300" />
+                </div>
+                <span className="ml-3 text-sm font-medium text-slate-400 group-hover:text-slate-200 transition-colors">Recordarme</span>
               </label>
-
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center"
+              className="w-full relative group overflow-hidden"
             >
-              {loading
-                ? <Loader className="w-5 h-5 animate-spin" />
-                : 'Entrar'
-              }
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110" />
+              <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)]">
+                {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Acceder al Sistema'}
+              </div>
             </button>
-
           </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-700 text-center">
-
+          <div className="mt-10 pt-8 border-t border-white/5 text-center">
             <button
               onClick={() => setIsRegistering(true)}
-              className="text-blue-400 hover:underline text-sm font-medium"
+              className="group text-slate-400 hover:text-white text-sm font-bold transition-all duration-300"
             >
-              ¿No tienes cuenta? Regístrate aquí
+              ¿Eres nuevo? <span className="text-blue-500 group-hover:underline underline-offset-4 decoration-2">Crea tu cuenta aquí</span>
             </button>
-
           </div>
-
         </div>
       </div>
     </div>

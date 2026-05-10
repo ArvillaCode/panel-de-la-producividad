@@ -12,6 +12,14 @@ const typeOptions = [
 
 const AdminReleases = () => {
   const { isAdmin } = useAuth();
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setIsEditing(false);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
   const [releases, setReleases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -152,8 +160,14 @@ const AdminReleases = () => {
         </div>
 
         {isEditing && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-500">
-            <div className="bg-[#0f172a]/90 backdrop-blur-2xl border border-slate-800/50 rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_25px_80px_rgba(0,0,0,0.5)]">
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-500"
+            onClick={() => setIsEditing(false)}
+          >
+            <div 
+              className="bg-[#0f172a]/90 backdrop-blur-2xl border border-slate-800/50 rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_25px_80px_rgba(0,0,0,0.5)]"
+              onClick={e => e.stopPropagation()}
+            >
               <div className="p-8 border-b border-slate-800/50 flex items-center justify-between bg-gradient-to-b from-[#1e293b]/20 to-transparent">
                 <h2 className="text-2xl font-bold text-white tracking-tight">
                   {currentRelease.id ? 'Editar Novedad' : 'Configurar Nueva Novedad'}
@@ -320,7 +334,7 @@ const AdminReleases = () => {
                   const TypeIcon = typeConfig.icon;
                   
                   return (
-                    <tr key={release.id} className="hover:bg-white/5 transition-all duration-300 group">
+                    <tr key={release.id} className="hover:bg-white/5 transition-all duration-300 group release-card-glow">
                       <td className="px-8 py-6">
                         <div className="flex flex-col">
                           <span className="font-black text-blue-400 tracking-widest text-base">V{release.version}</span>

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { X, Sparkles, CheckCircle, AlertTriangle, ShieldCheck, Calendar, ChevronRight, Info } from 'lucide-react';
 import { useReleaseNotes } from '../hooks/useReleaseNotes';
-import { Sparkles, CheckCircle, ShieldCheck, Calendar, ChevronRight, Info } from 'lucide-react';
 import ReleaseNotesModal from '../components/user/ReleaseNotesModal';
 
 const typeConfig = {
@@ -28,8 +28,8 @@ const ReleaseHistory = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-        <p className="text-gray-400 font-medium animate-pulse">Cargando historial de novedades...</p>
+        <div className="premium-spinner"></div>
+        <p className="text-[#94a3b8] font-medium animate-pulse">Sincronizando novedades premium...</p>
       </div>
     );
   }
@@ -65,7 +65,7 @@ const ReleaseHistory = () => {
                     : 'bg-slate-700 group-hover:bg-blue-400 group-hover:shadow-[0_0_10px_rgba(59,130,246,0.4)]'}`}>
                 </div>
                 
-                <div className="bg-[#0f172a]/70 backdrop-blur-xl border border-slate-800/50 rounded-[2rem] p-8 md:p-10 hover:bg-[#0f172a]/90 hover:border-blue-500/30 transition-all duration-500 cursor-pointer shadow-[0_18px_60px_rgba(0,0,0,0.35)] group/card"
+                <div className="bg-[#0f172a]/70 backdrop-blur-xl border border-slate-800/50 rounded-[2rem] p-8 md:p-10 hover:bg-[#0f172a]/90 hover:border-blue-500/30 transition-all duration-500 cursor-pointer shadow-[0_18px_60px_rgba(0,0,0,0.35)] group/card release-card-glow"
                      onClick={() => setSelectedRelease(release)}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                     <div className="flex flex-wrap items-center gap-3">

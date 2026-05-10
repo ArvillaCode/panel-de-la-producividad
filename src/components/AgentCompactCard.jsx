@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Heart, Star, Zap } from 'lucide-react';
+import { MessageCircle, Heart, Star, Zap, Shield } from 'lucide-react';
 import Avatar from './Avatar';
 
 const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) => {
@@ -10,9 +10,18 @@ const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay 
     window.open(chatGPTUrl, '_blank');
   };
 
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    e.currentTarget.style.setProperty('--x', `${x}%`);
+    e.currentTarget.style.setProperty('--y', `${y}%`);
+  };
+
   return (
     <div 
-      className="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500 border border-gray-100 dark:border-gray-700/50 p-4 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2"
+      className="agent-card group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-500 border border-white/20 dark:border-gray-700/30 p-4 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2"
+      onMouseMove={handleMouseMove}
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'both' }}
     >
       <div className="relative flex-shrink-0 group-hover:scale-110 transition-transform duration-500">

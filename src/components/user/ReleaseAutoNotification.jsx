@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useReleaseNotes } from '../../hooks/useReleaseNotes';
 import ReleaseNotesModal from './ReleaseNotesModal';
+import { useAuth } from '../../hooks/useAuth';
 
 const ReleaseAutoNotification = () => {
+  const { user } = useAuth();
   const { latestRelease, unreadCount, loading, markAsRead, allReleases } = useReleaseNotes();
   const [showModal, setShowModal] = useState(false);
   const [releaseToShow, setReleaseToShow] = useState(null);
 
   useEffect(() => {
+    if (!user) {
+      setShowModal(false);
+      return;
+    }
+    
     if (!loading && unreadCount > 0 && allReleases.length > 0) {
       // Find the first unread release (starting from the most recent)
       // Check if it hasn't been shown in this session (optional, but good for UX)

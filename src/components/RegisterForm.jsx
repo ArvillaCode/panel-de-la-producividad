@@ -46,9 +46,17 @@ const RegisterForm = ({ onSuccess, onCancel }) => {
 
     setLoading(true);
     try {
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + 1);
+
       const result = await register(formData.email, formData.password, { 
         name: formData.name,
-        role: 'user'
+        role: 'user',
+        status: 'pending',
+        is_approved: false,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
       });
       if (result.success) {
         setMessage('Solicitud enviada. Un administrador debe aprobar tu cuenta antes de que puedas iniciar sesión.');

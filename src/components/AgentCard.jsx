@@ -22,10 +22,22 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
     return colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };
 
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    e.currentTarget.style.setProperty('--x', `${x}%`);
+    e.currentTarget.style.setProperty('--y', `${y}%`);
+  };
+
   return (
     <div 
-      className="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4"
-      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'both' }}
+      className="agent-card group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-white/20 dark:border-gray-700/50 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4"
+      onMouseMove={handleMouseMove}
+      style={{ 
+        animationDelay: `${animationDelay}ms`, 
+        animationFillMode: 'both' 
+      }}
     >
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <button

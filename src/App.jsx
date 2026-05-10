@@ -22,13 +22,13 @@ const ProtectedRoute = ({ children }) => {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center gap-6">
-        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center gap-8">
+        <div className="premium-spinner"></div>
         <div className="text-center space-y-4">
-          <p className="text-gray-400 animate-pulse">Verificando sesión...</p>
+          <p className="text-blue-400/80 font-bold tracking-widest uppercase text-xs animate-pulse">Sincronizando Acceso Seguro</p>
           <button 
             onClick={() => window.location.href = '/login'}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-all"
+            className="px-6 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all border border-white/5"
           >
             ¿Demasiado tiempo? Volver al Login
           </button>
@@ -44,7 +44,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
-        <div className="App min-h-screen w-full">
+        <div className="App min-h-screen w-full relative z-0 pointer-events-auto">
           <ReleaseAutoNotification />
           <Routes>
             <Route path="/" element={<AgentPanel />} />

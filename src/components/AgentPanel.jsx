@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Grid, List, Star, Sun, Moon, Heart, Settings, LogIn, LogOut, Bell, X, User, Lock, Camera, Check, AlertTriangle, Info, MessageSquare, ChevronLeft, ChevronRight, Clock, Menu } from 'lucide-react';
+import { Search, Grid, List, Star, Sun, Moon, Heart, Settings, LogIn, LogOut, Bell, X, User, Lock, Camera, Check, AlertTriangle, Info, MessageSquare, ChevronLeft, ChevronRight, Clock, Menu, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { agents as defaultAgents, categories } from '../data/agents';
 import AgentCard from './AgentCard.jsx';
@@ -29,6 +29,15 @@ const AgentPanel = () => {
   const [suggestData, setSuggestData] = useState({ name: '', description: '' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('user-sidebar-collapsed');
+    return saved === 'true';
+  });
+
+  // Persistir estado del sidebar
+  useEffect(() => {
+    localStorage.setItem('user-sidebar-collapsed', isSidebarCollapsed);
+  }, [isSidebarCollapsed]);
 
   // Sistema de Toasts (Push Notifications)
   const [toasts, setToasts] = useState([]);
@@ -218,8 +227,9 @@ const AgentPanel = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col items-center justify-center gap-6">
+        <div className="premium-spinner"></div>
+        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Sincronizando panel premium...</p>
       </div>
     );
   }
@@ -227,9 +237,9 @@ const AgentPanel = () => {
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Toast Notifications Overlay */}
-      <div className="fixed top-5 right-5 z-[100] flex flex-col gap-2">
+      <div className="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => (
-          <div key={toast.id} className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border animate-in slide-in-from-right-full duration-300 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700">
+          <div key={toast.id} className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border animate-in slide-in-from-right-full duration-300 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 pointer-events-auto">
             {toast.type === 'success' ? <Check className="w-4 h-4 text-green-500" /> : <Info className="w-4 h-4 text-blue-500" />}
             <span className="text-sm font-medium text-gray-800 dark:text-white">{toast.message}</span>
           </div>
@@ -238,52 +248,82 @@ const AgentPanel = () => {
 
       {isAuthenticated && (
         <>
-          {/* Desktop Sidebar */}
-          <UserSidebar
-            setActiveTab={setActiveTab}
-            setShowProfileModal={setShowProfileModal}
-            setShowPasswordModal={setShowPasswordModal}
-            setShowNotifications={setShowNotifications}
-            setShowSuggestModal={setShowSuggestModal}
-          />
+          {/* Sidebar de Escritorio (LG+) */}
+          <aside 
+            className={`hidden lg:flex fixed left-0 top-0 h-screen z-40 transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}
+          >
+            <UserSidebar
+              setActiveTab={setActiveTab}
+              setShowProfileModal={setShowProfileModal}
+              setShowPasswordModal={setShowPasswordModal}
+              setShowNotifications={setShowNotifications}
+              setShowSuggestModal={setShowSuggestModal}
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+            />
+          </aside>
 
-          {/* Mobile Drawer Sidebar */}
+          {/* Drawer de Móvil (Móvil/Tablet < LG) */}
           {isMobileMenuOpen && (
-            <div className="fixed inset-0 z-[100] md:hidden">
+            <div className="lg:hidden fixed inset-0 z-50">
               <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300"
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300"
                 onClick={() => setIsMobileMenuOpen(false)}
               />
-              <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-white dark:bg-gray-800 shadow-2xl animate-in slide-in-from-left duration-300 ease-out border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                  <span className="font-bold text-gray-900 dark:text-white">Menú</span>
-                  <button
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <div onClick={() => setIsMobileMenuOpen(false)}>
-                  <UserSidebar
-                    isMobile={true}
-                    setActiveTab={setActiveTab}
-                    setShowProfileModal={setShowProfileModal}
-                    setShowPasswordModal={setShowPasswordModal}
-                    setShowNotifications={setShowNotifications}
-                    setShowSuggestModal={setShowSuggestModal}
-                  />
-                </div>
-              </div>
+              <aside className="relative h-full w-[280px] bg-[#07080d] border-r border-white/10 shadow-2xl animate-in slide-in-from-left duration-300">
+                <UserSidebar
+                  isMobile={true}
+                  setActiveTab={setActiveTab}
+                  setShowProfileModal={setShowProfileModal}
+                  setShowPasswordModal={setShowPasswordModal}
+                  setShowNotifications={setShowNotifications}
+                  setShowSuggestModal={setShowSuggestModal}
+                  onCloseMobile={() => setIsMobileMenuOpen(false)}
+                />
+              </aside>
             </div>
           )}
         </>
       )}
 
-      <div className="flex-1 w-full max-w-full overflow-x-hidden p-3 sm:p-6 relative">
-        <div className="max-w-7xl mx-auto min-h-full">
+      {/* Contenido Principal */}
+      <main className={`flex-1 w-full min-h-screen relative z-0 transition-all duration-300 ${isAuthenticated ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
+        <div className="max-w-7xl mx-auto p-3 sm:p-6 min-h-full relative">
+          {/* Desktop Top Bar (Hidden on Mobile) */}
+          <div className="hidden lg:flex items-center justify-between mb-8 pb-4 border-b border-gray-100/50 dark:border-gray-800/50">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <span className="font-black text-xl tracking-tight dark:text-white uppercase italic">
+                AI<span className="text-blue-600">PANEL</span>
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {!isAuthenticated && (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-2 px-8 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-white rounded-2xl text-xs font-black tracking-[0.2em] uppercase shadow-xl hover:shadow-blue-500/10 border border-gray-100 dark:border-gray-700 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <LogIn className="w-4 h-4 text-blue-600" />
+                  Iniciar Sesión
+                </button>
+              )}
+              {isAuthenticated && (
+                <button
+                  onClick={() => setShowNotifications(true)}
+                  className="relative p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white hover:scale-105 transition-all"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Header Mobile Toggle */}
-          <div className="md:hidden flex items-center justify-between mb-4 px-1">
+          <div className="lg:hidden flex items-center justify-between mb-4 px-1">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white"
@@ -291,37 +331,110 @@ const AgentPanel = () => {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowNotifications(true)}
-                className="relative p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
-              </button>
+              {isAuthenticated ? (
+                <button
+                  onClick={() => setShowNotifications(true)}
+                  className="relative p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-black tracking-widest uppercase shadow-lg shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Acceder
+                </button>
+              )}
             </div>
           </div>
           {/* Header */}
-          <div className="mb-6 md:mb-8 text-center md:text-left">
+          <div className="mb-10 md:mb-16 text-center md:text-left">
+            {!isAuthenticated && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">+50 Agentes Activos para tu Empresa</span>
+              </div>
+            )}
+
             {isAuthenticated && (
-              <div className="hidden md:block mb-4">
-                <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">
-                  ¡Hola, {profile?.name || user?.email?.split('@')[0] || 'Usuario'}! 👋
+              <div className="hidden md:block mb-6">
+                <h2 className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">
+                  ¡Hola, {profile?.name || user?.email?.split('@')[0] || 'Líder'}! 👋
                 </h2>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Tu matriz de productividad: maximiza tu rendimiento con IA
+                <p className="text-lg text-gray-600 dark:text-gray-300 font-medium">
+                  Has recuperado <span className="text-blue-600 dark:text-blue-400 font-bold">4.2 horas</span> esta semana. ¿Qué delegaremos hoy?
                 </p>
               </div>
             )}
 
-            <h1 className="text-4xl md:text-5xl font-extrabold mb-2 md:mb-4 tracking-tight">
+            <h1 className="text-5xl md:text-7xl font-black mb-6 md:mb-8 tracking-tighter leading-[0.95]">
+              <span className="block text-gray-900 dark:text-white">Delega tu esfuerzo,</span>
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
-                Panel de Productividad
+                potencia tus resultados
               </span>
             </h1>
-            <p className="text-sm md:text-lg text-gray-600 dark:text-gray-400 font-medium">
-              Explora <span className="text-blue-600 dark:text-blue-400 font-bold">{agents.filter(a => a.visible !== false).length}</span> agentes especializados con IA avanzada
-            </p>
+            
+            <div className="max-w-2xl">
+              <p className="text-lg md:text-2xl text-gray-600 dark:text-gray-400 font-medium leading-relaxed mb-8">
+                Convierte <span className="text-red-500 line-through decoration-2">8 horas</span> de trabajo manual en <span className="text-green-600 dark:text-green-400 font-bold underline decoration-4 underline-offset-4">12 minutos</span> de precisión algorítmica. La matriz definitiva para escalar tu productividad al <span className="bg-blue-600 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">300%</span>.
+              </p>
+              
+              {!isAuthenticated && (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="group relative flex items-center gap-4 px-10 py-5 bg-gray-900 dark:bg-white rounded-[2rem] shadow-2xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-500"
+                >
+                  <div className="absolute inset-0 bg-blue-600 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none" />
+                  <span className="relative text-white dark:text-gray-900 font-black tracking-widest uppercase text-sm">Acceder a la herramienta</span>
+                  <div className="relative p-2 bg-blue-600 rounded-full text-white">
+                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Testimonials (Solo si no está autenticado) */}
+          {!isAuthenticated && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+              <div className="p-8 bg-white/50 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] border border-white/20 shadow-xl">
+                <div className="flex gap-1 mb-4 text-yellow-500"><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/></div>
+                <p className="text-gray-700 dark:text-gray-300 font-medium italic mb-6 leading-relaxed">"Reduje mi tiempo de redacción técnica de 15 horas semanales a solo 45 minutos. Los agentes no solo escriben, razonan el contexto."</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/20 flex items-center justify-center font-bold text-blue-600">RP</div>
+                  <div>
+                    <p className="font-black text-gray-900 dark:text-white text-sm">Ricardo P.</p>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">+220% Eficiencia Operativa</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-8 bg-white/50 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] border border-white/20 shadow-xl">
+                <div className="flex gap-1 mb-4 text-yellow-500"><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/></div>
+                <p className="text-gray-700 dark:text-gray-300 font-medium italic mb-6 leading-relaxed">"Gestionamos 3 proyectos simultáneos con el mismo equipo. El retorno de inversión (ROI) se pagó en los primeros 12 días de uso."</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-600/20 border border-purple-500/20 flex items-center justify-center font-bold text-purple-600">ML</div>
+                  <div>
+                    <p className="font-black text-gray-900 dark:text-white text-sm">Marta L.</p>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">$2,400 Ahorro Mensual</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-8 bg-white/50 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] border border-white/20 shadow-xl">
+                <div className="flex gap-1 mb-4 text-yellow-500"><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/></div>
+                <p className="text-gray-700 dark:text-gray-300 font-medium italic mb-6 leading-relaxed">"La precisión de los agentes de soporte eliminó el 90% de los tickets repetitivos. Liberé a mi equipo para tareas creativas de alto valor."</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center font-bold text-indigo-600">JS</div>
+                  <div>
+                    <p className="font-black text-gray-900 dark:text-white text-sm">Jorge S.</p>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">-90% Carga Administrativa</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Controls - Glassmorphism Effect */}
           <div className="bg-white/70 dark:bg-gray-800/70 rounded-3xl shadow-2xl p-5 md:p-8 mb-8 md:mb-12 border border-white/20 dark:border-gray-700/30 backdrop-blur-2xl transition-all duration-500 hover:shadow-blue-500/5">
@@ -473,12 +586,12 @@ const AgentPanel = () => {
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {/* Notifications Sidebar */}
       {showNotifications && (
-        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setShowNotifications(false)}>
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" />
+        <div className="fixed inset-0 z-[120] flex justify-end" onClick={() => setShowNotifications(false)}>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300 pointer-events-none" />
           <div className="relative w-full max-w-sm h-full bg-white dark:bg-gray-800 shadow-2xl animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
             <div className="p-6 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">

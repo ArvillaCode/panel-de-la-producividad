@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, name, role, avatar_url, status, is_approved, created_at')
+        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at')
         .order('created_at', { ascending: false });
       
       if (!error) setUsers(data || []);
@@ -28,10 +28,9 @@ export const AuthProvider = ({ children }) => {
 
   const syncUserSession = useCallback(async (session) => {
     try {
-      if (!session?.user) {
+      if (!session) {
         setUser(null);
         setProfile(null);
-        setLoading(false);
         return;
       }
 
@@ -40,7 +39,7 @@ export const AuthProvider = ({ children }) => {
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, name, role, avatar_url, status, is_approved, created_at')
+        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at')
         .eq('id', currentUser.id)
         .single();
 
@@ -48,6 +47,34 @@ export const AuthProvider = ({ children }) => {
         console.error('[AUTH] Profile sync error:', profileError.message);
         setProfile({ id: currentUser.id, email: currentUser.email, role: 'user' });
       } else {
+        // 1. Determinar estados de acceso
+        const isApproved = profileData.is_approved === true;
+        const status = profileData.status || 'pending';
+        const userIsAdmin = profileData.role === 'admin' || currentUser.email === 'admin@admin.com';
+        const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
+
+        // 2. Validación forzosa de acceso (excepto para admins)
+        if (!userIsAdmin && (status !== 'active' || !isApproved || isExpired)) {
+          let reason = 'Tu cuenta no tiene acceso permitido.';
+          if (status === 'pending') reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
+          if (status === 'rejected') reason = 'Tu solicitud fue denegada.';
+          if (status === 'inactive') reason = 'Tu cuenta fue expulsada o desactivada.';
+          if (isExpired) reason = 'Tu suscripción ha expirado.';
+
+          console.warn(`[AUTH] Acceso denegado (${status}): ${reason}`);
+          
+          // Limpiar estados locales inmediatamente para evitar flashes
+          setUser(null);
+          setProfile(null);
+
+          // Cerrar sesión en Supabase (esto disparará otro evento auth nulo)
+          await supabase.auth.signOut();
+          
+          // Redirigir con mensaje
+          window.location.href = `/login?error=${encodeURIComponent(reason)}`;
+          return;
+        }
+
         setProfile(profileData);
       }
 
@@ -63,16 +90,39 @@ export const AuthProvider = ({ children }) => {
     }
   }, [fetchUsers]);
 
+  // Failsafe para el estado de carga infinito
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      syncUserSession(session);
-    });
+    let timer;
+    if (loading) {
+      timer = setTimeout(() => {
+        console.warn('[AUTH] Safety timeout: forzando loading=false para evitar spinner infinito');
+        setLoading(false);
+      }, 6000); // 6 segundos de margen
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    // Escuchar cambios en la sesión
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await syncUserSession(session);
+      } catch (err) {
+        console.error('[AUTH] Initial session fetch error:', err);
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       syncUserSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
   }, [syncUserSession]);
 
   const login = async (email, password) => {
@@ -107,16 +157,32 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUserById = async (id, data) => {
-    // Protección del último administrador
+    // Protección del último administrador (Regla 8)
     const targetUser = users.find(u => u.id === id);
-    if (targetUser?.role === 'admin' && data.role === 'user') {
-      const adminCount = users.filter(u => u.role === 'admin').length;
-      if (adminCount <= 1) {
-        return { success: false, error: 'No se puede degradar al último administrador del sistema.' };
+    const adminCount = users.filter(u => u.role === 'admin').length;
+
+    if (targetUser?.role === 'admin' && adminCount <= 1) {
+      const isDowngrading = data.role === 'user';
+      const isExpelling = data.status === 'inactive' || data.status === 'rejected' || data.is_approved === false;
+      
+      if (isDowngrading || isExpelling) {
+        return { success: false, error: 'No puedes eliminar, expulsar, denegar o degradar al último administrador del sistema.' };
       }
     }
 
-    const { error } = await supabase.from('profiles').update(data).eq('id', id);
+    // Lógica de fechas automáticas al aceptar (Regla 4)
+    let finalData = { ...data };
+    if (data.status === 'active' && data.is_approved === true) {
+      if (!targetUser?.start_date || !targetUser?.end_date) {
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setFullYear(endDate.getFullYear() + 1);
+        finalData.start_date = startDate.toISOString();
+        finalData.end_date = endDate.toISOString();
+      }
+    }
+
+    const { error } = await supabase.from('profiles').update(finalData).eq('id', id);
     if (!error) {
       fetchUsers();
       return { success: true };
@@ -124,36 +190,30 @@ export const AuthProvider = ({ children }) => {
     return { success: false, error: error.message };
   };
 
-  const deleteUserById = async (id) => {
+  const deleteUser = async (id) => {
     // Protección del último administrador
     const targetUser = users.find(u => u.id === id);
     if (targetUser?.role === 'admin') {
       const adminCount = users.filter(u => u.role === 'admin').length;
       if (adminCount <= 1) {
-        return { success: false, error: 'No se puede eliminar al último administrador del sistema.' };
+        return { success: false, error: 'No puedes eliminar al último administrador del sistema.' };
       }
     }
 
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (!error) {
-      fetchUsers();
+      await fetchUsers();
       return { success: true };
     }
     return { success: false, error: error.message };
   };
 
-  const toggleUserStatus = async (id, currentStatus) => {
-    // Protección del último administrador (no desactivar si es el único admin)
-    const targetUser = users.find(u => u.id === id);
-    if (targetUser?.role === 'admin') {
-      const adminCount = users.filter(u => u.role === 'admin').length;
-      if (adminCount <= 1) {
-        return { success: false, error: 'No se puede desactivar al último administrador del sistema.' };
-      }
-    }
+  const deleteUserById = deleteUser;
 
-    console.warn('[AUTH] toggleUserStatus: Columna "status" no existe en Supabase.');
-    return { success: false, error: 'Funcionalidad no disponible (Esquema limitado)' };
+  const toggleUserStatus = async (id, currentStatus) => {
+    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const isApproved = nextStatus === 'active';
+    return updateUserById(id, { status: nextStatus, is_approved: isApproved });
   };
 
   const markNotificationAsRead = (id) => {
@@ -186,8 +246,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const expelUser = async (id) => {
-    console.warn('[AUTH] expelUser: Columna "status" no existe en Supabase.');
-    return { success: false, error: 'Funcionalidad no disponible (Esquema limitado)' };
+    return updateUserById(id, { status: 'inactive', is_approved: false });
   };
 
   const value = {

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Sparkles, CheckCircle, AlertTriangle, ShieldCheck, Calendar } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { X, Sparkles, CheckCircle, ShieldCheck, Calendar } from 'lucide-react';
 
 const typeConfig = {
   improvement: { icon: CheckCircle, color: 'text-blue-400', bg: 'bg-blue-400/10', label: 'Mejora' },
@@ -9,6 +9,14 @@ const typeConfig = {
 };
 
 const ReleaseNotesModal = ({ release, onClose, onMarkAsRead }) => {
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   if (!release) return null;
 
   const config = typeConfig[release?.type] || typeConfig.improvement;
@@ -33,8 +41,14 @@ const ReleaseNotesModal = ({ release, onClose, onMarkAsRead }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-500">
-      <div className="relative w-full max-w-2xl bg-[#0f172a]/80 backdrop-blur-2xl border border-slate-800/50 rounded-[2.5rem] shadow-[0_25px_80px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-500">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-500"
+      onClick={onClose}
+    >
+      <div 
+        className="relative w-full max-w-2xl bg-[#0f172a]/80 backdrop-blur-2xl border border-slate-800/50 rounded-[2.5rem] shadow-[0_25px_80px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-500"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Decorative Top Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
 
@@ -118,6 +132,4 @@ const ReleaseNotesModal = ({ release, onClose, onMarkAsRead }) => {
   );
 };
 
-
 export default ReleaseNotesModal;
-

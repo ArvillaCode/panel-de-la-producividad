@@ -516,11 +516,11 @@ const AdminUsers = () => {
 
         {/* Filters and List */}
         {authLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div className="w-12 h-12 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando usuarios...</p>
-          </div>
-        ) : (
+  <div className="flex flex-col items-center justify-center min-h-[400px] gap-6">
+    <div className="premium-spinner"></div>
+    <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Cargando gestión de usuarios premium...</p>
+  </div>
+) : (
           <>
             {/* Notifications Bar */}
             <div className="flex justify-between items-center bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4 mb-6">
@@ -703,61 +703,79 @@ const AdminUsers = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end gap-2">
-                                {((!user.is_approved || user.status === 'pending') || (user.status === 'inactive' || user.status === 'rejected')) && (
+                                {/* 1. Aceptar usuario (Pendientes) */}
+                                {(user.status === 'pending' || !user.is_approved) && (
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateUserQuick(user, { status: 'active', is_approved: true })}
                                     title="Aceptar usuario"
                                     aria-label="Aceptar usuario"
-                                    className="p-1 rounded-md text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                                    className="p-1.5 rounded-md text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 transition-colors"
                                   >
                                     <Check className="w-4 h-4" />
                                   </button>
                                 )}
 
-                                {(!user.is_approved || user.status === 'pending') && (
+                                {/* 2. Denegar usuario (Pendientes) */}
+                                {(user.status === 'pending') && (
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateUserQuick(user, { status: 'rejected', is_approved: false })}
                                     disabled={user.role === 'admin' && adminCount === 1}
-                                    title={user.role === 'admin' && adminCount === 1 ? "No puedes eliminar, expulsar o degradar el último administrador del sistema." : "Denegar usuario"}
+                                    title={user.role === 'admin' && adminCount === 1 ? "No puedes denegar al único administrador" : "Denegar usuario"}
                                     aria-label="Denegar usuario"
-                                    className={`p-1 rounded-md text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20 ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`p-1.5 rounded-md text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20 transition-colors ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     <X className="w-4 h-4" />
                                   </button>
                                 )}
 
+                                {/* 3. Editar usuario */}
                                 <button
                                   type="button"
                                   onClick={() => handleEditUser(user)}
                                   title="Editar usuario"
                                   aria-label="Editar usuario"
-                                  className="p-1 rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                                  className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
 
-                                {user.status === 'active' && (
+                                {/* 4. Reactivar usuario (Inactivos/Denegados) */}
+                                {(user.status === 'inactive' || user.status === 'rejected' || user.status === 'expired') && (
                                   <button
                                     type="button"
-                                    onClick={() => handleUpdateUserQuick(user, { status: 'inactive' })}
+                                    onClick={() => handleUpdateUserQuick(user, { status: 'active', is_approved: true })}
+                                    title="Reactivar usuario"
+                                    aria-label="Reactivar usuario"
+                                    className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors"
+                                  >
+                                    <Play className="w-4 h-4" />
+                                  </button>
+                                )}
+
+                                {/* 5. Expulsar usuario (Activos) */}
+                                {(user.status === 'active' && user.is_approved) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateUserQuick(user, { status: 'inactive', is_approved: false })}
                                     disabled={user.role === 'admin' && adminCount === 1}
-                                    title={user.role === 'admin' && adminCount === 1 ? "No puedes eliminar, expulsar o degradar el último administrador del sistema." : "Expulsar usuario"}
+                                    title={user.role === 'admin' && adminCount === 1 ? "No puedes expulsar al único administrador" : "Expulsar usuario"}
                                     aria-label="Expulsar usuario"
-                                    className={`p-1 rounded-md text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`p-1.5 rounded-md text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-colors ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     <Pause className="w-4 h-4" />
                                   </button>
                                 )}
 
+                                {/* 6. Eliminar usuario */}
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteUser(user)}
                                   disabled={user.role === 'admin' && adminCount === 1}
-                                  title={user.role === 'admin' && adminCount === 1 ? "No puedes eliminar, expulsar o degradar el último administrador del sistema." : "Eliminar usuario"}
+                                  title={user.role === 'admin' && adminCount === 1 ? "No puedes eliminar al único administrador" : "Eliminar usuario"}
                                   aria-label="Eliminar usuario"
-                                  className={`p-1 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
