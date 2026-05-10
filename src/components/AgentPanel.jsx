@@ -399,16 +399,27 @@ const AgentPanel = () => {
           {/* Controls - Glassmorphism Effect */}
           <div className="bg-white/70 dark:bg-gray-800/70 rounded-3xl shadow-2xl p-5 md:p-8 mb-8 md:mb-12 border border-white/20 dark:border-gray-700/30 backdrop-blur-2xl transition-all duration-500 hover:shadow-blue-500/5">
             <div className="flex flex-col gap-4 md:gap-6">
-              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-                <div className="relative w-full sm:flex-1 max-w-md">
-                  <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4.5 h-4.5" />
-                  <input
-                    type="text"
-                    placeholder="Buscar agentes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 md:py-3.5 text-sm md:text-base border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white/50 dark:bg-gray-900/50 dark:text-white transition-all outline-none shadow-inner"
-                  />
+                <div className="flex flex-col sm:flex-row w-full gap-3 items-center">
+                  <div className="relative w-full sm:flex-1 max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4.5 h-4.5" />
+                    <input
+                      type="text"
+                      placeholder="Buscar agentes..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 text-sm border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white/50 dark:bg-gray-900/50 dark:text-white transition-all outline-none shadow-inner"
+                    />
+                  </div>
+
+                  {isAdmin && (
+                    <button 
+                      onClick={() => window.location.href = '/admin'}
+                      className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold transition-all hover:bg-blue-500 shadow-xl shadow-blue-600/20"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Panel Admin
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex w-full sm:w-auto gap-3 items-center">

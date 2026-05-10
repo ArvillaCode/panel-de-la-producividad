@@ -13,8 +13,16 @@ export const useReleaseNotes = () => {
   const fetchReleases = useCallback(async () => {
     setLoading(true);
     setError(null);
+    
+    // Timeout de seguridad de 5 segundos
+    const timeout = setTimeout(() => {
+      setLoading(false);
+      if (allReleases.length === 0) {
+        setError('Tiempo de espera agotado al conectar con el servidor.');
+      }
+    }, 5000);
+
     try {
-      // Fetch visible releases
       const { data: releases, error: releasesError } = await supabase
         .from('release_notes')
         .select('*')
@@ -28,7 +36,6 @@ export const useReleaseNotes = () => {
         setLatestRelease(releases[0]);
       }
 
-      // If user is logged in, check which ones are read
       if (user) {
         const { data: readData, error: readError } = await supabase
           .from('user_release_reads')
@@ -45,9 +52,10 @@ export const useReleaseNotes = () => {
       console.error('[useReleaseNotes] Error:', err);
       setError(err.message);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, allReleases.length]);
 
   const markAsRead = async (releaseId) => {
     if (!user) return;

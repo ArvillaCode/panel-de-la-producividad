@@ -79,36 +79,45 @@ const AdminAgents = () => {
 
   const handleUpdateSuggestionStatus = async (id, status) => {
     setLoading(true);
-    const suggestion = suggestions.find(s => s.id === id);
-    const { error } = await supabase
-      .from('agent_suggestions')
-      .update({ status })
-      .eq('id', id);
+    setError('');
     
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess(`Sugerencia ${status === 'approved' ? 'aprobada' : 'rechazada'} correctamente`);
+    // Encontrar la sugerencia antes de actualizar para tener el user_id
+    const suggestion = suggestions.find(s => s.id === id);
+    
+    try {
+      const { error } = await supabase
+        .from('agent_suggestions')
+        .update({ status })
+        .eq('id', id);
       
+      if (error) throw error;
+
       // Notificar al usuario (Regla 10)
-      if (suggestion?.user_id) {
+      if (suggestion && suggestion.user_id) {
         await sendUserNotification(suggestion.user_id, {
           title: status === 'approved' ? '¡Sugerencia Aprobada! 🎉' : 'Sugerencia Revisada',
           message: status === 'approved' 
-            ? `Tu sugerencia "${suggestion.name}" ha sido aprobada e integrada al sistema.`
-            : `Gracias por tu sugerencia "${suggestion.name}". Lamentablemente no podemos integrarla en este momento.`,
+            ? `Tu sugerencia para "${suggestion.name}" ha sido aprobada e integrada al sistema.`
+            : `Gracias por tu sugerencia "${suggestion.name}". Ha sido revisada por el equipo administrativo.`,
           type: status === 'approved' ? 'success' : 'info'
         });
       }
 
+      setSuccess(`Sugerencia ${status === 'approved' ? 'aprobada' : 'rechazada'} correctamente`);
       fetchSuggestions();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDeleteSuggestion = async (id) => {
     if (!window.confirm('¿Eliminar esta sugerencia permanentemente?')) return;
-    setLoadingSuggestions(true); // Usar el loading específico para evitar flasheos del otro
+    
+    setLoadingSuggestions(true);
+    setError('');
+    
     try {
       const { error } = await supabase
         .from('agent_suggestions')
@@ -118,9 +127,11 @@ const AdminAgents = () => {
       if (error) throw error;
       
       setSuccess('Sugerencia eliminada correctamente');
+      // Actualización inmediata del estado local para evitar el flash
       setSuggestions(prev => prev.filter(s => s.id !== id));
     } catch (err) {
-      setError(err.message);
+      console.error('Error deleting suggestion:', err);
+      setError('No se pudo eliminar la sugerencia');
     } finally {
       setLoadingSuggestions(false);
     }

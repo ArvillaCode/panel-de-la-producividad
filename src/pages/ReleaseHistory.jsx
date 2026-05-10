@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X, Sparkles, CheckCircle, AlertTriangle, ShieldCheck, Calendar, ChevronRight, Info } from 'lucide-react';
+import { X, Sparkles, CheckCircle, AlertTriangle, ShieldCheck, Calendar, ChevronRight, Info, Shield } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import { useReleaseNotes } from '../hooks/useReleaseNotes';
 import ReleaseNotesModal from '../components/user/ReleaseNotesModal';
 
@@ -11,6 +11,7 @@ const typeConfig = {
 };
 
 const ReleaseHistory = () => {
+  const { isAdmin } = useAuth();
   const { allReleases, loading, error, fetchReleases, markAsRead } = useReleaseNotes();
   const [selectedRelease, setSelectedRelease] = useState(null);
 
@@ -65,8 +66,8 @@ const ReleaseHistory = () => {
   return (
     <div className="min-h-screen bg-[#030712] text-[#f8fafc] selection:bg-blue-500/30">
       <div className="max-w-4xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {/* Back Button */}
-        <div className="mb-8">
+        {/* Navigation Buttons */}
+        <div className="flex items-center justify-between mb-8">
           <button 
             onClick={() => window.history.back()}
             className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-sm font-bold transition-all border border-white/5"
@@ -74,6 +75,16 @@ const ReleaseHistory = () => {
             <ChevronRight className="w-4 h-4 rotate-180" />
             Volver al Panel
           </button>
+
+          {isAdmin && (
+            <button 
+              onClick={() => window.location.href = '/admin'}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-sm font-bold transition-all border border-blue-500/20"
+            >
+              <Shield className="w-4 h-4" />
+              Panel Admin
+            </button>
+          )}
         </div>
 
         <div className="mb-16">
