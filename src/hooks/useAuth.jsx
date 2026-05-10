@@ -427,6 +427,21 @@ export const AuthProvider = ({ children }) => {
     return updateUserById(id, { status: 'inactive', is_approved: false });
   };
 
+  const resetUserPassword = async (userId) => {
+    try {
+      const { error } = await supabase.rpc('reset_user_password', {
+        target_user_id: userId,
+        new_password: 'CommonUser.123'
+      });
+      
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error('[AUTH] Reset password error:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const value = {
     user,
     profile,
@@ -451,7 +466,8 @@ export const AuthProvider = ({ children }) => {
     fetchUsers,
     fetchNotifications,
     adminCreateUser,
-    sendUserNotification
+    sendUserNotification,
+    resetUserPassword
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

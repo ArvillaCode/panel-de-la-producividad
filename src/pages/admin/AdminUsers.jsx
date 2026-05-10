@@ -37,7 +37,8 @@ const AdminUsers = () => {
     broadcastNotification,
     addNotification,
     register,
-    adminCreateUser
+    adminCreateUser,
+    resetUserPassword
   } = useAuth();
   const navigate = useNavigate();
 
@@ -260,8 +261,7 @@ const AdminUsers = () => {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        avatar_url: formData.avatar,
-        ...(formData.password && { password: formData.password })
+        avatar_url: formData.avatar
       });
 
       if (!result.success) {
@@ -394,42 +394,73 @@ const AdminUsers = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Contraseña {isEdit && '(dejar vacío para mantener actual)'}
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Mínimo 6 caracteres"
-                required={!isEdit}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
+          {!isEdit ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Confirmar contraseña
-            </label>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="Confirma la contraseña"
-              required={!isEdit || formData.password}
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Confirmar contraseña
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="Confirma la contraseña"
+                  required
+                />
+              </div>
+            </>
+          ) : (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">Seguridad de Usuario</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">La contraseña no puede editarse manualmente.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm('¿Estás seguro de que deseas restaurar la contraseña de este usuario a la predeterminada (CommonUser.123)?')) {
+                      setActionLoading(true);
+                      const result = await resetUserPassword(selectedUser.id);
+                      if (result.success) {
+                        setSuccess('Contraseña restaurada exitosamente a: CommonUser.123');
+                      } else {
+                        setError(result.error || 'Error al restaurar contraseña');
+                      }
+                      setActionLoading(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-sm transition-all"
+                >
+                  Restaurar Default
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
