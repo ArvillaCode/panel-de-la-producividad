@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../hooks/useTheme';
+import { supabase } from '../../lib/supabase';
 
 const AdminConfig = () => {
   const { theme, toggleTheme } = useTheme();
@@ -33,9 +34,9 @@ const AdminConfig = () => {
     
     // Configuración de seguridad
     sessionTimeout: 30,
-    maxLoginAttempts: 5,
-    passwordMinLength: 6,
-    requireStrongPassword: false,
+    maxLoginAttempts: 3,
+    passwordMinLength: 8,
+    requireStrongPassword: true,
     enableTwoFactor: false,
     
     // Configuración de notificaciones
@@ -49,7 +50,7 @@ const AdminConfig = () => {
     autoBackup: true,
     
     // Configuración de tema
-    defaultTheme: 'light',
+    defaultTheme: 'dark',
     allowUserThemeChange: true,
     
     // Configuración del servidor
@@ -74,19 +75,62 @@ const AdminConfig = () => {
     setHasChanges(configChanged);
   }, [config, originalConfig]);
 
-  const loadConfig = () => {
+  const loadConfig = async () => {
+    setLoading(true);
     try {
-      // Cargar configuración desde localStorage o usar valores por defecto
-      const savedConfig = localStorage.getItem('systemConfig');
-      if (savedConfig) {
-        const parsedConfig = JSON.parse(savedConfig);
-        setConfig(parsedConfig);
-        setOriginalConfig(parsedConfig);
-      } else {
-        setOriginalConfig(config);
+      // 1. Intentar cargar desde Supabase
+      const { data, error: fetchError } = await supabase
+        .from('system_config')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+      if (fetchError) {
+        console.warn('[CONFIG] No se pudo cargar de DB, usando locales:', fetchError.message);
+        // Fallback a localStorage si existe
+        const savedConfig = localStorage.getItem('systemConfig');
+        if (savedConfig) {
+          const parsed = JSON.parse(savedConfig);
+          setConfig(parsed);
+          setOriginalConfig(parsed);
+        } else {
+          setOriginalConfig(config);
+        }
+        return;
+      }
+
+      if (data) {
+        // Mapear snake_case de DB a camelCase de State
+        const mappedConfig = {
+          siteName: data.site_name,
+          siteDescription: data.site_description,
+          adminEmail: data.admin_email,
+          timezone: data.timezone,
+          language: data.language,
+          sessionTimeout: data.session_timeout,
+          maxLoginAttempts: data.max_login_attempts,
+          passwordMinLength: data.password_min_length,
+          requireStrongPassword: data.require_strong_password,
+          enableTwoFactor: data.enable_two_factor,
+          emailNotifications: data.email_notifications,
+          systemAlerts: data.system_alerts,
+          userRegistrationNotify: data.user_registration_notify,
+          backupFrequency: data.backup_frequency,
+          retentionDays: data.retention_days,
+          autoBackup: data.auto_backup,
+          defaultTheme: data.default_theme,
+          allowUserThemeChange: data.allow_user_theme_change,
+          maintenanceMode: data.maintenance_mode,
+          debugMode: data.debug_mode,
+          logLevel: data.log_level
+        };
+        setConfig(mappedConfig);
+        setOriginalConfig(mappedConfig);
       }
     } catch (err) {
-      setError('Error al cargar la configuración');
+      setError('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -102,41 +146,54 @@ const AdminConfig = () => {
     setError('');
     
     try {
-      // Validaciones
-      if (!config.siteName.trim()) {
-        throw new Error('El nombre del sitio es obligatorio');
-      }
+      // Validaciones básicas
+      if (!config.siteName.trim()) throw new Error('El nombre del sitio es obligatorio');
+      if (!config.adminEmail.trim()) throw new Error('El email del administrador es obligatorio');
       
-      if (!config.adminEmail.trim()) {
-        throw new Error('El email del administrador es obligatorio');
-      }
-      
-      if (config.sessionTimeout < 5 || config.sessionTimeout > 480) {
-        throw new Error('El tiempo de sesión debe estar entre 5 y 480 minutos');
-      }
-      
-      if (config.passwordMinLength < 4 || config.passwordMinLength > 50) {
-        throw new Error('La longitud mínima de contraseña debe estar entre 4 y 50 caracteres');
-      }
+      // Mapear camelCase a snake_case para la DB
+      const dbData = {
+        site_name: config.siteName,
+        site_description: config.siteDescription,
+        admin_email: config.adminEmail,
+        timezone: config.timezone,
+        language: config.language,
+        session_timeout: config.sessionTimeout,
+        max_login_attempts: config.maxLoginAttempts,
+        password_min_length: config.passwordMinLength,
+        require_strong_password: config.requireStrongPassword,
+        enable_two_factor: config.enableTwoFactor,
+        email_notifications: config.emailNotifications,
+        system_alerts: config.systemAlerts,
+        user_registration_notify: config.userRegistrationNotify,
+        backup_frequency: config.backupFrequency,
+        retention_days: config.retentionDays,
+        auto_backup: config.autoBackup,
+        default_theme: config.defaultTheme,
+        allow_user_theme_change: config.allowUserThemeChange,
+        maintenance_mode: config.maintenanceMode,
+        debug_mode: config.debugMode,
+        log_level: config.logLevel,
+        updated_at: new Date().toISOString()
+      };
 
-      // Simular guardado
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error: updateError } = await supabase
+        .from('system_config')
+        .upsert({ id: 1, ...dbData });
+
+      if (updateError) throw updateError;
       
-      // Guardar en localStorage
+      // Sincronizar también con localStorage como redundancia rápida
       localStorage.setItem('systemConfig', JSON.stringify(config));
       setOriginalConfig(config);
-      
-      setSuccess('Configuración guardada exitosamente');
-      
-      // Aplicar cambios inmediatos si es necesario
-      if (config.defaultTheme !== originalConfig.defaultTheme) {
-        // Aquí podrías aplicar el tema por defecto
-      }
+      setSuccess('Configuración guardada permanentemente en la base de datos');
       
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Error al guardar en la base de datos');
     } finally {
       setLoading(false);
+    }
+  };
+;
     }
   };
 
@@ -341,6 +398,7 @@ const AdminConfig = () => {
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
+                  list="timezones-list"
                   value={config.timezone}
                   onChange={(e) => handleConfigChange('general', 'timezone', e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all shadow-sm"
@@ -348,7 +406,6 @@ const AdminConfig = () => {
                   onFocus={(e) => e.target.select()}
                 />
                 
-                {/* Custom filterable dropdown logic using datalist but with better UI */}
                 <datalist id="timezones-list">
                   {Intl.supportedValuesOf('timeZone').map(tz => (
                     <option key={tz} value={tz}>
@@ -356,10 +413,9 @@ const AdminConfig = () => {
                     </option>
                   ))}
                 </datalist>
-                <input list="timezones-list" className="hidden" /> 
                 
                 <p className="text-[10px] text-gray-400 mt-1 italic">
-                  Sugerencia: Escribe el nombre de la ciudad o continente.
+                  Sugerencia: Haz clic para ver la lista o escribe para filtrar ciudades.
                 </p>
               </div>
             </div>

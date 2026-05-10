@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]); 
   const [notifications, setNotifications] = useState([]);
+  const [systemConfig, setSystemConfig] = useState(null);
 
   const isAuthenticated = !!user;
   const isAdmin = profile?.role === 'admin' || user?.email === 'admin@admin.com';
@@ -31,6 +32,26 @@ export const AuthProvider = ({ children }) => {
       if (!error) setUsers(data || []);
     } catch (err) {
       console.error('[AUTH] Fetch users error:', err);
+    }
+  }, []);
+
+  const fetchSystemConfig = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_config')
+        .select('*')
+        .eq('id', 1)
+        .single();
+      
+      if (!error && data) {
+        setSystemConfig({
+          maxLoginAttempts: data.max_login_attempts,
+          passwordMinLength: data.password_min_length,
+          requireStrongPassword: data.require_strong_password
+        });
+      }
+    } catch (err) {
+      console.error('[AUTH] Fetch system config error:', err);
     }
   }, []);
 
@@ -126,6 +147,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
+    fetchSystemConfig();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       syncUserSession(session);
@@ -148,7 +170,35 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/login';
   };
 
+  const validatePassword = (password) => {
+    const minLength = systemConfig?.passwordMinLength || 8;
+    const requireStrong = systemConfig?.requireStrongPassword ?? true;
+
+    if (password.length < minLength) {
+      return { valid: false, error: `La contraseña debe tener al menos ${minLength} caracteres.` };
+    }
+
+    if (requireStrong) {
+      const hasUpper = /[A-Z]/.test(password);
+      const hasLower = /[a-z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+      if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+        return { 
+          valid: false, 
+          error: 'La contraseña debe incluir mayúsculas, minúsculas, números y un carácter especial.' 
+        };
+      }
+    }
+
+    return { valid: true };
+  };
+
   const register = async (email, password, metadata = {}) => {
+    const validation = validatePassword(password);
+    if (!validation.valid) return { success: false, error: validation.error };
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -251,6 +301,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const changePassword = async (currentPassword, newPassword) => {
+    const validation = validatePassword(newPassword);
+    if (!validation.valid) return { success: false, error: validation.error };
+
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { success: !error, error: error?.message || 'Error al cambiar contraseña' };
   };
@@ -276,6 +329,9 @@ export const AuthProvider = ({ children }) => {
 
   const adminCreateUser = async (email, password, metadata = {}) => {
     try {
+      const validation = validatePassword(password);
+      if (!validation.valid) return { success: false, error: validation.error };
+
       // Usar el cliente temporal que NO guarda sesión localmente
       const { data, error } = await tempAuthClient.auth.signUp({
         email,
