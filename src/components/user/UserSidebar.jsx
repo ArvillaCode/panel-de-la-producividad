@@ -9,11 +9,13 @@ import {
   Moon, 
   Settings, 
   LogOut,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useNavigate } from 'react-router-dom';
+import ReleaseNotesBadge from './ReleaseNotesBadge';
 
 const UserSidebar = ({ 
   setActiveTab, 
@@ -21,10 +23,10 @@ const UserSidebar = ({
   setShowPasswordModal, 
   setShowNotifications,
   setShowSuggestModal,
-  getUnreadNotificationsCount
+  isMobile = false
 }) => {
-  const { user, logout } = useAuth();
-  const unreadCount = getUnreadNotificationsCount();
+  const { user, profile, logout, notifications } = useAuth();
+  const unreadCount = notifications.filter(n => !n.read).length;
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
@@ -37,72 +39,87 @@ const UserSidebar = ({
     navigate('/login');
   };
 
+  const sidebarClasses = isMobile 
+    ? "w-full flex flex-col h-full bg-transparent"
+    : "w-64 bg-white dark:bg-gray-800 shadow-xl hidden md:flex flex-col h-screen sticky top-0 border-r border-gray-200 dark:border-gray-700 shrink-0";
+
   return (
-    <div className="w-64 bg-white dark:bg-gray-800 shadow-xl hidden md:flex flex-col h-screen sticky top-0 border-r border-gray-200 dark:border-gray-700 shrink-0">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+    <div className={sidebarClasses}>
+      <div className={`p-6 border-b border-gray-200 dark:border-gray-700 ${isMobile ? 'bg-gray-50 dark:bg-gray-800/50' : ''}`}>
         <div className="flex items-center gap-3">
-          <img src={user?.avatar || 'https://ui-avatars.com/api/?name=Usuario&background=6b7280&color=fff'} alt="Avatar" className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600" />
+          <img src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=Usuario&background=6b7280&color=fff'} alt="Avatar" className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600 shadow-sm" />
           <div className="overflow-hidden">
-            <h3 className="font-semibold text-gray-800 dark:text-white truncate" title={user?.displayName || user?.name || user?.username}>
-              {user?.displayName || user?.name || user?.username}
+            <h3 className="font-semibold text-gray-800 dark:text-white truncate text-sm" title={profile?.name || user?.email?.split('@')[0]}>
+              {profile?.name || user?.email?.split('@')[0]}
             </h3>
-            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full inline-block mt-1">
-              {user?.role === 'admin' ? 'Administrador' : 'Usuario'}
+            <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full inline-block mt-1 font-bold">
+              {profile?.role === 'admin' ? 'Administrador' : 'Usuario'}
             </span>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto py-4 scrollbar-thin">
-        <div className="px-4 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Menú Principal</div>
+        <div className="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Menú Principal</div>
         <nav className="space-y-1 px-3">
-          <button onClick={() => setActiveTab('Todos')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <Grid className="w-5 h-5 text-blue-500" /> Explorar Agentes
+          <button onClick={() => setActiveTab('Todos')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <Grid className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" /> 
+            <span>Explorar Agentes</span>
           </button>
-          <button onClick={() => setActiveTab('Favoritos')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <Heart className="w-5 h-5 text-red-500" /> Mis Favoritos
+          <button onClick={() => setActiveTab('Favoritos')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <Heart className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" /> 
+            <span>Mis Favoritos</span>
           </button>
-          {/* Mis Conversaciones oculto por petición del usuario */}
-          <button onClick={() => setShowSuggestModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <MessageSquare className="w-5 h-5 text-green-500" /> Sugerir Agente
-          </button>
-          <button onClick={() => setShowNotifications(prev => !prev)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+          <button onClick={() => navigate('/novedades')} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group relative">
             <div className="flex items-center gap-3">
-              <Bell className={`w-5 h-5 text-purple-500 ${unreadCount > 0 ? 'animate-push-bell' : ''}`} /> Notificaciones
+              <Sparkles className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" /> 
+              <span>Novedades</span>
+            </div>
+            <ReleaseNotesBadge />
+          </button>
+          <button onClick={() => setShowNotifications(prev => !prev)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <div className="flex items-center gap-3">
+              <Bell className={`w-4 h-4 text-purple-500 ${unreadCount > 0 ? 'animate-push-bell' : ''} group-hover:scale-110 transition-transform`} /> 
+              <span>Notificaciones</span>
             </div>
             {unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+              <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
                 {unreadCount}
               </span>
             )}
           </button>
         </nav>
 
-        <div className="px-4 mt-8 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ajustes de Cuenta</div>
+        <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ajustes de Cuenta</div>
         <nav className="space-y-1 px-3">
-          <button onClick={() => setShowProfileModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <User className="w-5 h-5 text-purple-500" /> Personalizar Avatar
+          <button onClick={() => setShowProfileModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <User className="w-4 h-4 text-purple-500 group-hover:scale-110 transition-transform" /> 
+            <span>Personalizar Avatar</span>
           </button>
-          <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <Lock className="w-5 h-5 text-gray-500" /> Seguridad (Contraseña)
+          <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <Lock className="w-4 h-4 text-gray-500 group-hover:scale-110 transition-transform" /> 
+            <span>Seguridad (Contraseña)</span>
           </button>
-          <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-slate-500" />} Apariencia
+          <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            {isDark ? <Sun className="w-4 h-4 text-yellow-500 group-hover:rotate-45 transition-transform" /> : <Moon className="w-4 h-4 text-slate-500 group-hover:-rotate-12 transition-transform" />} 
+            <span>Apariencia</span>
           </button>
           
-          {user?.role === 'admin' && (
-            <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-              <button onClick={handleGoToAdmin} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors font-medium">
-                <Settings className="w-5 h-5" /> Panel de Administración
+          {profile?.role === 'admin' && (
+            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
+              <button onClick={handleGoToAdmin} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all font-semibold text-sm group">
+                <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform" /> 
+                <span>Panel de Administración</span>
               </button>
             </div>
           )}
         </nav>
       </div>
 
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
-        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors font-medium">
-          <LogOut className="w-5 h-5" /> Cerrar Sesión
+      <div className={`p-4 border-t border-gray-100 dark:border-gray-700 mt-auto ${isMobile ? 'bg-gray-50 dark:bg-gray-800/50' : ''}`}>
+        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-all font-bold text-sm shadow-sm border border-red-100 dark:border-red-900/30">
+          <LogOut className="w-4 h-4" /> 
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </div>

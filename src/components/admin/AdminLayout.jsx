@@ -11,13 +11,15 @@ import {
   Shield,
   Bell,
   Moon,
-  Sun
+  Sun,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
 const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
-  const { logout, user } = useAuth();
+  const { logout, user, profile, loading, notifications } = useAuth();
+  const unreadCount = notifications?.filter(n => !n.read).length || 0;
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,6 +32,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     if (path === '/admin/users') return 'users';
     if (path === '/admin/agents') return 'agents';
     if (path === '/admin/config') return 'config';
+    if (path === '/admin/releases') return 'releases';
     return 'dashboard';
   };
 
@@ -63,6 +66,13 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       icon: Settings,
       path: '/admin/config',
       description: 'Configuración del sistema'
+    },
+    {
+      id: 'releases',
+      name: 'Novedades',
+      icon: Sparkles,
+      path: '/admin/releases',
+      description: 'Gestión de actualizaciones'
     }
   ];
 
@@ -104,12 +114,16 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
         {/* User Info */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
-            </div>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-500" />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                {(profile?.name || 'A').charAt(0).toUpperCase()}
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {user?.name || 'Administrador'}
+                {profile?.name || 'Administrador'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {user?.email || 'admin@sistema.com'}
@@ -205,16 +219,25 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
 
             <div className="flex items-center space-x-4">
               <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                <Bell className={`w-5 h-5 ${unreadCount > 0 ? 'text-blue-600 dark:text-blue-400' : ''}`} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                )}
               </button>
               
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
-                </div>
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500" />
+                ) : (
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    {(profile?.name || 'A').charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <span className="text-sm font-medium text-gray-900 dark:text-white hidden sm:block">
-                  {user?.displayName || user?.name || 'Administrador'}
+                  {profile?.name || 'Administrador'}
                 </span>
               </div>
             </div>

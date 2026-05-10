@@ -1,200 +1,217 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [users, setUsers] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]); 
   const [notifications, setNotifications] = useState([]);
 
-  // Memorizar isAuthenticated e isAdmin para evitar re-renders innecesarios
-  const isAuthenticated = useMemo(() => !!user, [user]);
-  const isAdmin = useMemo(() => user?.role === 'admin', [user]);
-
-  // Log de diagnóstico detallado cada vez que cambian los estados clave
-  useEffect(() => {
-    console.log("[AUTH-DIAGNOSTIC]", {
-      email: user?.email || 'null',
-      role: user?.role || 'null',
-      isAuthenticated,
-      isAdmin,
-      loading
-    });
-  }, [user, isAuthenticated, isAdmin, loading]);
+  const isAuthenticated = !!user;
+  const isAdmin = profile?.role === 'admin' || user?.email === 'admin@admin.com';
 
   const fetchUsers = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from('profiles').select('*');
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, name, role, avatar_url, status, is_approved, created_at')
+        .order('created_at', { ascending: false });
       
-      setUsers(data.map(p => ({
-        id: p.id,
-        email: p.email,
-        name: p.name,
-        role: p.role,
-        status: p.status,
-        avatar: p.avatar_url,
-        startDate: p.start_date,
-        endDate: p.end_date,
-        isApproved: p.is_approved,
-        createdAt: p.created_at
-      })));
-    } catch (e) {
-      console.error("[DEBUG] Error fetchUsers:", e.message);
+      if (!error) setUsers(data || []);
+    } catch (err) {
+      console.error('[AUTH] Fetch users error:', err);
     }
   }, []);
 
   const syncUserSession = useCallback(async (session) => {
-    if (!session?.user) {
-      setUser(null);
-      return;
-    }
-
     try {
-      // 1. Obtener perfil de la base de datos
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("[DEBUG] Error al cargar perfil:", error.message);
+      if (!session?.user) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
       }
 
-      // 2. Construir objeto de usuario unificado
-      const fullUser = {
-        id: session.user.id,
-        email: session.user.email,
-        role: profile?.role || (session.user.email === 'admin@admin.com' ? 'admin' : 'user'),
-        name: profile?.name || session.user.email.split('@')[0],
-        avatar: profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.email)}`,
-        status: profile?.status || 'active',
-        isApproved: profile?.is_approved ?? true,
-        startDate: profile?.start_date,
-        endDate: profile?.end_date
-      };
+      const currentUser = session.user;
+      setUser(currentUser);
 
-      setUser(fullUser);
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, name, role, avatar_url, status, is_approved, created_at')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileError) {
+        console.error('[AUTH] Profile sync error:', profileError.message);
+        setProfile({ id: currentUser.id, email: currentUser.email, role: 'user' });
+      } else {
+        setProfile(profileData);
+      }
+
+      // Cargar lista si es admin
+      if (profileData?.role === 'admin' || currentUser.email === 'admin@admin.com') {
+        fetchUsers();
+      }
+
     } catch (e) {
-      console.error("[DEBUG] Error en syncUserSession:", e);
+      console.error('[AUTH] Critical sync error:', e);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [fetchUsers]);
 
   useEffect(() => {
-    let mounted = true;
-
-    const initAuth = async () => {
-      setLoading(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          await syncUserSession(session);
-        }
-      } catch (e) {
-        console.error("[DEBUG] Error initAuth:", e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("[DEBUG] Auth Event:", event);
-      
-      if (mounted) {
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setUsers([]);
-          setLoading(false);
-        } else {
-          setLoading(true);
-          await syncUserSession(session);
-          setLoading(false);
-        }
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncUserSession(session);
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncUserSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, [syncUserSession]);
 
   const login = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      return { success: true, user: data.user };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  };
-
-  const register = async (email, password, name, role = 'user', startDate, endDate) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email,
-          name,
-          role,
-          status: 'active',
-          start_date: startDate || null,
-          end_date: endDate || null,
-          is_approved: true
-        });
-      }
-
-      return { success: true, message: 'Usuario registrado exitosamente.' };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    return { success: !error, error: error?.message };
   };
 
   const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setUsers([]);
-      window.location.href = '/login';
-    } catch (e) {
-      console.error("Logout error:", e);
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    window.location.href = '/login';
+  };
+
+  const register = async (email, password, metadata = {}) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: metadata }
+    });
+    return { success: !error, error: error?.message };
+  };
+
+  const updateUser = async (data) => {
+    if (!user) return { success: false, error: 'Sesión no activa' };
+    const { error } = await supabase.from('profiles').update(data).eq('id', user.id);
+    if (!error) {
+      setProfile(prev => ({ ...prev, ...data }));
+      return { success: true };
     }
+    return { success: false, error: error.message };
+  };
+
+  const updateUserById = async (id, data) => {
+    // Protección del último administrador
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser?.role === 'admin' && data.role === 'user') {
+      const adminCount = users.filter(u => u.role === 'admin').length;
+      if (adminCount <= 1) {
+        return { success: false, error: 'No se puede degradar al último administrador del sistema.' };
+      }
+    }
+
+    const { error } = await supabase.from('profiles').update(data).eq('id', id);
+    if (!error) {
+      fetchUsers();
+      return { success: true };
+    }
+    return { success: false, error: error.message };
+  };
+
+  const deleteUserById = async (id) => {
+    // Protección del último administrador
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser?.role === 'admin') {
+      const adminCount = users.filter(u => u.role === 'admin').length;
+      if (adminCount <= 1) {
+        return { success: false, error: 'No se puede eliminar al último administrador del sistema.' };
+      }
+    }
+
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (!error) {
+      fetchUsers();
+      return { success: true };
+    }
+    return { success: false, error: error.message };
+  };
+
+  const toggleUserStatus = async (id, currentStatus) => {
+    // Protección del último administrador (no desactivar si es el único admin)
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser?.role === 'admin') {
+      const adminCount = users.filter(u => u.role === 'admin').length;
+      if (adminCount <= 1) {
+        return { success: false, error: 'No se puede desactivar al último administrador del sistema.' };
+      }
+    }
+
+    console.warn('[AUTH] toggleUserStatus: Columna "status" no existe en Supabase.');
+    return { success: false, error: 'Funcionalidad no disponible (Esquema limitado)' };
+  };
+
+  const markNotificationAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const broadcastNotification = (notif) => {
+    // Nota: Esto es local por ahora, requiere tabla 'global_notifications' para persistencia real
+    setNotifications(prev => [...prev, { 
+      ...notif, 
+      id: Date.now(), 
+      timestamp: new Date().toISOString(), 
+      read: false,
+      isBroadcast: true
+    }]);
+  };
+
+  const changePassword = async (currentPassword, newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { success: !error, error: error?.message || 'Error al cambiar contraseña' };
+  };
+
+  const suggestAgent = (data) => {
+    console.warn('[AUTH] suggestAgent: Tabla de sugerencias no configurada en Supabase.');
+    return { success: false, error: 'Funcionalidad de sugerencias en mantenimiento (Tabla no configurada)' };
+  };
+
+  const expelUser = async (id) => {
+    console.warn('[AUTH] expelUser: Columna "status" no existe en Supabase.');
+    return { success: false, error: 'Funcionalidad no disponible (Esquema limitado)' };
   };
 
   const value = {
     user,
+    profile,
     users,
     loading,
     isAuthenticated,
     isAdmin,
+    notifications,
     login,
-    register,
     logout,
-    fetchUsers,
-    getNotifications: () => notifications,
-    addNotification: (uId, n) => setNotifications(prev => [...prev, { ...n, id: Date.now(), timestamp: new Date().toISOString() }]),
-    markNotificationAsRead: (id) => {},
-    markAllNotificationsAsRead: () => {},
-    getUnreadNotificationsCount: () => 0,
-    updateUser: async () => ({ success: true }),
-    changePassword: async () => ({ success: true }),
-    suggestAgent: () => {},
-    expelUser: async (id) => {
-      await supabase.from('profiles').update({ status: 'inactive' }).eq('id', id);
-      fetchUsers();
-    },
-    deleteUserById: async (id) => {
-      await supabase.from('profiles').delete().eq('id', id);
-      fetchUsers();
-    }
+    register,
+    updateUser,
+    updateUserById,
+    deleteUserById,
+    toggleUserStatus,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    broadcastNotification,
+    changePassword,
+    suggestAgent,
+    expelUser,
+    fetchUsers
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

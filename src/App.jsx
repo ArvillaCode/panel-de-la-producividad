@@ -7,8 +7,11 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminAgents from './pages/admin/AdminAgents';
 import AdminConfig from './pages/admin/AdminConfig';
+import AdminReleases from './pages/admin/AdminReleases';
+import ReleaseHistory from './pages/ReleaseHistory';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
+import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
 import './App.css';
 
 // Componente para rutas protegidas
@@ -42,6 +45,7 @@ function App() {
     <ThemeProvider>
       <Router>
         <div className="App min-h-screen w-full">
+          <ReleaseAutoNotification />
           <Routes>
             <Route path="/" element={<AgentPanel />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
@@ -64,6 +68,12 @@ function App() {
               path="/admin/config" 
               element={<ProtectedRoute><AdminConfig /></ProtectedRoute>} 
             />
+            <Route 
+              path="/admin/releases" 
+              element={<ProtectedRoute><AdminReleases /></ProtectedRoute>} 
+            />
+            
+            <Route path="/novedades" element={<ReleaseHistory />} />
             
             {/* Redirect /admin a /admin/dashboard */}
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

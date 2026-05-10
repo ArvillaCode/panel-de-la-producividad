@@ -22,7 +22,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 
 const AdminDashboard = () => {
-  const { user, users, fetchUsers } = useAuth();
+  const { user, profile, users, fetchUsers, loading } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({
@@ -39,17 +39,17 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       // Intento de carga directa para depuración
-      const { data: directUsers, error: usersError, status: uStatus } = await supabase.from('profiles').select('*');
+      const { data: directUsers, error: usersError } = await supabase.from('profiles').select('id, email, name, role, created_at');
       const { data: agentsData, error: agentsError, status: aStatus } = await supabase.from('agents').select('*');
       
       console.log("📊 DIAGNÓSTICO DE CARGA:", {
-        usuarios: { count: directUsers?.length, status: uStatus, error: usersError?.message },
+        usuarios: { count: directUsers?.length, error: usersError?.message },
         agentes: { count: agentsData?.length, status: aStatus, error: agentsError?.message }
       });
       
       const allUsers = directUsers || [];
       const adminCount = allUsers.filter(u => u.role === 'admin').length;
-      const activeCount = allUsers.filter(u => u.status !== 'inactive').length;
+      const activeCount = allUsers.length; // No hay columna de estado, asumimos todos activos
       const totalAgents = agentsData?.length || 0;
       const totalInteractions = agentsData?.reduce((sum, agent) => sum + (agent.total_interactions || agent.totalInteractions || 0), 0) || 0;
 

@@ -20,9 +20,9 @@ const AdminLogin = () => {
   const {
     login,
     logout,
-    getProfile,
+    user,
     isAuthenticated,
-    getUserInfo
+    loading: authLoading
   } = useAuth();
 
   const { theme, toggleTheme } = useTheme();
@@ -41,16 +41,14 @@ const AdminLogin = () => {
 
   // Redireccionar si ya está autenticado
   useEffect(() => {
-    if (isAuthenticated) {
-      const user = getUserInfo;
-
-      if (user?.role === 'admin') {
+    if (isAuthenticated && user) {
+      if (user.role === 'admin' || user.email === 'admin@admin.com') {
         navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/', { replace: true });
       }
     }
-  }, [isAuthenticated, navigate, getUserInfo]);
+  }, [isAuthenticated, user, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

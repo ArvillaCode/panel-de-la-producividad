@@ -46,7 +46,10 @@ const RegisterForm = ({ onSuccess, onCancel }) => {
 
     setLoading(true);
     try {
-      const result = await register(formData);
+      const result = await register(formData.email, formData.password, { 
+        name: formData.name,
+        role: 'user'
+      });
       if (result.success) {
         setMessage('Solicitud enviada. Un administrador debe aprobar tu cuenta antes de que puedas iniciar sesión.');
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });

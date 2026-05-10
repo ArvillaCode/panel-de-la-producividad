@@ -42,10 +42,17 @@ export const ThemeProvider = ({ children }) => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
 
+  const setSpecificTheme = (newTheme) => {
+    if (newTheme === 'light' || newTheme === 'dark') {
+      setTheme(newTheme);
+    }
+  };
+
   const value = {
     theme,
     setTheme,
     toggleTheme,
+    setSpecificTheme,
     isDark: theme === 'dark',
     isLight: theme === 'light'
   };
