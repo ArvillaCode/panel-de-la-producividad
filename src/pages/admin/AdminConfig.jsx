@@ -191,6 +191,7 @@ const AdminConfig = () => {
       setError(err.message || 'Error al guardar en la base de datos');
     } finally {
       setLoading(false);
+    }
   };
 
   const handleResetConfig = () => {
