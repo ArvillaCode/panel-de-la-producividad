@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Cliente especial para que el admin cree usuarios sin perder su sesión
+const tempAuthClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false } }
+);
 
 const AuthContext = createContext();
 
@@ -31,7 +38,6 @@ export const AuthProvider = ({ children }) => {
       if (!session) {
         setUser(null);
         setProfile(null);
-        setLoading(false);
         return;
       }
 
@@ -45,7 +51,7 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       if (profileError) {
-        console.warn('[AUTH] Profile not found or error, using default role:', profileError.message);
+        console.error('[AUTH] Profile sync error:', profileError.message);
         setProfile({ id: currentUser.id, email: currentUser.email, role: 'user' });
       } else {
         // 1. Determinar estados de acceso
@@ -54,21 +60,27 @@ export const AuthProvider = ({ children }) => {
         const userIsAdmin = profileData.role === 'admin' || currentUser.email === 'admin@admin.com';
         const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
 
-        console.log('[AUTH] Access Check:', { userIsAdmin, status, isApproved, isExpired });
+        console.log(`[AUTH] Sync for ${currentUser.email}: Admin=${userIsAdmin}, Approved=${isApproved}, Status=${status}, Expired=${isExpired}`);
 
-        // 2. Validación de acceso
+        // 2. Validación forzosa de acceso (excepto para admins)
         if (!userIsAdmin && (status !== 'active' || !isApproved || isExpired)) {
           let reason = 'Tu cuenta no tiene acceso permitido.';
-          if (status === 'pending' || !isApproved) reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
+          if (status === 'pending') reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
           if (status === 'rejected') reason = 'Tu solicitud fue denegada.';
-          if (status === 'inactive') reason = 'Tu cuenta ha sido desactivada.';
+          if (status === 'inactive') reason = 'Tu cuenta fue expulsada o desactivada.';
           if (isExpired) reason = 'Tu suscripción ha expirado.';
 
-          console.warn(`[AUTH] Acceso denegado para ${currentUser.email}: ${reason}`);
+          console.warn(`[AUTH] Acceso denegado: ${reason}`);
           
-          await supabase.auth.signOut();
-          setUser(null);
+          // Limpiar estados locales inmediatamente para evitar flashes
           setProfile(null);
+          setUser(null);
+          setLoading(false); // Detener loading antes de redirigir
+
+          // Cerrar sesión en Supabase
+          await supabase.auth.signOut();
+          
+          // Redirigir con mensaje
           window.location.href = `/login?error=${encodeURIComponent(reason)}`;
           return;
         }
@@ -76,6 +88,7 @@ export const AuthProvider = ({ children }) => {
         setProfile(profileData);
       }
 
+      // Cargar lista si es admin
       if (profileData?.role === 'admin' || currentUser.email === 'admin@admin.com') {
         fetchUsers();
       }
@@ -92,13 +105,15 @@ export const AuthProvider = ({ children }) => {
     let timer;
     if (loading) {
       timer = setTimeout(() => {
+        console.warn('[AUTH] Safety timeout: forzando loading=false para evitar spinner infinito');
         setLoading(false);
-      }, 6000);
+      }, 6000); // 6 segundos de margen
     }
     return () => clearTimeout(timer);
   }, [loading]);
 
   useEffect(() => {
+    // Escuchar cambios en la sesión
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -112,10 +127,7 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Evitar sincronizar si es un evento de SIGN_UP y ya somos admin (previene cerrar sesión al admin)
-      if (_event === 'SIGNED_IN' || _event === 'USER_UPDATED' || _event === 'INITIAL_SESSION') {
-        syncUserSession(session);
-      }
+      syncUserSession(session);
     });
 
     return () => {
@@ -136,39 +148,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (email, password, metadata = {}) => {
-    try {
-      // Usar un cliente temporal sin persistencia para no cerrar la sesión del admin actual
-      const { createClient } = await import('@supabase/supabase-js');
-      const tempSupabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false } }
-      );
-
-      const { data, error } = await tempSupabase.auth.signUp({
-        email,
-        password,
-        options: { data: metadata }
-      });
-
-      if (error) throw error;
-      
-      // Intentar crear el perfil manualmente para asegurar que exista inmediatamente
-      if (data.user) {
-        await supabase.from('profiles').insert([{
-          id: data.user.id,
-          email: email,
-          name: metadata.name || '',
-          role: metadata.role || 'user',
-          status: 'pending',
-          is_approved: false
-        }]);
-      }
-
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: metadata }
+    });
+    return { success: !error, error: error?.message };
   };
 
   const updateUser = async (data) => {
@@ -197,13 +182,17 @@ export const AuthProvider = ({ children }) => {
 
     // Lógica de fechas automáticas al aceptar (Regla 4)
     let finalData = { ...data };
-    if (data.status === 'active' && data.is_approved === true) {
-      if (!targetUser?.start_date || !targetUser?.end_date) {
+    
+    // Si se está activando al usuario
+    if (data.status === 'active' || data.is_approved === true) {
+      // Si no tiene fechas, asignamos 1 año por defecto desde hoy
+      if (!targetUser?.start_date || !targetUser?.end_date || data.force_dates) {
         const startDate = new Date();
         const endDate = new Date();
         endDate.setFullYear(endDate.getFullYear() + 1);
         finalData.start_date = startDate.toISOString();
         finalData.end_date = endDate.toISOString();
+        console.log(`[AUTH] Asignando fechas automáticas para ${id}: ${finalData.start_date} a ${finalData.end_date}`);
       }
     }
 
@@ -265,9 +254,43 @@ export const AuthProvider = ({ children }) => {
     return { success: !error, error: error?.message || 'Error al cambiar contraseña' };
   };
 
-  const suggestAgent = (data) => {
-    console.warn('[AUTH] suggestAgent: Tabla de sugerencias no configurada en Supabase.');
-    return { success: false, error: 'Funcionalidad de sugerencias en mantenimiento (Tabla no configurada)' };
+  const suggestAgent = async (data) => {
+    try {
+      const { error } = await supabase
+        .from('agent_suggestions')
+        .insert([{
+          user_id: user.id,
+          name: data.name,
+          description: data.description,
+          status: 'pending'
+        }]);
+      
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error('[AUTH] Suggest agent error:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const adminCreateUser = async (email, password, metadata = {}) => {
+    try {
+      // Usar el cliente temporal que NO guarda sesión localmente
+      const { data, error } = await tempAuthClient.auth.signUp({
+        email,
+        password,
+        options: { data: metadata }
+      });
+      
+      if (error) throw error;
+      
+      // Actualizar lista de usuarios para ver al nuevo (con pequeño delay por trigger de Supabase)
+      setTimeout(() => fetchUsers(), 1500);
+      
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   };
 
   const expelUser = async (id) => {
@@ -295,7 +318,8 @@ export const AuthProvider = ({ children }) => {
     changePassword,
     suggestAgent,
     expelUser,
-    fetchUsers
+    fetchUsers,
+    adminCreateUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

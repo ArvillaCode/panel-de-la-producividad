@@ -7,7 +7,6 @@ import AgentCompactCard from './AgentCompactCard.jsx';
 import { useFavorites } from '../hooks/useFavorites';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
-import { useReleaseNotes } from '../hooks/useReleaseNotes';
 import UserSidebar from './user/UserSidebar';
 import { supabase } from '../lib/supabase';
 
@@ -194,8 +193,7 @@ const AgentPanel = () => {
     setIsCategoryDropdownOpen(false);
   }, [searchTerm, activeTab, sortBy]);
 
-  const { unreadCount: releasesUnread } = useReleaseNotes();
-  const unreadCount = userNotifications.filter(n => !n.read).length + releasesUnread;
+  const unreadCount = userNotifications.filter(n => !n.read).length;
 
   const handleNotificationClick = (notif) => {
     markNotificationAsRead(notif.id);
@@ -521,9 +519,6 @@ const AgentPanel = () => {
                 <button onClick={() => setShowNotifications(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X /></button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                {/* Integración de Novedades en el panel de notificaciones */}
-                <ReleaseNotificationBanner onAction={() => setShowNotifications(false)} />
-                
                 {userNotifications.length > 0 ? userNotifications.map(notif => (
                   <div
                     key={notif.id}
@@ -659,37 +654,6 @@ const AgentPanel = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-const ReleaseNotificationBanner = ({ onAction }) => {
-  const { unreadCount, latestRelease } = useReleaseNotes();
-  const navigate = useNavigate();
-
-  if (unreadCount === 0 || !latestRelease) return null;
-
-  return (
-    <div 
-      onClick={() => {
-        navigate('/novedades');
-        if (onAction) onAction();
-      }}
-      className="p-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20 cursor-pointer group relative overflow-hidden mb-4"
-    >
-      <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-125 transition-transform">
-        <Sparkles className="w-12 h-12" />
-      </div>
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="w-4 h-4 text-blue-200" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Nuevas Novedades</span>
-        </div>
-        <h4 className="font-bold text-sm mb-1">{latestRelease.title}</h4>
-        <p className="text-[10px] text-blue-100 line-clamp-1 opacity-90">
-          Tienes {unreadCount} {unreadCount === 1 ? 'actualización pendiente' : 'actualizaciones pendientes'} por revisar.
-        </p>
-      </div>
     </div>
   );
 };

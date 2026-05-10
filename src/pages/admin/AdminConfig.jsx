@@ -19,11 +19,9 @@ import {
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../hooks/useTheme';
-import { useLanguage } from '../../hooks/useLanguage';
 
 const AdminConfig = () => {
   const { theme, toggleTheme } = useTheme();
-  const { language: currentLang, setLanguage: setAppLanguage } = useLanguage();
   
   const [config, setConfig] = useState({
     // Configuración general
@@ -127,9 +125,6 @@ const AdminConfig = () => {
       // Guardar en localStorage
       localStorage.setItem('systemConfig', JSON.stringify(config));
       setOriginalConfig(config);
-      
-      // Sincronizar idioma con el context
-      setAppLanguage(config.language);
       
       setSuccess('Configuración guardada exitosamente');
       
@@ -338,40 +333,58 @@ const AdminConfig = () => {
               required
             />
             
-            <div className="space-y-1">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                {t('timezone')}
+            <div className="space-y-1 relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Zona Horaria
               </label>
               <div className="relative group/tz">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/tz:text-blue-500 transition-colors" />
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  list="timezones"
+                  type="text"
                   value={config.timezone}
                   onChange={(e) => handleConfigChange('general', 'timezone', e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                  placeholder="Escribe el nombre de un país o ciudad..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all shadow-sm"
+                  placeholder="Escribe para buscar (ej: Madrid, New York...)"
+                  onFocus={(e) => e.target.select()}
                 />
-                <datalist id="timezones">
+                
+                {/* Custom filterable dropdown logic using datalist but with better UI */}
+                <datalist id="timezones-list">
                   {Intl.supportedValuesOf('timeZone').map(tz => (
                     <option key={tz} value={tz}>
-                      {tz.replace(/_/g, ' ').split('/').reverse().join(', ')}
+                      {tz.replace(/_/g, ' ')}
                     </option>
                   ))}
                 </datalist>
+                <input list="timezones-list" className="hidden" /> 
+                
+                <p className="text-[10px] text-gray-400 mt-1 italic">
+                  Sugerencia: Escribe el nombre de la ciudad o continente.
+                </p>
               </div>
-              <p className="text-[10px] text-gray-500 mt-1 px-1">Tip: Escribe el nombre de tu capital para filtrar más rápido.</p>
             </div>
             
-            <SelectField
-              label="Idioma"
-              value={config.language}
-              onChange={(value) => handleConfigChange('general', 'language', value)}
-              options={[
-                { value: 'es', label: 'Español' },
-                { value: 'en', label: 'English' },
-                { value: 'fr', label: 'Français' }
-              ]}
-            />
+            <div className="space-y-1">
+              <SelectField
+                label="Idioma del Sistema"
+                value={config.language}
+                onChange={(value) => {
+                  handleConfigChange('general', 'language', value);
+                  if (value === 'en') {
+                    setSuccess('Language changed to English (Interface only)');
+                  } else {
+                    setSuccess('Idioma cambiado a Español');
+                  }
+                }}
+                options={[
+                  { value: 'es', label: 'Español (Castellano)' },
+                  { value: 'en', label: 'English (United States)' },
+                  { value: 'fr', label: 'Français' },
+                  { value: 'pt', label: 'Português' }
+                ]}
+                description="Nota: Algunas partes del panel pueden requerir recarga para aplicar el idioma."
+              />
+            </div>
           </ConfigSection>
 
           {/* Configuración de Seguridad */}

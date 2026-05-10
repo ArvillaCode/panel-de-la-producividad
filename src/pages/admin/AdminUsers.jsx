@@ -36,7 +36,8 @@ const AdminUsers = () => {
     toggleUserStatus, 
     broadcastNotification,
     addNotification,
-    register 
+    register,
+    adminCreateUser
   } = useAuth();
   const navigate = useNavigate();
 
@@ -158,7 +159,7 @@ const AdminUsers = () => {
         throw new Error('Ya existe un usuario con este email');
       }
 
-      const result = await register(formData.email, formData.password, {
+      const result = await adminCreateUser(formData.email, formData.password, {
         name: formData.name,
         role: formData.role,
         avatar_url: formData.avatar
@@ -310,7 +311,7 @@ const AdminUsers = () => {
   };
 
   const renderUserModal = (isEdit = false) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={closeModals}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={closeModals}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -333,7 +334,7 @@ const AdminUsers = () => {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Ingresa el nombre completo"
               required
             />
@@ -347,7 +348,7 @@ const AdminUsers = () => {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="usuario@ejemplo.com"
               required
             />
@@ -362,7 +363,7 @@ const AdminUsers = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Mínimo 6 caracteres"
                 required={!isEdit}
               />
@@ -384,7 +385,7 @@ const AdminUsers = () => {
               type={showPassword ? 'text' : 'password'}
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Confirma la contraseña"
               required={!isEdit || formData.password}
             />
@@ -397,7 +398,7 @@ const AdminUsers = () => {
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
               <option value="user" disabled={isEdit && selectedUser?.role === 'admin' && users.filter(u => u.role === 'admin').length === 1}>
                 Usuario {isEdit && selectedUser?.role === 'admin' && users.filter(u => u.role === 'admin').length === 1 && '(Protegido)'}
@@ -416,7 +417,7 @@ const AdminUsers = () => {
               type="url"
               value={formData.avatar}
               onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 dark:text-white outline-none transition-all"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="https://ejemplo.com/avatar.jpg"
             />
           </div>

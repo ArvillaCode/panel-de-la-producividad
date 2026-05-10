@@ -16,14 +16,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-import { useLanguage } from '../../hooks/useLanguage';
 
 const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
   const { logout, user, profile, loading, notifications } = useAuth();
-  const { unreadCount: releasesUnread } = useReleaseNotes();
-  const unreadCount = (notifications?.filter(n => !n.read).length || 0) + releasesUnread;
+  const unreadCount = notifications?.filter(n => !n.read).length || 0;
   const { theme, toggleTheme } = useTheme();
-  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -51,28 +48,28 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     },
     {
       id: 'users',
-      name: t('users'),
+      name: 'Usuarios',
       icon: Users,
       path: '/admin/users',
       description: 'Gestión de usuarios'
     },
     {
       id: 'agents',
-      name: t('agents'),
+      name: 'Agentes',
       icon: Bot,
       path: '/admin/agents',
       description: 'Configuración de agentes'
     },
     {
       id: 'config',
-      name: t('settings'),
+      name: 'Configuración',
       icon: Settings,
       path: '/admin/config',
       description: 'Configuración del sistema'
     },
     {
       id: 'releases',
-      name: t('novedades'),
+      name: 'Novedades',
       icon: Sparkles,
       path: '/admin/releases',
       description: 'Gestión de actualizaciones'

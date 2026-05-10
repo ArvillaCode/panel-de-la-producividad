@@ -11,18 +11,8 @@ const typeConfig = {
 };
 
 const ReleaseHistory = () => {
-  const { allReleases, loading, markAsRead, markAllAsRead, unreadCount } = useReleaseNotes();
+  const { allReleases, loading, markAsRead } = useReleaseNotes();
   const [selectedRelease, setSelectedRelease] = useState(null);
-
-  // Auto-marcar como leído después de 3 segundos en la página
-  useEffect(() => {
-    if (!loading && unreadCount > 0) {
-      const timer = setTimeout(() => {
-        markAllAsRead();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, unreadCount, markAllAsRead]);
 
   const formatDate = (dateStr) => {
     try {
@@ -47,40 +37,27 @@ const ReleaseHistory = () => {
   return (
     <div className="min-h-screen bg-[#030712] text-[#f8fafc] selection:bg-blue-500/30">
       <div className="max-w-4xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white flex items-center gap-4 tracking-tight">
-              <div className="p-3 bg-blue-600/20 rounded-2xl border border-blue-500/30 shadow-lg shadow-blue-500/10">
-                <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
-              </div>
-              Historial de Novedades
-            </h1>
-            <p className="text-[#94a3b8] mt-4 text-lg md:text-xl max-w-2xl leading-relaxed">
-              Explora la evolución del panel. Cada actualización está diseñada para potenciar tu productividad con la mejor tecnología IA.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <button 
-              onClick={() => window.history.back()}
-              className="group flex items-center gap-3 px-6 py-3 bg-[#0f172a] border border-slate-700 hover:border-blue-500/50 rounded-2xl text-[#94a3b8] hover:text-white transition-all duration-300 font-bold shadow-lg"
-            >
-              <ChevronRight className="w-5 h-5 rotate-180 group-hover:-translate-x-1 transition-transform" />
-              Volver al Panel
-            </button>
-            
-            <button 
-              onClick={async () => {
-                const res = await markAllAsRead();
-                if (res?.success) {
-                  // Opcional: Mostrar un feedback visual
-                }
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 rounded-2xl text-blue-400 hover:text-blue-300 transition-all duration-300 font-bold"
-            >
-              <CheckCircle className="w-5 h-5" />
-              Marcar todo como leído
-            </button>
-          </div>
+        {/* Back Button */}
+        <div className="mb-8">
+          <button 
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl text-sm font-bold transition-all border border-white/5"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            Volver al Panel
+          </button>
+        </div>
+
+        <div className="mb-16">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white flex items-center gap-4 tracking-tight">
+            <div className="p-3 bg-blue-600/20 rounded-2xl border border-blue-500/30 shadow-lg shadow-blue-500/10">
+              <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
+            </div>
+            Historial de Novedades
+          </h1>
+          <p className="text-[#94a3b8] mt-4 text-lg md:text-xl max-w-2xl leading-relaxed">
+            Explora la evolución del panel. Cada actualización está diseñada para potenciar tu productividad con la mejor tecnología IA.
+          </p>
         </div>
 
         <div className="relative border-l-[3px] border-slate-800/50 ml-4 md:ml-6 pl-10 space-y-16">
