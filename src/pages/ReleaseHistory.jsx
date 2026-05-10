@@ -11,7 +11,7 @@ const typeConfig = {
 };
 
 const ReleaseHistory = () => {
-  const { allReleases, loading, markAsRead } = useReleaseNotes();
+  const { allReleases, loading, error, fetchReleases, markAsRead } = useReleaseNotes();
   const [selectedRelease, setSelectedRelease] = useState(null);
 
   const formatDate = (dateStr) => {
@@ -27,9 +27,37 @@ const ReleaseHistory = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#030712] gap-6">
         <div className="premium-spinner"></div>
         <p className="text-[#94a3b8] font-medium animate-pulse">Sincronizando novedades premium...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#030712] p-6 text-center">
+        <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mb-6 border border-red-500/20">
+          <AlertTriangle className="w-10 h-10 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Error al cargar novedades</h2>
+        <p className="text-[#94a3b8] max-w-md mb-8">
+          No pudimos conectar con el servidor de actualizaciones. Por favor, verifica tu conexión o intenta de nuevo.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button 
+            onClick={() => fetchReleases()}
+            className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/20"
+          >
+            Reintentar
+          </button>
+          <button 
+            onClick={() => window.history.back()}
+            className="px-8 py-3 bg-white/5 text-slate-400 rounded-2xl font-bold hover:bg-white/10 transition-all"
+          >
+            Volver al Panel
+          </button>
+        </div>
       </div>
     );
   }

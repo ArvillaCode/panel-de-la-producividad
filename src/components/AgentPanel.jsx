@@ -24,6 +24,7 @@ const AgentPanel = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showNotificationDetailModal, setShowNotificationDetailModal] = useState(false);
   const [suggestData, setSuggestData] = useState({ name: '', description: '' });
@@ -100,6 +101,8 @@ const AgentPanel = () => {
   }, [showProfileModal, user]);
 
   const handleSaveProfile = async () => {
+    if (actionLoading) return;
+    setActionLoading(true);
     try {
       const result = await updateUser({
         name: profileFormData.name,
@@ -113,10 +116,14 @@ const AgentPanel = () => {
       }
     } catch (error) {
       alert('Error al actualizar perfil');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleSavePassword = async (currentPassword, newPassword) => {
+    if (actionLoading) return;
+    setActionLoading(true);
     try {
       const result = await changePassword(currentPassword, newPassword);
       if (result.success) {
@@ -127,7 +134,17 @@ const AgentPanel = () => {
       }
     } catch (error) {
       alert('Error de conexión');
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const openModal = (modalSetter) => {
+    // Cerrar todo lo demás para evitar conflictos de z-index y overlays
+    setShowNotifications(false);
+    setIsMobileMenuOpen(false);
+    setIsCategoryDropdownOpen(false);
+    modalSetter(true);
   };
 
   useEffect(() => {
@@ -254,10 +271,10 @@ const AgentPanel = () => {
           >
             <UserSidebar
               setActiveTab={setActiveTab}
-              setShowProfileModal={setShowProfileModal}
-              setShowPasswordModal={setShowPasswordModal}
-              setShowNotifications={setShowNotifications}
-              setShowSuggestModal={setShowSuggestModal}
+              setShowProfileModal={(val) => openModal(setShowProfileModal)}
+              setShowPasswordModal={(val) => openModal(setShowPasswordModal)}
+              setShowNotifications={(val) => openModal(setShowNotifications)}
+              setShowSuggestModal={(val) => openModal(setShowSuggestModal)}
               isCollapsed={isSidebarCollapsed}
               setIsCollapsed={setIsSidebarCollapsed}
             />
@@ -274,10 +291,10 @@ const AgentPanel = () => {
                 <UserSidebar
                   isMobile={true}
                   setActiveTab={setActiveTab}
-                  setShowProfileModal={setShowProfileModal}
-                  setShowPasswordModal={setShowPasswordModal}
-                  setShowNotifications={setShowNotifications}
-                  setShowSuggestModal={setShowSuggestModal}
+                  setShowProfileModal={(val) => openModal(setShowProfileModal)}
+                  setShowPasswordModal={(val) => openModal(setShowPasswordModal)}
+                  setShowNotifications={(val) => openModal(setShowNotifications)}
+                  setShowSuggestModal={(val) => openModal(setShowSuggestModal)}
                   onCloseMobile={() => setIsMobileMenuOpen(false)}
                 />
               </aside>
@@ -287,7 +304,7 @@ const AgentPanel = () => {
       )}
 
       {/* Contenido Principal */}
-      <main className={`flex-1 w-full min-h-screen relative z-0 transition-all duration-300 ${isAuthenticated ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
+      <main className={`flex-1 w-full min-h-screen relative z-10 transition-all duration-300 ${isAuthenticated ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
         <div className="max-w-7xl mx-auto p-3 sm:p-6 min-h-full relative">
           {/* Desktop Top Bar (Hidden on Mobile) */}
           <div className="hidden lg:flex items-center justify-between mb-8 pb-4 border-b border-gray-100/50 dark:border-gray-800/50">
@@ -464,7 +481,12 @@ const AgentPanel = () => {
           </div>
 
           {/* Agents Grid/List */}
-          {filteredAndSortedAgents.length > 0 ? (
+          {loadingAgents ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="premium-spinner"></div>
+              <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Cargando agentes especializados...</p>
+            </div>
+          ) : filteredAndSortedAgents.length > 0 ? (
             <>
               <div className={viewMode === 'grid'
                 ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 mb-8"
@@ -596,7 +618,7 @@ const AgentPanel = () => {
 
       {/* Other Modals (Profile, Password, Suggest) */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowProfileModal(false)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowProfileModal(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-6">Personalizar Perfil</h3>
             <div className="space-y-4">
@@ -615,41 +637,73 @@ const AgentPanel = () => {
                 />
                 <p className="text-xs text-gray-400 mt-1">Pega el enlace a una imagen (Unsplash, UI Avatars, etc.)</p>
               </div>
-              <button onClick={handleSaveProfile} className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors">Guardar Cambios</button>
+              <button 
+                onClick={handleSaveProfile} 
+                disabled={actionLoading}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                {actionLoading ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {showPasswordModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowPasswordModal(false)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowPasswordModal(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-6">Cambiar Contraseña</h3>
             <form onSubmit={async (e) => {
               e.preventDefault();
+              if (actionLoading) return;
               const current = e.target.current.value;
               const next = e.target.next.value;
               const confirm = e.target.confirm.value;
               if (next !== confirm) return alert('Las contraseñas no coinciden');
-              handleSavePassword(current, next);
+              await handleSavePassword(current, next);
             }} className="space-y-4">
               <input name="current" type="password" placeholder="Contraseña Actual" className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
               <input name="next" type="password" placeholder="Nueva Contraseña" className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
               <input name="confirm" type="password" placeholder="Confirmar Nueva Contraseña" className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-              <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors">Actualizar Contraseña</button>
+              <button 
+                type="submit" 
+                disabled={actionLoading}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                {actionLoading ? 'Actualizando...' : 'Actualizar Contraseña'}
+              </button>
             </form>
           </div>
         </div>
       )}
 
       {showSuggestModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSuggestModal(false)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowSuggestModal(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-6">Sugerir Nuevo Agente</h3>
             <div className="space-y-4">
               <input type="text" placeholder="Nombre del Agente" value={suggestData.name} onChange={e => setSuggestData({ ...suggestData, name: e.target.value })} className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
               <textarea placeholder="Descripción / Función" value={suggestData.description} onChange={e => setSuggestData({ ...suggestData, description: e.target.value })} className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white h-32" />
-              <button onClick={() => { suggestAgent(suggestData); setShowSuggestModal(false); addToast('Sugerencia enviada'); }} className="w-full bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700 transition-colors">Enviar Sugerencia</button>
+              <button 
+                disabled={actionLoading}
+                onClick={async () => { 
+                  setActionLoading(true);
+                  const result = await suggestAgent(suggestData); 
+                  if (result.success) {
+                    setShowSuggestModal(false); 
+                    addToast('Sugerencia enviada'); 
+                    setSuggestData({ name: '', description: '' });
+                  } else {
+                    alert(result.error || 'Error al enviar sugerencia');
+                  }
+                  setActionLoading(false);
+                }} 
+                className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {actionLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : 'Enviar Sugerencia'}
+              </button>
             </div>
           </div>
         </div>

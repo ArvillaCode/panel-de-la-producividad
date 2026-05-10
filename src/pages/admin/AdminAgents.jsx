@@ -17,7 +17,8 @@ import {
   Clock,
   Settings,
   Eye,
-  BarChart3
+  BarChart3,
+  User
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { supabase } from '../../lib/supabase';
