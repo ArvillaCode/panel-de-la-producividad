@@ -37,6 +37,9 @@ const AdminAgents = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [activeAdminTab, setActiveAdminTab] = useState('agents');
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',

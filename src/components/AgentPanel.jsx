@@ -59,6 +59,7 @@ const AgentPanel = () => {
     notifications: userNotifications,
     loading: authLoading,
     isAuthenticated,
+    isAdmin,
     addNotification,
     markNotificationAsRead,
     markAllNotificationsAsRead,
@@ -158,7 +159,8 @@ const AgentPanel = () => {
         await supabase
           .from('agents')
           .update({ total_interactions: currentInteractions })
-          .eq('id', agent.id);
+          .eq('id', agent.id)
+          .maybeSingle();
         
         // Actualizar estado local
         setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, total_interactions: currentInteractions } : a));

@@ -161,7 +161,7 @@ const AdminConfig = () => {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await supabase.from('system_config').select('*').eq('id', 1).single();
+      const { data, error: fetchError } = await supabase.from('system_config').select('*').eq('id', 1).maybeSingle();
       if (fetchError) {
         const saved = localStorage.getItem('systemConfig');
         if (saved) { const p = JSON.parse(saved); setConfig(p); setOriginalConfig(p); }

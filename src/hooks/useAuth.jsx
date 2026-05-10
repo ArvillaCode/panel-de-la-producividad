@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
         .from('system_config')
         .select('*')
         .eq('id', 1)
-        .single();
+        .maybeSingle();
       
       if (!error && data) {
         setSystemConfig({
@@ -150,12 +150,18 @@ export const AuthProvider = ({ children }) => {
     return () => clearTimeout(timer);
   }, [loading]);
 
+  // 1. Cargar configuración inicial (SOLO UNA VEZ)
   useEffect(() => {
-    // Escuchar cambios en la sesión
+    fetchSystemConfig();
+  }, [fetchSystemConfig]);
+
+  // 2. Inicializar autenticación y listener (SOLO UNA VEZ)
+  useEffect(() => {
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        await syncUserSession(session);
+        if (session) await syncUserSession(session);
+        else setLoading(false);
       } catch (err) {
         console.error('[AUTH] Initial session fetch error:', err);
         setLoading(false);
@@ -163,22 +169,27 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
-    fetchSystemConfig();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       syncUserSession(session);
     });
 
-    // Cargar notificaciones periódicamente si está autenticado
-    const notifInterval = setInterval(() => {
-      if (user) fetchNotifications();
-    }, 15000);
-
     return () => {
       if (subscription) subscription.unsubscribe();
-      clearInterval(notifInterval);
     };
-  }, [syncUserSession, user, fetchNotifications]);
+  }, [syncUserSession]);
+
+  // 3. Intervalo de notificaciones (separado)
+  useEffect(() => {
+    if (!user) return;
+    
+    fetchNotifications(); // Carga inicial
+    const notifInterval = setInterval(() => {
+      fetchNotifications();
+    }, 15000);
+
+    return () => clearInterval(notifInterval);
+  }, [user, fetchNotifications]);
 
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
