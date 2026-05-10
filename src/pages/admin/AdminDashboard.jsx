@@ -75,7 +75,7 @@ const AdminDashboard = () => {
 
     fetchUsers();
     fetchStats();
-  }, [users, getAllUsers, fetchUsers]);
+  }, []);
 
   const Counter = ({ value, duration = 1500 }) => {
     const [count, setCount] = useState(0);

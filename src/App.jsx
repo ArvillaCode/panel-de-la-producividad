@@ -19,8 +19,17 @@ const ProtectedRoute = ({ children }) => {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#020203] flex items-center justify-center">
+      <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center gap-6">
         <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+        <div className="text-center space-y-4">
+          <p className="text-gray-400 animate-pulse">Verificando sesión...</p>
+          <button 
+            onClick={() => window.location.href = '/login'}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-all"
+          >
+            ¿Demasiado tiempo? Volver al Login
+          </button>
+        </div>
       </div>
     );
   }
