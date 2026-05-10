@@ -19,9 +19,11 @@ import {
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
 
 const AdminConfig = () => {
   const { theme, toggleTheme } = useTheme();
+  const { language: currentLang, setLanguage: setAppLanguage } = useLanguage();
   
   const [config, setConfig] = useState({
     // Configuración general
@@ -125,6 +127,9 @@ const AdminConfig = () => {
       // Guardar en localStorage
       localStorage.setItem('systemConfig', JSON.stringify(config));
       setOriginalConfig(config);
+      
+      // Sincronizar idioma con el context
+      setAppLanguage(config.language);
       
       setSuccess('Configuración guardada exitosamente');
       
@@ -334,23 +339,27 @@ const AdminConfig = () => {
             />
             
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Zona Horaria
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                {t('timezone')}
               </label>
-              <input
-                list="timezones"
-                value={config.timezone}
-                onChange={(e) => handleConfigChange('general', 'timezone', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="Escribe para buscar tu zona horaria..."
-              />
-              <datalist id="timezones">
-                {Intl.supportedValuesOf('timeZone').map(tz => (
-                  <option key={tz} value={tz}>
-                    {tz.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </datalist>
+              <div className="relative group/tz">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/tz:text-blue-500 transition-colors" />
+                <input
+                  list="timezones"
+                  value={config.timezone}
+                  onChange={(e) => handleConfigChange('general', 'timezone', e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                  placeholder="Escribe el nombre de un país o ciudad..."
+                />
+                <datalist id="timezones">
+                  {Intl.supportedValuesOf('timeZone').map(tz => (
+                    <option key={tz} value={tz}>
+                      {tz.replace(/_/g, ' ').split('/').reverse().join(', ')}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1 px-1">Tip: Escribe el nombre de tu capital para filtrar más rápido.</p>
             </div>
             
             <SelectField

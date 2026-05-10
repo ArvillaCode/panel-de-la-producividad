@@ -319,43 +319,96 @@ const AdminAgents = () => {
 
       {/* Modal Crear/Editar */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">{showEditModal ? 'Editar Agente' : 'Nuevo Agente'}</h2>
-              <button onClick={closeModals}><X className="w-6 h-6" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={closeModals}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8 shadow-2xl border border-gray-200 dark:border-gray-700 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{showEditModal ? 'Editar Agente' : 'Nuevo Agente'}</h2>
+              <button onClick={closeModals} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"><X className="w-6 h-6 text-gray-400" /></button>
             </div>
-            <form onSubmit={showEditModal ? handleUpdateAgent : handleCreateAgent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombre</label>
-                <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
+            <form onSubmit={showEditModal ? handleUpdateAgent : handleCreateAgent} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Nombre</label>
+                  <input 
+                    required 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                    placeholder="Ej. Content Creator Pro"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Especialidad</label>
+                  <input 
+                    required 
+                    value={formData.specialty} 
+                    onChange={e => setFormData({...formData, specialty: e.target.value})} 
+                    placeholder="Ej. Marketing Digital"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Especialidad</label>
-                <input required value={formData.specialty} onChange={e => setFormData({...formData, specialty: e.target.value})} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Categoría</label>
-                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Categoría</label>
+                <select 
+                  value={formData.category} 
+                  onChange={e => setFormData({...formData, category: e.target.value})} 
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                >
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Descripción</label>
-                <textarea rows="3" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Descripción</label>
+                <textarea 
+                  rows="4" 
+                  value={formData.description} 
+                  onChange={e => setFormData({...formData, description: e.target.value})} 
+                  placeholder="Describe las capacidades del agente..."
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none resize-none" 
+                />
               </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Link del Chat</label>
-                <input value={formData.chatLink} onChange={e => setFormData({...formData, chatLink: e.target.value})} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700" />
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Enlace Directo del Chat</label>
+                <input 
+                  value={formData.chatLink} 
+                  onChange={e => setFormData({...formData, chatLink: e.target.value})} 
+                  placeholder="https://chatgpt.com/g/g-..."
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={formData.visible} onChange={e => setFormData({...formData, visible: e.target.checked})} id="visible" />
-                <label htmlFor="visible" className="text-sm font-medium">Visible en el panel</label>
+
+              <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-600">
+                <div className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={formData.visible} 
+                    onChange={e => setFormData({...formData, visible: e.target.checked})} 
+                    id="visible" 
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  <label htmlFor="visible" className="ml-3 text-sm font-bold text-gray-700 dark:text-gray-300">Visible en el panel público</label>
+                </div>
               </div>
+
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeModals} className="flex-1 py-2 border rounded-lg">Cancelar</button>
-                <button type="submit" disabled={loading} className="flex-1 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">
-                  {loading ? 'Guardando...' : (showEditModal ? 'Actualizar' : 'Crear')}
+                <button 
+                  type="button" 
+                  onClick={closeModals} 
+                  className="flex-1 py-3 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-50 transition-all active:scale-95"
+                >
+                  {loading ? 'Procesando...' : (showEditModal ? 'Actualizar Agente' : 'Crear Agente')}
                 </button>
               </div>
             </form>

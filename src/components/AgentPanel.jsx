@@ -7,6 +7,7 @@ import AgentCompactCard from './AgentCompactCard.jsx';
 import { useFavorites } from '../hooks/useFavorites';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
+import { useReleaseNotes } from '../hooks/useReleaseNotes';
 import UserSidebar from './user/UserSidebar';
 import { supabase } from '../lib/supabase';
 
@@ -193,7 +194,8 @@ const AgentPanel = () => {
     setIsCategoryDropdownOpen(false);
   }, [searchTerm, activeTab, sortBy]);
 
-  const unreadCount = userNotifications.filter(n => !n.read).length;
+  const { unreadCount: releasesUnread } = useReleaseNotes();
+  const unreadCount = userNotifications.filter(n => !n.read).length + releasesUnread;
 
   const handleNotificationClick = (notif) => {
     markNotificationAsRead(notif.id);
@@ -301,24 +303,13 @@ const AgentPanel = () => {
             </div>
             
             <div className="flex items-center gap-4">
-              {!isAuthenticated && (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="flex items-center gap-2 px-8 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-white rounded-2xl text-xs font-black tracking-[0.2em] uppercase shadow-xl hover:shadow-blue-500/10 border border-gray-100 dark:border-gray-700 hover:scale-105 active:scale-95 transition-all"
-                >
-                  <LogIn className="w-4 h-4 text-blue-600" />
-                  Iniciar Sesión
-                </button>
-              )}
-              {isAuthenticated && (
-                <button
-                  onClick={() => setShowNotifications(true)}
-                  className="relative p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white hover:scale-105 transition-all"
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
-                </button>
-              )}
+              <button
+                onClick={() => setShowNotifications(true)}
+                className="relative p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white hover:scale-105 transition-all"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
+              </button>
             </div>
           </div>
 
@@ -331,110 +322,39 @@ const AgentPanel = () => {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
-              {isAuthenticated ? (
-                <button
-                  onClick={() => setShowNotifications(true)}
-                  className="relative p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white"
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
-                </button>
-              ) : (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-black tracking-widest uppercase shadow-lg shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Acceder
-                </button>
-              )}
+              <button
+                onClick={() => setShowNotifications(true)}
+                className="relative p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />}
+              </button>
             </div>
           </div>
           {/* Header */}
           <div className="mb-10 md:mb-16 text-center md:text-left">
-            {!isAuthenticated && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">+50 Agentes Activos para tu Empresa</span>
-              </div>
-            )}
-
-            {isAuthenticated && (
-              <div className="hidden md:block mb-6">
-                <h2 className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">
-                  ¡Hola, {profile?.name || user?.email?.split('@')[0] || 'Líder'}! 👋
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-300 font-medium">
-                  Has recuperado <span className="text-blue-600 dark:text-blue-400 font-bold">4.2 horas</span> esta semana. ¿Qué delegaremos hoy?
-                </p>
-              </div>
-            )}
+            <div className="hidden md:block mb-6">
+              <h2 className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">
+                ¡Hola, {profile?.name || user?.email?.split('@')[0] || 'Líder'}! 👋
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-300 font-medium">
+                Has recuperado <span className="text-blue-600 dark:text-blue-400 font-bold">4.2 horas</span> esta semana. ¿Qué delegaremos hoy?
+              </p>
+            </div>
 
             <h1 className="text-5xl md:text-7xl font-black mb-6 md:mb-8 tracking-tighter leading-[0.95]">
-              <span className="block text-gray-900 dark:text-white">Delega tu esfuerzo,</span>
+              <span className="block text-gray-900 dark:text-white">Panel de</span>
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
-                potencia tus resultados
+                Agentes Premium
               </span>
             </h1>
             
             <div className="max-w-2xl">
-              <p className="text-lg md:text-2xl text-gray-600 dark:text-gray-400 font-medium leading-relaxed mb-8">
-                Convierte <span className="text-red-500 line-through decoration-2">8 horas</span> de trabajo manual en <span className="text-green-600 dark:text-green-400 font-bold underline decoration-4 underline-offset-4">12 minutos</span> de precisión algorítmica. La matriz definitiva para escalar tu productividad al <span className="bg-blue-600 text-white px-2 py-0.5 rounded-lg font-black tracking-tighter">300%</span>.
+              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 font-medium leading-relaxed mb-4">
+                Selecciona uno de tus agentes especializados para comenzar a optimizar tus tareas diarias.
               </p>
-              
-              {!isAuthenticated && (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="group relative flex items-center gap-4 px-10 py-5 bg-gray-900 dark:bg-white rounded-[2rem] shadow-2xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-500"
-                >
-                  <div className="absolute inset-0 bg-blue-600 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none" />
-                  <span className="relative text-white dark:text-gray-900 font-black tracking-widest uppercase text-sm">Acceder a la herramienta</span>
-                  <div className="relative p-2 bg-blue-600 rounded-full text-white">
-                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-              )}
             </div>
           </div>
-
-          {/* Testimonials (Solo si no está autenticado) */}
-          {!isAuthenticated && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-              <div className="p-8 bg-white/50 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] border border-white/20 shadow-xl">
-                <div className="flex gap-1 mb-4 text-yellow-500"><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/></div>
-                <p className="text-gray-700 dark:text-gray-300 font-medium italic mb-6 leading-relaxed">"Reduje mi tiempo de redacción técnica de 15 horas semanales a solo 45 minutos. Los agentes no solo escriben, razonan el contexto."</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/20 flex items-center justify-center font-bold text-blue-600">RP</div>
-                  <div>
-                    <p className="font-black text-gray-900 dark:text-white text-sm">Ricardo P.</p>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">+220% Eficiencia Operativa</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-8 bg-white/50 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] border border-white/20 shadow-xl">
-                <div className="flex gap-1 mb-4 text-yellow-500"><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/></div>
-                <p className="text-gray-700 dark:text-gray-300 font-medium italic mb-6 leading-relaxed">"Gestionamos 3 proyectos simultáneos con el mismo equipo. El retorno de inversión (ROI) se pagó en los primeros 12 días de uso."</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-600/20 border border-purple-500/20 flex items-center justify-center font-bold text-purple-600">ML</div>
-                  <div>
-                    <p className="font-black text-gray-900 dark:text-white text-sm">Marta L.</p>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">$2,400 Ahorro Mensual</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-8 bg-white/50 dark:bg-gray-800/40 backdrop-blur-xl rounded-[2.5rem] border border-white/20 shadow-xl">
-                <div className="flex gap-1 mb-4 text-yellow-500"><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/><Star className="w-4 h-4 fill-current"/></div>
-                <p className="text-gray-700 dark:text-gray-300 font-medium italic mb-6 leading-relaxed">"La precisión de los agentes de soporte eliminó el 90% de los tickets repetitivos. Liberé a mi equipo para tareas creativas de alto valor."</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center font-bold text-indigo-600">JS</div>
-                  <div>
-                    <p className="font-black text-gray-900 dark:text-white text-sm">Jorge S.</p>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">-90% Carga Administrativa</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Controls - Glassmorphism Effect */}
           <div className="bg-white/70 dark:bg-gray-800/70 rounded-3xl shadow-2xl p-5 md:p-8 mb-8 md:mb-12 border border-white/20 dark:border-gray-700/30 backdrop-blur-2xl transition-all duration-500 hover:shadow-blue-500/5">
@@ -601,6 +521,9 @@ const AgentPanel = () => {
                 <button onClick={() => setShowNotifications(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X /></button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                {/* Integración de Novedades en el panel de notificaciones */}
+                <ReleaseNotificationBanner onAction={() => setShowNotifications(false)} />
+                
                 {userNotifications.length > 0 ? userNotifications.map(notif => (
                   <div
                     key={notif.id}
@@ -736,6 +659,37 @@ const AgentPanel = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ReleaseNotificationBanner = ({ onAction }) => {
+  const { unreadCount, latestRelease } = useReleaseNotes();
+  const navigate = useNavigate();
+
+  if (unreadCount === 0 || !latestRelease) return null;
+
+  return (
+    <div 
+      onClick={() => {
+        navigate('/novedades');
+        if (onAction) onAction();
+      }}
+      className="p-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20 cursor-pointer group relative overflow-hidden mb-4"
+    >
+      <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-125 transition-transform">
+        <Sparkles className="w-12 h-12" />
+      </div>
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="w-4 h-4 text-blue-200" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Nuevas Novedades</span>
+        </div>
+        <h4 className="font-bold text-sm mb-1">{latestRelease.title}</h4>
+        <p className="text-[10px] text-blue-100 line-clamp-1 opacity-90">
+          Tienes {unreadCount} {unreadCount === 1 ? 'actualización pendiente' : 'actualizaciones pendientes'} por revisar.
+        </p>
+      </div>
     </div>
   );
 };

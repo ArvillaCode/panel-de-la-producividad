@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }) => {
       if (!session) {
         setUser(null);
         setProfile(null);
+        setLoading(false);
         return;
       }
 
@@ -44,7 +45,7 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       if (profileError) {
-        console.error('[AUTH] Profile sync error:', profileError.message);
+        console.warn('[AUTH] Profile not found or error, using default role:', profileError.message);
         setProfile({ id: currentUser.id, email: currentUser.email, role: 'user' });
       } else {
         // 1. Determinar estados de acceso
@@ -53,24 +54,21 @@ export const AuthProvider = ({ children }) => {
         const userIsAdmin = profileData.role === 'admin' || currentUser.email === 'admin@admin.com';
         const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
 
-        // 2. Validación forzosa de acceso (excepto para admins)
+        console.log('[AUTH] Access Check:', { userIsAdmin, status, isApproved, isExpired });
+
+        // 2. Validación de acceso
         if (!userIsAdmin && (status !== 'active' || !isApproved || isExpired)) {
           let reason = 'Tu cuenta no tiene acceso permitido.';
-          if (status === 'pending') reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
+          if (status === 'pending' || !isApproved) reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
           if (status === 'rejected') reason = 'Tu solicitud fue denegada.';
-          if (status === 'inactive') reason = 'Tu cuenta fue expulsada o desactivada.';
+          if (status === 'inactive') reason = 'Tu cuenta ha sido desactivada.';
           if (isExpired) reason = 'Tu suscripción ha expirado.';
 
-          console.warn(`[AUTH] Acceso denegado (${status}): ${reason}`);
+          console.warn(`[AUTH] Acceso denegado para ${currentUser.email}: ${reason}`);
           
-          // Limpiar estados locales inmediatamente para evitar flashes
+          await supabase.auth.signOut();
           setUser(null);
           setProfile(null);
-
-          // Cerrar sesión en Supabase (esto disparará otro evento auth nulo)
-          await supabase.auth.signOut();
-          
-          // Redirigir con mensaje
           window.location.href = `/login?error=${encodeURIComponent(reason)}`;
           return;
         }
@@ -78,7 +76,6 @@ export const AuthProvider = ({ children }) => {
         setProfile(profileData);
       }
 
-      // Cargar lista si es admin
       if (profileData?.role === 'admin' || currentUser.email === 'admin@admin.com') {
         fetchUsers();
       }
@@ -95,15 +92,13 @@ export const AuthProvider = ({ children }) => {
     let timer;
     if (loading) {
       timer = setTimeout(() => {
-        console.warn('[AUTH] Safety timeout: forzando loading=false para evitar spinner infinito');
         setLoading(false);
-      }, 6000); // 6 segundos de margen
+      }, 6000);
     }
     return () => clearTimeout(timer);
   }, [loading]);
 
   useEffect(() => {
-    // Escuchar cambios en la sesión
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -117,7 +112,10 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncUserSession(session);
+      // Evitar sincronizar si es un evento de SIGN_UP y ya somos admin (previene cerrar sesión al admin)
+      if (_event === 'SIGNED_IN' || _event === 'USER_UPDATED' || _event === 'INITIAL_SESSION') {
+        syncUserSession(session);
+      }
     });
 
     return () => {
@@ -138,12 +136,39 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (email, password, metadata = {}) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: metadata }
-    });
-    return { success: !error, error: error?.message };
+    try {
+      // Usar un cliente temporal sin persistencia para no cerrar la sesión del admin actual
+      const { createClient } = await import('@supabase/supabase-js');
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false } }
+      );
+
+      const { data, error } = await tempSupabase.auth.signUp({
+        email,
+        password,
+        options: { data: metadata }
+      });
+
+      if (error) throw error;
+      
+      // Intentar crear el perfil manualmente para asegurar que exista inmediatamente
+      if (data.user) {
+        await supabase.from('profiles').insert([{
+          id: data.user.id,
+          email: email,
+          name: metadata.name || '',
+          role: metadata.role || 'user',
+          status: 'pending',
+          is_approved: false
+        }]);
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   };
 
   const updateUser = async (data) => {
