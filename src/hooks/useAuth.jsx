@@ -114,12 +114,12 @@ export const AuthProvider = ({ children }) => {
 
       if (session) {
         setLoading(true);
-        const result = await initializeUserData(session);
-        if (mounted) setLoading(false);
-        
-        // Si el login fue denegado por falta de aprobación, forzamos redirección manual si fuera necesario
-        if (result && !result.success && event === 'SIGNED_IN') {
-           // initializeUserData ya hace signOut()
+        try {
+          await initializeUserData(session);
+        } catch (error) {
+          console.error("[DEBUG] Error en onAuthStateChange init:", error);
+        } finally {
+          if (mounted) setLoading(false);
         }
       } else {
         if (mounted) {
