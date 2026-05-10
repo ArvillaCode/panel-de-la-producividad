@@ -66,12 +66,14 @@ const AdminUsers = () => {
   const [selectedRows, setSelectedRows] = useState([]);
 
   useEffect(() => {
+    fetchUsers();
+    
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') closeModals();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [fetchUsers]);
 
   const filteredUsers = users.filter(user => {
     let matchesSearch = true;

@@ -22,7 +22,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 
 const AdminDashboard = () => {
-  const { getUserInfo, getAllUsers, users } = useAuth();
+  const { getUserInfo, getAllUsers, users, fetchUsers } = useAuth();
   const navigate = useNavigate();
   const user = getUserInfo;
 
@@ -73,8 +73,9 @@ const AdminDashboard = () => {
       setRecentUsers(allUsers.slice(0, 6));
     };
 
+    fetchUsers();
     fetchStats();
-  }, [users, getAllUsers]);
+  }, [users, getAllUsers, fetchUsers]);
 
   const Counter = ({ value, duration = 1500 }) => {
     const [count, setCount] = useState(0);
