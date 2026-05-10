@@ -17,9 +17,11 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
-  Search
+  Search 
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { useTheme } from '../../hooks/useTheme';
+import { supabase } from '../../lib/supabase';
 
 // Componentes de utilidad fuera para evitar pérdida de foco
 const ConfigSection = ({ title, icon: Icon, children }) => (
@@ -175,8 +177,6 @@ const TimezoneSelect = ({ value, onChange }) => {
     </div>
   );
 };
-import { useTheme } from '../../hooks/useTheme';
-import { supabase } from '../../lib/supabase';
 
 const AdminConfig = () => {
   const { theme, toggleTheme } = useTheme();
