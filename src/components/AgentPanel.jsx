@@ -147,13 +147,34 @@ const AgentPanel = () => {
     modalSetter(true);
   };
 
+  const handleAgentClick = async (agent) => {
+    // Abrir chat
+    if (agent.chatLink) {
+      window.open(agent.chatLink, '_blank');
+      
+      // Incrementar interacciones en Supabase (silenciosamente)
+      try {
+        const currentInteractions = (agent.total_interactions || agent.totalInteractions || 0) + 1;
+        await supabase
+          .from('agents')
+          .update({ total_interactions: currentInteractions })
+          .eq('id', agent.id);
+        
+        // Actualizar estado local
+        setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, total_interactions: currentInteractions } : a));
+      } catch (e) {
+        console.warn('[INTERACTIONS] Error incrementing:', e);
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchAgents = async () => {
       setLoadingAgents(true);
       const { data, error } = await supabase
         .from('agents')
         .select('*')
-        .order('id', { ascending: true });
+        .order('id', { ascending: false }); // Mostrar los más nuevos primero
 
       if (error) {
         console.error('Error fetching agents from Supabase:', error.message);
@@ -182,10 +203,11 @@ const AgentPanel = () => {
     }
 
     if (searchTerm) {
+      const term = searchTerm.trim().toLowerCase();
       filtered = filtered.filter(agent =>
-        (agent.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (agent.specialty || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (agent.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (agent.name || '').toLowerCase().includes(term) ||
+        (agent.specialty || '').toLowerCase().includes(term) ||
+        (agent.description || '').toLowerCase().includes(term)
       );
     }
 
@@ -497,7 +519,7 @@ const AgentPanel = () => {
                     <AgentCard
                       key={agent.id}
                       agent={agent}
-                      onChatClick={() => window.open(agent.chatLink, '_blank')}
+                      onChatClick={() => handleAgentClick(agent)}
                       isFavorite={isFavorite(agent.id)}
                       onToggleFavorite={() => toggleFavorite(agent.id)}
                     />
@@ -505,7 +527,7 @@ const AgentPanel = () => {
                     <AgentCompactCard
                       key={agent.id}
                       agent={agent}
-                      onChatClick={() => window.open(agent.chatLink, '_blank')}
+                      onChatClick={() => handleAgentClick(agent)}
                       isFavorite={isFavorite(agent.id)}
                       onToggleFavorite={() => toggleFavorite(agent.id)}
                     />
