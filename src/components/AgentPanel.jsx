@@ -190,6 +190,9 @@ const AgentPanel = () => {
 
   const tabs = categories;
 
+  const normalizeText = (text) => 
+    (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
   const filteredAndSortedAgents = useMemo(() => {
     let filtered;
     if (activeTab === 'Favoritos') {
@@ -203,11 +206,11 @@ const AgentPanel = () => {
     }
 
     if (searchTerm) {
-      const term = searchTerm.trim().toLowerCase();
+      const term = normalizeText(searchTerm).trim();
       filtered = filtered.filter(agent =>
-        (agent.name || '').toLowerCase().includes(term) ||
-        (agent.specialty || '').toLowerCase().includes(term) ||
-        (agent.description || '').toLowerCase().includes(term)
+        normalizeText(agent.name).includes(term) ||
+        normalizeText(agent.specialty).includes(term) ||
+        normalizeText(agent.description).includes(term)
       );
     }
 

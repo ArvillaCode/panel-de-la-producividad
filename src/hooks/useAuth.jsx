@@ -22,6 +22,22 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = !!user;
   const isAdmin = profile?.role === 'admin' || user?.email === 'admin@admin.com';
 
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .or(`user_id.eq.${user.id},is_broadcast.eq.true`)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (!error) setNotifications(data || []);
+    } catch (err) {
+      console.error('[AUTH] Fetch notifications error:', err);
+    }
+  }, [user]);
+
   const fetchUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -153,10 +169,16 @@ export const AuthProvider = ({ children }) => {
       syncUserSession(session);
     });
 
+    // Cargar notificaciones periódicamente si está autenticado
+    const notifInterval = setInterval(() => {
+      if (user) fetchNotifications();
+    }, 15000);
+
     return () => {
       if (subscription) subscription.unsubscribe();
+      clearInterval(notifInterval);
     };
-  }, [syncUserSession]);
+  }, [syncUserSession, user, fetchNotifications]);
 
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -281,23 +303,63 @@ export const AuthProvider = ({ children }) => {
     return updateUserById(id, { status: nextStatus, is_approved: isApproved });
   };
 
-  const markNotificationAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const markNotificationAsRead = async (id) => {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', id);
+    
+    if (!error) {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    }
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllNotificationsAsRead = async () => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', user.id);
+    
+    if (!error) {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
   };
 
-  const broadcastNotification = (notif) => {
-    // Nota: Esto es local por ahora, requiere tabla 'global_notifications' para persistencia real
-    setNotifications(prev => [...prev, { 
-      ...notif, 
-      id: Date.now(), 
-      timestamp: new Date().toISOString(), 
-      read: false,
-      isBroadcast: true
-    }]);
+  const broadcastNotification = async (notif) => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert([{
+          title: notif.title,
+          message: notif.message,
+          type: notif.type || 'info',
+          is_broadcast: true
+        }])
+        .select();
+      
+      if (!error && data) {
+        fetchNotifications();
+      }
+    } catch (e) {
+      console.error('[AUTH] Broadcast error:', e);
+    }
+  };
+
+  const sendUserNotification = async (userId, notif) => {
+    try {
+      await supabase
+        .from('notifications')
+        .insert([{
+          user_id: userId,
+          title: notif.title,
+          message: notif.message,
+          type: notif.type || 'info',
+          is_broadcast: false
+        }]);
+    } catch (e) {
+      console.error('[AUTH] Send notification error:', e);
+    }
   };
 
   const changePassword = async (currentPassword, newPassword) => {
@@ -376,7 +438,9 @@ export const AuthProvider = ({ children }) => {
     suggestAgent,
     expelUser,
     fetchUsers,
-    adminCreateUser
+    fetchNotifications,
+    adminCreateUser,
+    sendUserNotification
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

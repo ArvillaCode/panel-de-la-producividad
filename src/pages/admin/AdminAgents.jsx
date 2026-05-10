@@ -23,6 +23,7 @@ import {
 import AdminLayout from '../../components/admin/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import { categories } from '../../data/agents';
+import { useAuth } from '../../hooks/useAuth';
 
 const AdminAgents = () => {
   const [agents, setAgents] = useState([]);
@@ -51,9 +52,7 @@ const AdminAgents = () => {
   const itemsPerPage = 9;
   const [selectedRows, setSelectedRows] = useState([]);
 
-  const [activeAdminTab, setActiveAdminTab] = useState('agents'); // 'agents' or 'suggestions'
-  const [suggestions, setSuggestions] = useState([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const { broadcastNotification, sendUserNotification } = useAuth();
 
   useEffect(() => {
     fetchAgents();
@@ -80,6 +79,7 @@ const AdminAgents = () => {
 
   const handleUpdateSuggestionStatus = async (id, status) => {
     setLoading(true);
+    const suggestion = suggestions.find(s => s.id === id);
     const { error } = await supabase
       .from('agent_suggestions')
       .update({ status })
@@ -89,26 +89,41 @@ const AdminAgents = () => {
       setError(error.message);
     } else {
       setSuccess(`Sugerencia ${status === 'approved' ? 'aprobada' : 'rechazada'} correctamente`);
+      
+      // Notificar al usuario (Regla 10)
+      if (suggestion?.user_id) {
+        await sendUserNotification(suggestion.user_id, {
+          title: status === 'approved' ? '¡Sugerencia Aprobada! 🎉' : 'Sugerencia Revisada',
+          message: status === 'approved' 
+            ? `Tu sugerencia "${suggestion.name}" ha sido aprobada e integrada al sistema.`
+            : `Gracias por tu sugerencia "${suggestion.name}". Lamentablemente no podemos integrarla en este momento.`,
+          type: status === 'approved' ? 'success' : 'info'
+        });
+      }
+
       fetchSuggestions();
     }
     setLoading(false);
   };
 
   const handleDeleteSuggestion = async (id) => {
-    if (!window.confirm('¿Eliminar esta sugerencia?')) return;
-    setLoading(true);
-    const { error } = await supabase
-      .from('agent_suggestions')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess('Sugerencia eliminada');
-      fetchSuggestions();
+    if (!window.confirm('¿Eliminar esta sugerencia permanentemente?')) return;
+    setLoadingSuggestions(true); // Usar el loading específico para evitar flasheos del otro
+    try {
+      const { error } = await supabase
+        .from('agent_suggestions')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setSuccess('Sugerencia eliminada correctamente');
+      setSuggestions(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingSuggestions(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -132,12 +147,14 @@ const AdminAgents = () => {
   };
 
   const filterAgents = () => {
+    const normalizeText = (text) => (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    
     let filtered = agents;
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+      const term = normalizeText(searchTerm).trim();
       filtered = filtered.filter(agent => 
-        (agent.name || '').toLowerCase().includes(searchLower) ||
-        (agent.specialty || '').toLowerCase().includes(searchLower)
+        normalizeText(agent.name).includes(term) ||
+        normalizeText(agent.specialty).includes(term)
       );
     }
     if (filterStatus !== 'all') {
@@ -150,11 +167,19 @@ const AdminAgents = () => {
   const handleCreateAgent = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from('agents').insert([formData]);
+    const { data, error } = await supabase.from('agents').insert([formData]).select();
     if (error) {
       setError(error.message);
     } else {
       setSuccess('Agente creado exitosamente');
+      
+      // Notificación global de novedad (Regla 10)
+      await broadcastNotification({
+        title: '🚀 ¡Nuevo Agente Disponible!',
+        message: `Se ha añadido a "${formData.name}" especializado en ${formData.specialty}. ¡Pruébalo ahora!`,
+        type: 'success'
+      });
+
       setShowCreateModal(false);
       resetForm();
       fetchAgents();
