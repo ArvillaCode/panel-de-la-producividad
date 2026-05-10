@@ -387,33 +387,28 @@ const AdminConfig = () => {
               required
             />
             
-            <div className="space-y-1 relative">
+            <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Zona Horaria
               </label>
-              <div className="relative group/tz">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  list="timezones-list"
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
                   value={config.timezone}
                   onChange={(e) => handleConfigChange('general', 'timezone', e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all shadow-sm"
-                  placeholder="Escribe para buscar (ej: Madrid, New York...)"
-                  onFocus={(e) => e.target.select()}
-                />
-                
-                <datalist id="timezones-list">
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all shadow-sm appearance-none"
+                >
                   {Intl.supportedValuesOf('timeZone').map(tz => (
                     <option key={tz} value={tz}>
                       {tz.replace(/_/g, ' ')}
                     </option>
                   ))}
-                </datalist>
-                
-                <p className="text-[10px] text-gray-400 mt-1 italic">
-                  Sugerencia: Haz clic para ver la lista o escribe para filtrar ciudades.
-                </p>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                  </svg>
+                </div>
               </div>
             </div>
             

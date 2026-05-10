@@ -29,6 +29,7 @@ const AdminDashboard = () => {
     totalUsers: 0,
     adminUsers: 0,
     activeUsers: 0,
+    pendingUsers: 0,
     totalAgents: 0,
     totalInteractions: 0,
     recentActivity: []
@@ -39,31 +40,32 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       // Intento de carga directa para depuración
-      const { data: directUsers, error: usersError } = await supabase.from('profiles').select('id, email, name, role, created_at');
-      const { data: agentsData, error: agentsError, status: aStatus } = await supabase.from('agents').select('*');
+      const { data: directUsers, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, email, name, role, status, is_approved, created_at');
       
-      console.log("📊 DIAGNÓSTICO DE CARGA:", {
-        usuarios: { count: directUsers?.length, error: usersError?.message },
-        agentes: { count: agentsData?.length, status: aStatus, error: agentsError?.message }
-      });
+      const { data: agentsData, error: agentsError, status: aStatus } = await supabase.from('agents').select('*');
       
       const allUsers = directUsers || [];
       const adminCount = allUsers.filter(u => u.role === 'admin').length;
-      const activeCount = allUsers.length; // No hay columna de estado, asumimos todos activos
+      const activeCount = allUsers.filter(u => u.status === 'active').length;
+      const pendingCount = allUsers.filter(u => u.status === 'pending' || u.is_approved === false).length;
+      
       const totalAgents = agentsData?.length || 0;
       const totalInteractions = agentsData?.reduce((sum, agent) => sum + (agent.total_interactions || agent.totalInteractions || 0), 0) || 0;
 
       // Actividad reciente (usuarios reales)
       const activity = allUsers.slice(0, 5).map((user, index) => ({
         id: index + 1,
-        message: `Usuario ${user.name || user.email} - Última actividad`,
-        timestamp: new Date(Date.now() - Math.random() * 86400000).toLocaleString(),
+        message: `Usuario ${user.name || user.email} - Registrado`,
+        timestamp: new Date(user.created_at).toLocaleString(),
       }));
 
       setStats({
         totalUsers: allUsers.length,
         adminUsers: adminCount,
         activeUsers: activeCount,
+        pendingUsers: pendingCount,
         totalAgents,
         totalInteractions,
         recentActivity: activity
@@ -223,17 +225,35 @@ const AdminDashboard = () => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           <StatCard
             title="Total de Usuarios"
             value={stats.totalUsers}
             icon={Users}
             color="blue"
-            description="Usuarios registrados en el sistema"
+            description="Usuarios registrados"
             action={{
               label: "Ver todos →",
               onClick: handleNavigateToUsers
             }}
+          />
+          <StatCard
+            title="Pendientes"
+            value={stats.pendingUsers}
+            icon={Clock}
+            color="orange"
+            description="Esperando aprobación"
+            action={{
+              label: "Gestionar →",
+              onClick: handleNavigateToUsers
+            }}
+          />
+          <StatCard
+            title="Usuarios Activos"
+            value={stats.activeUsers}
+            icon={Activity}
+            color="green"
+            description="Cuentas habilitadas"
           />
           <StatCard
             title="Agentes IA"
@@ -247,25 +267,11 @@ const AdminDashboard = () => {
             }}
           />
           <StatCard
-            title="Usuarios Activos"
-            value={stats.activeUsers}
-            icon={Activity}
-            color="green"
-            description="Usuarios con estado activo"
-          />
-          <StatCard
             title="Interacciones"
             value={stats.totalInteractions}
             icon={TrendingUp}
-            color="orange"
-            description="Consultas totales a la IA"
-          />
-          <StatCard
-            title="Sistema"
-            value="Online"
-            icon={CheckCircle}
-            color="green"
-            description="Estado operativo"
+            color="blue"
+            description="Consultas totales"
           />
         </div>
 

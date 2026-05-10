@@ -110,7 +110,14 @@ const AdminUsers = () => {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedRows(currentUsers.map(user => user.id));
+      // Filtrar para no seleccionar al administrador protegido si es el único o si es el usuario actual
+      const selectableUsers = currentUsers.filter(u => {
+        const isAdmin = u.role === 'admin';
+        const isLastAdmin = isAdmin && users.filter(usr => usr.role === 'admin').length === 1;
+        const isCurrentUser = u.id === user?.id;
+        return !isCurrentUser && !isLastAdmin;
+      });
+      setSelectedRows(selectableUsers.map(u => u.id));
     } else {
       setSelectedRows([]);
     }
@@ -123,14 +130,47 @@ const AdminUsers = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm('¿Estás seguro de eliminar los usuarios seleccionados?')) {
+    if (window.confirm(`¿Estás seguro de eliminar los ${selectedRows.length} usuarios seleccionados? Esta acción es irreversible.`)) {
       setActionLoading(true);
+      let count = 0;
       for (const id of selectedRows) {
-        if (id !== user?.id) await deleteUserById(id);
+        const result = await deleteUserById(id);
+        if (result.success) count++;
       }
       setSelectedRows([]);
-      setSuccess('Usuarios eliminados exitosamente');
+      setSuccess(`${count} usuarios eliminados exitosamente`);
       setActionLoading(false);
+      fetchUsers();
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (window.confirm(`¿Aceptar y activar a los ${selectedRows.length} usuarios seleccionados?`)) {
+      setActionLoading(true);
+      let count = 0;
+      for (const id of selectedRows) {
+        const result = await updateUserById(id, { status: 'active', is_approved: true });
+        if (result.success) count++;
+      }
+      setSelectedRows([]);
+      setSuccess(`${count} usuarios activados correctamente`);
+      setActionLoading(false);
+      fetchUsers();
+    }
+  };
+
+  const handleBulkExpel = async () => {
+    if (window.confirm(`¿Expulsar y desactivar el acceso a los ${selectedRows.length} usuarios seleccionados?`)) {
+      setActionLoading(true);
+      let count = 0;
+      for (const id of selectedRows) {
+        const result = await updateUserById(id, { status: 'inactive', is_approved: false });
+        if (result.success) count++;
+      }
+      setSelectedRows([]);
+      setSuccess(`${count} usuarios expulsados correctamente`);
+      setActionLoading(false);
+      fetchUsers();
     }
   };
 
@@ -571,17 +611,36 @@ const AdminUsers = () => {
 
             {/* Bulk Actions Bar */}
             {selectedRows.length > 0 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between animate-fade-in">
-                <span className="text-blue-800 dark:text-blue-300 font-medium">
-                  {selectedRows.length} usuario(s) seleccionado(s)
-                </span>
-                <div className="flex gap-2">
-                    {/* Botón de cambio de estado masivo deshabilitado */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    {selectedRows.length}
+                  </div>
+                  <span className="text-blue-800 dark:text-blue-300 font-medium">
+                    Usuarios seleccionados
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleBulkApprove}
+                    disabled={actionLoading}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Check className="w-4 h-4" /> Aceptar Todos
+                  </button>
+                  <button
+                    onClick={handleBulkExpel}
+                    disabled={actionLoading}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Pause className="w-4 h-4" /> Expulsar Todos
+                  </button>
                   <button
                     onClick={handleBulkDelete}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    disabled={actionLoading}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
                   >
-                    Eliminar
+                    <Trash2 className="w-4 h-4" /> Eliminar
                   </button>
                 </div>
               </div>
