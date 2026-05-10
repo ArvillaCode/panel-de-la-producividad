@@ -45,7 +45,8 @@ const AgentPanel = () => {
     user,
     addNotification,
     notifications: userNotifications,
-    loading: authLoading
+    loading: authLoading,
+    getUnreadNotificationsCount
   } = useAuth();
 
   const navigate = useNavigate();
