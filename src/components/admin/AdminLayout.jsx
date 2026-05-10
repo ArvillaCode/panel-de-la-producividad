@@ -17,12 +17,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
 const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
-  const { logout, getUserInfo } = useAuth();
+  const { logout, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const user = getUserInfo;
 
   // Determinar la página actual basada en la URL
   const getCurrentPage = () => {

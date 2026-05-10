@@ -22,9 +22,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 
 const AdminDashboard = () => {
-  const { getUserInfo, getAllUsers, users, fetchUsers } = useAuth();
+  const { user, users, fetchUsers } = useAuth();
   const navigate = useNavigate();
-  const user = getUserInfo;
 
   const [stats, setStats] = useState({
     totalUsers: 0,
