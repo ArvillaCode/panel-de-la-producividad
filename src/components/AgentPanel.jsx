@@ -66,16 +66,16 @@ const AgentPanel = () => {
 
   // Lógica de alertas de membresía
   useEffect(() => {
-    if (user && user.endDate) {
+    if (user?.endDate) {
       const today = new Date();
       const end = new Date(user.endDate);
       const diffTime = end - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays === 3) {
-        const alreadyNotified = userNotifications.some(n => n.type === 'warning' && n.message.includes('3 días'));
+        const alreadyNotified = userNotifications?.some(n => n.type === 'warning' && n.message.includes('3 días'));
         if (!alreadyNotified) {
-          addNotification(user.id, {
+          addNotification(user?.id, {
             title: 'Recordatorio de Membresía',
             message: 'Tu acceso vencerá en 3 días. ¡No pierdas tu productividad!',
             type: 'warning',
@@ -83,9 +83,9 @@ const AgentPanel = () => {
           });
         }
       } else if (diffDays <= 0) {
-        const alreadyNotified = userNotifications.some(n => n.type === 'error' && (n.message.includes('vence hoy') || n.message.includes('vencido')));
+        const alreadyNotified = userNotifications?.some(n => n.type === 'error' && (n.message.includes('vence hoy') || n.message.includes('vencido')));
         if (!alreadyNotified) {
-          addNotification(user.id, {
+          addNotification(user?.id, {
             title: 'Membresía Vencida',
             message: diffDays === 0 ? 'Tu membresía vence hoy. Renueva para continuar.' : 'Tu membresía ha vencido. Contacta al administrador.',
             type: 'error',
@@ -94,7 +94,7 @@ const AgentPanel = () => {
         }
       }
     }
-  }, [user, userNotifications]);
+  }, [user, userNotifications, addNotification]);
 
   const [profileFormData, setProfileFormData] = useState({ name: '', avatar: '' });
 

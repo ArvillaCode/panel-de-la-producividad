@@ -13,15 +13,16 @@ export const AuthProvider = ({ children }) => {
   const fetchUsers = useCallback(async () => {
     try {
       console.log("[DEBUG] Ejecutando fetchUsers...");
-      const { data, error } = await supabase.from('profiles').select('*');
+      const { data, error, status, statusText } = await supabase.from('profiles').select('*');
 
       if (error) {
-        console.error("[DEBUG] Error en fetchUsers:", error.message);
+        console.error("[DEBUG] Error en fetchUsers:", error.message, "Status:", status);
         return;
       }
 
+      console.log(`[DEBUG] Fetch completado. Status: ${status} (${statusText}). Registros: ${data?.length || 0}`);
+
       if (data) {
-        console.log(`[DEBUG] Usuarios encontrados en DB: ${data.length}`);
         setUsers(data.map(p => ({
           id: p.id,
           email: p.email,
@@ -202,6 +203,10 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await supabase.auth.signOut();
+      setUser(null);
+      setUsers([]);
+      // Redirección manual por si el onAuthStateChange tarda
+      window.location.href = '/login';
     } catch (e) {
       console.error("Error signing out:", e);
     }
