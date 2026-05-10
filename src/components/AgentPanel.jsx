@@ -42,6 +42,7 @@ const AgentPanel = () => {
   const { toggleFavorite, isFavorite, getFavoriteAgents } = useFavorites();
   const { theme, toggleTheme } = useTheme();
   const { 
+    user,
     addNotification,
     notifications: userNotifications,
     loading: authLoading

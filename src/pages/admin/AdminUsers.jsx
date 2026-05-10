@@ -26,7 +26,7 @@ import { useNavigate } from 'react-router-dom';
 
 const AdminUsers = () => {
   console.log('>>> AdminUsers component MOUNTED! <<<');
-  const { users, deleteUserById, updateUserById, toggleUserStatus, expelUser, user: currentUser, addNotification, broadcastNotification, getAllUsers, register, fetchUsers } = useAuth();
+  const { users, deleteUserById, updateUserById, toggleUserStatus, expelUser, user: currentUser, addNotification, broadcastNotification, register, fetchUsers } = useAuth();
   const navigate = useNavigate();
 
   // Estados para notificaciones
