@@ -47,9 +47,12 @@ async function announceUpdates() {
 
     let nextVersion = '1.0.0';
     if (latestRelease && latestRelease[0]) {
-      const parts = latestRelease[0].version.replace('v', '').split('.');
-      parts[2] = parseInt(parts[2]) + 1;
-      nextVersion = parts.join('.');
+      const v = latestRelease[0].version.toString().toLowerCase().replace('v', '');
+      const parts = v.split('.');
+      if (parts.length === 3) {
+        parts[2] = parseInt(parts[2]) + 1;
+        nextVersion = parts.join('.');
+      }
     }
 
     const newRelease = {

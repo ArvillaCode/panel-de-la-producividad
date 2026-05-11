@@ -12,7 +12,6 @@ import {
   Bell,
   Moon,
   Sun,
-  Sun,
   Sparkles,
   Activity
 } from 'lucide-react';
