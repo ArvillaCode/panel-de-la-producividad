@@ -567,7 +567,7 @@ const AgentPanel = () => {
 
       {/* Notifications Sidebar */}
       {showNotifications && (
-        <div className="fixed inset-0 z-[120] flex justify-end" onClick={() => setShowNotifications(false)}>
+        <div className="fixed inset-0 z-[999] flex justify-end" onClick={() => setShowNotifications(false)}>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300 pointer-events-none" />
           <div className="relative w-full max-w-sm h-full bg-white dark:bg-gray-800 shadow-2xl animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
             <div className="p-6 h-full flex flex-col">
@@ -591,7 +591,12 @@ const AgentPanel = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
                           <p className="font-semibold text-gray-800 dark:text-white text-sm truncate">{notif.title}</p>
-                          <span className="text-[10px] text-gray-400 shrink-0 ml-2">{new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[10px] text-gray-400 shrink-0 ml-2">
+                            {(() => {
+                              const d = new Date(notif.created_at || notif.timestamp);
+                              return isNaN(d.getTime()) ? 'Reciente' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            })()}
+                          </span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{notif.message}</p>
                       </div>
@@ -612,7 +617,7 @@ const AgentPanel = () => {
 
       {/* Notification Detail Modal */}
       {showNotificationDetailModal && selectedNotification && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowNotificationDetailModal(false)}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowNotificationDetailModal(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 ease-out" onClick={e => e.stopPropagation()}>
             <div className={`h-2 w-full ${selectedNotification.type === 'error' ? 'bg-red-500' : selectedNotification.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'}`} />
             <div className="p-8">
@@ -628,7 +633,10 @@ const AgentPanel = () => {
               <div className="flex flex-wrap gap-4 mb-8 text-sm text-gray-500 dark:text-gray-400">
                 <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg">
                   <Clock className="w-4 h-4" />
-                  {new Date(selectedNotification.timestamp).toLocaleDateString()} {new Date(selectedNotification.timestamp).toLocaleTimeString()}
+                  {(() => {
+                    const d = new Date(selectedNotification.created_at || selectedNotification.timestamp);
+                    return isNaN(d.getTime()) ? 'Fecha no disponible' : `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                  })()}
                 </div>
                 <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg">
                   <User className="w-4 h-4" />

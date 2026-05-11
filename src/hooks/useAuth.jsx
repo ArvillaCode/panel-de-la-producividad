@@ -32,7 +32,19 @@ export const AuthProvider = ({ children }) => {
         .order('created_at', { ascending: false })
         .limit(20);
       
-      if (!error) setNotifications(data || []);
+      if (!error) {
+        // Cargar IDs de notificaciones leídas desde localStorage para las de difusión (broadcast)
+        // Esto evita que "se desmarquen" al recargar, ya que el registro en DB es compartido
+        const readBroadcastIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
+        
+        const enhancedNotifications = (data || []).map(notif => ({
+          ...notif,
+          // Si es difusión, usamos el estado local. Si es personal, usamos el de la DB.
+          read: notif.is_broadcast ? readBroadcastIds.includes(notif.id) : notif.read
+        }));
+        
+        setNotifications(enhancedNotifications);
+      }
     } catch (err) {
       console.error('[AUTH] Fetch notifications error:', err);
     }
@@ -315,26 +327,55 @@ export const AuthProvider = ({ children }) => {
   };
 
   const markNotificationAsRead = async (id) => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', id);
-    
-    if (!error) {
+    const notif = notifications.find(n => n.id === id);
+    if (!notif) return;
+
+    // Si es una notificación de difusión, persistimos la lectura localmente
+    if (notif.is_broadcast) {
+      const storageKey = `read_notifications_${user?.id}`;
+      const readBroadcastIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      
+      if (!readBroadcastIds.includes(id)) {
+        readBroadcastIds.push(id);
+        localStorage.setItem(storageKey, JSON.stringify(readBroadcastIds));
+      }
+      
+      // Actualizar estado local inmediatamente
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } else {
+      // Si es personal, actualizamos en la base de datos
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+      
+      if (!error) {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      }
     }
   };
 
   const markAllNotificationsAsRead = async () => {
     if (!user) return;
+    
+    // 1. Marcar personales en DB
     const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id);
     
-    if (!error) {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    }
+    // 2. Marcar difusión en LocalStorage
+    const storageKey = `read_notifications_${user.id}`;
+    const allBroadcastIds = notifications
+      .filter(n => n.is_broadcast)
+      .map(n => n.id);
+    
+    const readBroadcastIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const updatedReadIds = [...new Set([...readBroadcastIds, ...allBroadcastIds])];
+    localStorage.setItem(storageKey, JSON.stringify(updatedReadIds));
+
+    // 3. Actualizar estado local
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   const broadcastNotification = async (notif) => {
