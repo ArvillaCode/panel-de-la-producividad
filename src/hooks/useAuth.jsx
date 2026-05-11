@@ -232,7 +232,7 @@ export const AuthProvider = ({ children }) => {
       if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
         return { 
           valid: false, 
-          error: 'La contraseña debe incluir mayúsculas, minúsculas, números y un carácter especial.' 
+          error: 'Seguridad insuficiente: La contraseña debe incluir al menos una mayúscula, una minúscula, un número y un carácter especial.' 
         };
       }
     }

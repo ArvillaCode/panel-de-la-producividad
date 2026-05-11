@@ -32,7 +32,7 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
 
   return (
     <div 
-      className="agent-card group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-white/20 dark:border-gray-700/50 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4"
+      className="group relative bg-white dark:bg-gray-800 rounded-[2.5rem] p-5 shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-700/50 flex flex-col h-full hover:-translate-y-2 overflow-hidden animate-in fade-in slide-in-from-bottom-4"
       onMouseMove={handleMouseMove}
       style={{ 
         animationDelay: `${animationDelay}ms`, 

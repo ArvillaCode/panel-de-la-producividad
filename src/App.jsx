@@ -9,6 +9,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminAgents from './pages/admin/AdminAgents';
 import AdminConfig from './pages/admin/AdminConfig';
 import AdminReleases from './pages/admin/AdminReleases';
+import AdminLogs from './pages/admin/AdminLogs';
 import ReleaseHistory from './pages/ReleaseHistory';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
@@ -81,6 +82,10 @@ function App() {
             <Route 
               path="/admin/releases" 
               element={<ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/admin/logs" 
+              element={<ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute>} 
             />
             
             <Route path="/novedades" element={<ReleaseHistory />} />

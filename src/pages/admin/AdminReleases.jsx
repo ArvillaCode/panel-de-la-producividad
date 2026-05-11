@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Eye, EyeOff, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -12,6 +13,7 @@ const typeOptions = [
 
 const AdminReleases = () => {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') setIsEditing(false);
@@ -138,7 +140,14 @@ const AdminReleases = () => {
     <div className="min-h-screen bg-[#030712] text-[#f8fafc] p-6 md:p-12 selection:bg-blue-500/30">
       <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
-          <div>
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={() => navigate('/admin')}
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group w-fit"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="font-bold uppercase tracking-widest text-xs">Regresar Panel Admin</span>
+            </button>
             <h1 className="text-4xl md:text-5xl font-extrabold text-white flex items-center gap-4 tracking-tight">
               <div className="p-3 bg-blue-600/20 rounded-2xl border border-blue-500/30 shadow-lg shadow-blue-500/10">
                 <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />

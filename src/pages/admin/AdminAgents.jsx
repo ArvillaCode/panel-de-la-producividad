@@ -130,8 +130,7 @@ const AdminAgents = () => {
       if (error) throw error;
       
       setSuccess('Sugerencia eliminada correctamente');
-      // Actualización inmediata del estado local para evitar el flash
-      setSuggestions(prev => prev.filter(s => s.id !== id));
+      fetchSuggestions();
     } catch (err) {
       console.error('Error deleting suggestion:', err);
       setError('No se pudo eliminar la sugerencia');
@@ -466,7 +465,7 @@ const AdminAgents = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
-                          <span>{new Date(sug.created_at).toLocaleDateString()}</span>
+                          <span>{new Date(sug.created_at).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>

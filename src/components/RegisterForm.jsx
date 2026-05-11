@@ -17,7 +17,8 @@ const RegisterForm = ({ onSuccess, onCancel }) => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -55,6 +56,7 @@ const RegisterForm = ({ onSuccess, onCancel }) => {
         role: 'user',
         status: 'pending',
         is_approved: false,
+        timezone: formData.timezone,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString()
       });
@@ -149,6 +151,21 @@ const RegisterForm = ({ onSuccess, onCancel }) => {
           disabled={loading}
         />
         {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Zona Horaria</label>
+        <select
+          name="timezone"
+          value={formData.timezone}
+          onChange={handleChange}
+          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+          disabled={loading}
+        >
+          {Intl.supportedValuesOf('timeZone').map(tz => (
+            <option key={tz} value={tz}>{tz}</option>
+          ))}
+        </select>
       </div>
 
       {message && (

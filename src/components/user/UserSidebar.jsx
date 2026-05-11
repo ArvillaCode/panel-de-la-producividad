@@ -21,10 +21,8 @@ import ReleaseNotesBadge from './ReleaseNotesBadge';
 
 const UserSidebar = ({ 
   setActiveTab, 
-  setShowProfileModal, 
-  setShowPasswordModal, 
+  setShowSettingsModal, 
   setShowNotifications,
-  setShowSuggestModal,
   isMobile = false,
   isCollapsed = false,
   setIsCollapsed,
@@ -129,10 +127,9 @@ const UserSidebar = ({
             )}
           </button>
 
-          {/* OPCIÓN SUGERIR AGENTE */}
           <button 
-            onClick={() => handleAction(() => setShowSuggestModal(true))} 
-            title="Sugerir Agente"
+            onClick={() => handleAction(() => setShowSettingsModal(true))} 
+            title="Sugerir Agente / Configurar"
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
           >
             <MessageSquare className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
@@ -146,30 +143,12 @@ const UserSidebar = ({
         
         <nav className="space-y-1 px-3">
           <button 
-            onClick={() => handleAction(() => setShowProfileModal(true))} 
-            title="Personalizar Avatar"
+            onClick={() => handleAction(() => setShowSettingsModal(true))} 
+            title="Configuraciones"
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
           >
-            <User className="w-5 h-5 text-purple-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
-            {(!isCollapsed || isMobile) && <span>Perfil</span>}
-          </button>
-
-          <button 
-            onClick={() => handleAction(() => setShowPasswordModal(true))} 
-            title="Seguridad"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
-          >
-            <Lock className="w-5 h-5 text-gray-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
-            {(!isCollapsed || isMobile) && <span>Seguridad</span>}
-          </button>
-
-          <button 
-            onClick={() => handleAction(toggleTheme)} 
-            title="Apariencia"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
-          >
-            {isDark ? <Sun className="w-5 h-5 text-yellow-500 group-hover:rotate-45 transition-transform flex-shrink-0" /> : <Moon className="w-5 h-5 text-slate-500 group-hover:-rotate-12 transition-transform flex-shrink-0" />} 
-            {(!isCollapsed || isMobile) && <span>Apariencia</span>}
+            <Settings className="w-5 h-5 text-gray-500 group-hover:rotate-90 transition-transform flex-shrink-0" /> 
+            {(!isCollapsed || isMobile) && <span>Ajustes</span>}
           </button>
           
           {profile?.role === 'admin' && (
@@ -179,7 +158,7 @@ const UserSidebar = ({
                 title="Administración"
                 className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all font-semibold text-sm group`}
               >
-                <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform flex-shrink-0" /> 
+                <Shield className="w-5 h-5 group-hover:rotate-90 transition-transform flex-shrink-0" /> 
                 {(!isCollapsed || isMobile) && <span>Administración</span>}
               </button>
             </div>

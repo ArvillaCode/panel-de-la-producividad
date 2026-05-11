@@ -12,7 +12,9 @@ import {
   Bell,
   Moon,
   Sun,
-  Sparkles
+  Sun,
+  Sparkles,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -33,6 +35,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     if (path === '/admin/agents') return 'agents';
     if (path === '/admin/config') return 'config';
     if (path === '/admin/releases') return 'releases';
+    if (path === '/admin/logs') return 'logs';
     return 'dashboard';
   };
 
@@ -73,6 +76,13 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       icon: Sparkles,
       path: '/admin/releases',
       description: 'Gestión de actualizaciones'
+    },
+    {
+      id: 'logs',
+      name: 'Historial',
+      icon: Activity,
+      path: '/admin/logs',
+      description: 'Log de actividad'
     }
   ];
 
@@ -218,28 +228,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 relative">
-                <Bell className={`w-5 h-5 ${unreadCount > 0 ? 'text-blue-600 dark:text-blue-400' : ''}`} />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
-                )}
-              </button>
-              
-              <div className="flex items-center space-x-3">
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500" />
-                ) : (
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {(profile?.name || 'A').charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="text-sm font-medium text-gray-900 dark:text-white hidden sm:block">
-                  {profile?.name || 'Administrador'}
-                </span>
-              </div>
+              {/* Profile info removed for minimalist header */}
             </div>
           </div>
         </header>

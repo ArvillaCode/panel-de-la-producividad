@@ -20,7 +20,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { supabase } from '../../lib/supabase';
 
 const ConfigSection = ({ title, icon: Icon, children }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
     <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
       <div className="flex items-center">
         <Icon className="w-5 h-5 text-gray-600 dark:text-gray-400 mr-3" />
@@ -253,8 +253,13 @@ const AdminConfig = () => {
           </ConfigSection>
 
           <ConfigSection title="Apariencia" icon={Palette}>
-            <SelectField label="Tema Base" value={config.defaultTheme} onChange={(val) => handleConfigChange('defaultTheme', val)} options={[{value: 'light', label: 'Claro'}, {value: 'dark', label: 'Oscuro'}]} />
-            <div className="pt-2"><button onClick={toggleTheme} className="px-3 py-2 border rounded-lg text-sm flex items-center"><Palette className="w-4 h-4 mr-2" /> Alternar Tema</button></div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Alternar entre tema claro y oscuro</p>
+              <button onClick={toggleTheme} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-bold flex items-center transition-colors">
+                <Palette className="w-4 h-4 mr-2" />
+                Cambiar Tema
+              </button>
+            </div>
           </ConfigSection>
 
           <ConfigSection title="Servidor" icon={Server}>
