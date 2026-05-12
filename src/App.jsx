@@ -14,6 +14,9 @@ import ReleaseHistory from './pages/ReleaseHistory';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
+import Policies from './pages/Policies';
+import Privacy from './pages/Privacy';
+import Support from './pages/Support';
 import './App.css';
 
 // Componente para rutas protegidas
@@ -39,6 +42,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
 const Home = () => {
   const { isAuthenticated, loading } = useAuth();
+  const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
   
   if (loading) {
     return (
@@ -48,7 +52,21 @@ const Home = () => {
     );
   }
   
+  // Si estamos en el dominio de la landing, siempre mostramos la landing
+  if (!isAppDomain) return <LandingPage />;
+  
   return isAuthenticated ? <AgentPanel /> : <LandingPage />;
+};
+
+// Componente para restringir acceso según el dominio
+const DomainRestrictedRoute = ({ children, appOnly = false }) => {
+  const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
+  
+  if (appOnly && !isAppDomain) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
 };
 
 function App() {
@@ -60,35 +78,41 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
-            <Route path="/login" element={<AdminLogin />} />
+            <Route 
+              path="/login" 
+              element={<DomainRestrictedRoute appOnly={true}><AdminLogin /></DomainRestrictedRoute>} 
+            />
 
             {/* Rutas administrativas protegidas */}
             <Route 
               path="/admin/dashboard" 
-              element={<ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute>} 
+              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} 
             />
             <Route 
               path="/admin/users" 
-              element={<ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute>} 
+              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} 
             />
             <Route 
               path="/admin/agents" 
-              element={<ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute>} 
+              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} 
             />
             <Route 
               path="/admin/config" 
-              element={<ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute>} 
+              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} 
             />
             <Route 
               path="/admin/releases" 
-              element={<ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute>} 
+              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} 
             />
             <Route 
               path="/admin/logs" 
-              element={<ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute>} 
+              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} 
             />
             
             <Route path="/novedades" element={<ReleaseHistory />} />
+            <Route path="/politicas" element={<Policies />} />
+            <Route path="/privacidad" element={<Privacy />} />
+            <Route path="/soporte" element={<Support />} />
             
             {/* Redirect /admin a /admin/dashboard */}
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

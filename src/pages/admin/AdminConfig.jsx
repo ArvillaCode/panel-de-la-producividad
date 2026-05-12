@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, 
   Save, 
@@ -83,11 +83,22 @@ const ToggleField = ({ label, value, onChange, description }) => (
 const TimezoneSelect = ({ value, onChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const timezones = Intl.supportedValuesOf('timeZone');
   const filteredTz = timezones.filter(tz => tz.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" ref={dropdownRef}>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Zona Horaria</label>
       <div className="relative">
         <div onClick={() => setIsOpen(!isOpen)} className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-white dark:bg-gray-700 dark:text-white flex items-center justify-between shadow-sm">
@@ -105,7 +116,7 @@ const TimezoneSelect = ({ value, onChange }) => {
             </div>
             <div className="max-h-60 overflow-y-auto p-1">
               {filteredTz.map(tz => (
-                <button key={tz} onClick={() => { onChange(tz); setIsOpen(false); }} className={`w-full text-left px-4 py-2 rounded-lg text-sm ${value === tz ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}>
+                <button key={tz} onClick={() => { onChange(tz); setIsOpen(false); setSearchTerm(''); }} className={`w-full text-left px-4 py-2 rounded-lg text-sm ${value === tz ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}>
                   {tz.replace(/_/g, ' ')}
                 </button>
               ))}
@@ -190,23 +201,59 @@ const AdminConfig = () => {
     setLoading(true);
     try {
       if (!config.siteName?.trim()) throw new Error('Nombre obligatorio');
+      
       const dbData = {
-        site_name: config.siteName, site_description: config.siteDescription, admin_email: config.adminEmail,
-        timezone: config.timezone, language: config.language, session_timeout: config.sessionTimeout,
-        max_login_attempts: config.maxLoginAttempts, password_min_length: config.passwordMinLength,
-        require_strong_password: config.requireStrongPassword, enable_two_factor: config.enableTwoFactor,
-        email_notifications: config.emailNotifications, system_alerts: config.systemAlerts,
-        user_registration_notify: config.userRegistrationNotify, backup_frequency: config.backupFrequency,
-        retention_days: config.retentionDays, auto_backup: config.autoBackup, default_theme: config.defaultTheme,
-        allow_user_theme_change: config.allowUserThemeChange, maintenance_mode: config.maintenanceMode,
-        debug_mode: config.debugMode, log_level: config.logLevel, updated_at: new Date().toISOString()
+        site_name: config.siteName,
+        site_description: config.siteDescription,
+        admin_email: config.adminEmail,
+        timezone: config.timezone,
+        language: config.language,
+        session_timeout: config.sessionTimeout,
+        max_login_attempts: config.maxLoginAttempts,
+        password_min_length: config.passwordMinLength,
+        require_strong_password: config.requireStrongPassword,
+        enable_two_factor: config.enableTwoFactor,
+        email_notifications: config.emailNotifications,
+        system_alerts: config.systemAlerts,
+        user_registration_notify: config.userRegistrationNotify,
+        backup_frequency: config.backupFrequency,
+        retention_days: config.retentionDays,
+        auto_backup: config.autoBackup,
+        default_theme: config.defaultTheme,
+        allow_user_theme_change: config.allowUserThemeChange,
+        maintenance_mode: config.maintenanceMode,
+        debug_mode: config.debugMode,
+        log_level: config.logLevel,
+        updated_at: new Date().toISOString()
       };
-      const { error: updateError } = await supabase.from('system_config').upsert({ id: 1, ...dbData });
-      if (updateError) throw updateError;
+
+      const { error: updateError } = await supabase
+        .from('system_config')
+        .upsert({ 
+          id: 1, 
+          ...dbData 
+        }, { onConflict: 'id' });
+
+      if (updateError) {
+        console.error('[CONFIG] Save error:', updateError);
+        if (updateError.code === '42501') {
+          throw new Error('No tienes permisos suficientes (RLS). Asegúrate de ejecutar el script master_db_setup.sql en Supabase.');
+        }
+        throw new Error(`Error al guardar: ${updateError.message}`);
+      }
+      
       localStorage.setItem('systemConfig', JSON.stringify(config));
       setOriginalConfig(config);
-      setSuccess('Guardado correctamente');
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+      setSuccess('Configuración guardada exitosamente');
+      
+      // Auto-limpiar éxito
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) { 
+      setError(err.message); 
+      setTimeout(() => setError(''), 5000);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (

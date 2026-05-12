@@ -26,7 +26,8 @@ const SettingsModal = ({ onClose }) => {
     { id: 'perfil', label: 'Perfil', icon: User },
     { id: 'seguridad', label: 'Seguridad', icon: Lock },
     { id: 'apariencia', label: 'Apariencia', icon: Moon },
-    { id: 'idioma', label: 'Zona Horaria', icon: Globe }
+    { id: 'idioma', label: 'Zona Horaria', icon: Globe },
+    { id: 'suscripcion', label: 'Suscripción', icon: Shield }
   ];
 
   const handleAvatarUpload = async (e) => {
@@ -311,6 +312,54 @@ const SettingsModal = ({ onClose }) => {
                 >
                   {actionLoading ? 'Guardando...' : 'GUARDAR ZONA HORARIA'}
                 </button>
+              </div>
+            )}
+
+            {activeTab === 'suscripcion' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest opacity-70">Estado del Plan</p>
+                      <h4 className="text-2xl font-black">Plan SaaS Premium 🚀</h4>
+                    </div>
+                    <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-bold uppercase border border-white/10">
+                      Activo
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                      <p className="text-[10px] font-bold uppercase opacity-70 mb-1">Inicio</p>
+                      <p className="text-sm font-bold">
+                        {profile?.start_date ? new Date(profile.start_date).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                      <p className="text-[10px] font-bold uppercase opacity-70 mb-1">Vencimiento</p>
+                      <p className="text-sm font-bold">
+                        {profile?.end_date ? new Date(profile.end_date).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-3xl border border-gray-100 dark:border-gray-700">
+                  <h4 className="font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                    <Check className="w-5 h-5 text-green-500" />
+                    Beneficios de tu Suscripción
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                    <li>• Acceso ilimitado a los 50+ agentes especializados</li>
+                    <li>• Actualizaciones semanales de modelos y lógica</li>
+                    <li>• Soporte prioritario 24/7</li>
+                    <li>• Panel de administración personalizado</li>
+                  </ul>
+                </div>
+
+                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                  Sistema de Recurrencia Anual Automatizado
+                </p>
               </div>
             )}
           </div>

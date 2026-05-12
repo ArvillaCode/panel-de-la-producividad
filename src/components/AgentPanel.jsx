@@ -329,9 +329,11 @@ const AgentPanel = () => {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
+              <img 
+                src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
+                alt="Logo" 
+                className="h-10 w-auto object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+              />
             </div>
           </div>
           {/* Header */}
@@ -375,6 +377,7 @@ const AgentPanel = () => {
                   {isAdmin && (
                     <button 
                       onClick={() => window.location.href = '/admin'}
+                      title="Panel de Administración (Sólo Administradores)"
                       className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold transition-all hover:bg-blue-500 shadow-xl shadow-blue-600/20"
                     >
                       <Shield className="w-4 h-4" />
@@ -397,12 +400,14 @@ const AgentPanel = () => {
                   <div className="flex bg-gray-100 dark:bg-gray-700/50 rounded-xl p-1 shrink-0">
                     <button
                       onClick={() => setViewMode('grid')}
+                      title="Vista de cuadrícula"
                       className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                       <Grid className="w-4 h-4 md:w-5 h-5" />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
+                      title="Vista de lista compacta"
                       className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                       <List className="w-4 h-4 md:w-5 h-5" />

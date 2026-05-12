@@ -111,17 +111,19 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 shadow-lg transform transition-all duration-300 ease-in-out ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0 lg:static lg:inset-0 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      } lg:translate-x-0 lg:fixed lg:inset-y-0 ${isCollapsed ? 'w-20' : 'w-64'}`}>
         
         {/* Logo/Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'}`}>
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
+            <img 
+              src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
+              alt="Logo" 
+              className="h-12 w-auto object-contain flex-shrink-0 brightness-110 contrast-125 drop-shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+            />
             {!isCollapsed && (
-              <span className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                Admin Panel
+              <span className="text-lg font-bold text-gray-900 dark:text-white truncate tracking-tighter italic">
+                UP<span className="text-blue-500">FUNNEL</span>
               </span>
             )}
           </div>
@@ -219,7 +221,8 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 flex flex-col h-screen lg:ml-0">
+      {/* Main Content */}
+      <div className={`flex-1 min-w-0 flex flex-col h-screen transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         {/* Top Bar */}
         <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between h-16 px-6">

@@ -1,84 +1,53 @@
-import { createClient } from '@supabase/supabase-js';
-import { execSync } from 'child_process';
-import fs from 'fs';
+const { execSync } = require('child_process');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
 
-// 1. Obtener credenciales de .env.local
-let supabaseUrl, supabaseKey;
-try {
-  const envContent = fs.readFileSync('.env.local', 'utf8');
-  const lines = envContent.split('\n');
-  for (const line of lines) {
-    if (line.startsWith('VITE_SUPABASE_URL=')) supabaseUrl = line.split('=')[1].trim().replace(/"/g, '');
-    if (line.startsWith('VITE_SUPABASE_ANON_KEY=')) supabaseKey = line.split('=')[1].trim().replace(/"/g, '');
-  }
-} catch (e) {
-  console.error('❌ No se pudo leer .env.local');
-  process.exit(1);
-}
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Faltan credenciales de Supabase en .env.local');
-  process.exit(1);
-}
-
+// Configuración de Supabase
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function announceUpdates() {
-  console.log('🔍 Analizando cambios en Git...');
-  
+async function announceUpdate() {
   try {
-    // 2. Obtener los últimos 5 mensajes de commit
-    const commits = execSync('git log -n 5 --pretty=format:"%s"')
-      .toString()
-      .split('\n')
-      .filter(msg => msg.trim() !== '' && !msg.includes('Merge branch'));
+    // Obtener el último commit message
+    const commitMsg = execSync('git log -1 --pretty=%B').toString().trim();
+    const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+    
+    console.log(`[GIT-BOT] Detectado push en ${branch}: ${commitMsg}`);
 
-    if (commits.length === 0) {
-      console.log('⚠️ No se encontraron cambios recientes.');
-      return;
-    }
+    // Solo procesar si no es un commit de sistema
+    if (commitMsg.includes('[SISTEMA]') || commitMsg.includes('Merge')) return;
 
-    // 3. Obtener la última versión para autoincrementar
-    const { data: latestRelease } = await supabase
+    // Obtener la última versión para sugerir la siguiente
+    const { data: lastReleases } = await supabase
       .from('release_notes')
       .select('version')
       .order('publish_date', { ascending: false })
       .limit(1);
 
-    let nextVersion = '1.0.0';
-    if (latestRelease && latestRelease[0]) {
-      const v = latestRelease[0].version.toString().toLowerCase().replace('v', '');
-      const parts = v.split('.');
-      if (parts.length === 3) {
-        parts[2] = parseInt(parts[2]) + 1;
-        nextVersion = parts.join('.');
-      }
-    }
+    const lastVersion = lastReleases?.[0]?.version || '2.5.0';
+    const parts = lastVersion.split('.');
+    parts[parts.length - 1] = parseInt(parts[parts.length - 1]) + 1;
+    const nextVersion = parts.join('.');
 
-    const newRelease = {
-      version: nextVersion,
-      title: `Actualización del Sistema - ${new Date().toLocaleDateString()}`,
-      description: 'Nuevas mejoras y correcciones implementadas en el panel.',
-      changes: commits.map(c => c.charAt(0).toUpperCase() + c.slice(1)),
-      type: 'improvement',
-      is_visible: false, // Pendiente de aprobación
-      is_important: false,
-      publish_date: new Date().toISOString()
-    };
-
-    console.log(`🚀 Generando novedad v${nextVersion} (Pendiente de aprobación)...`);
-    
+    // Guardar en pendientes (status: pending)
     const { error } = await supabase
       .from('release_notes')
-      .insert([newRelease]);
+      .insert([{
+        version: nextVersion,
+        title: `Actualización desde Git: ${commitMsg.split('\n')[0]}`,
+        content: `Cambios automáticos detectados:\n${commitMsg}`,
+        status: 'pending',
+        type: 'feature',
+        publish_date: new Date().toISOString()
+      }]);
 
     if (error) throw error;
-
-    console.log('✅ Novedad generada con éxito. Puedes verla en el panel admin para aprobarla.');
+    console.log(`✅ Novedad guardada como pendiente (v${nextVersion})`);
     
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('❌ Error al anunciar actualización:', err.message);
   }
 }
 
-announceUpdates();
+announceUpdate();

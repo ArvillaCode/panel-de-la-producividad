@@ -40,7 +40,7 @@ const AdminUsers = () => {
     updateUserById, 
     toggleUserStatus, 
     broadcastNotification,
-    addNotification,
+    sendUserNotification,
     register,
     adminCreateUser,
     resetUserPassword
@@ -139,11 +139,27 @@ const AdminUsers = () => {
       matchesSearch = (user.name && user.name.toLowerCase().includes(searchLower)) ||
                       (user.email && user.email.toLowerCase().includes(searchLower));
     }
+    
     let matchesRole = true;
     if (filterRole !== 'all') {
-      matchesRole = user.role === filterRole;
+      if (filterRole === 'recent') {
+        // Recién creados (últimas 24 horas)
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        matchesRole = new Date(user.created_at) > dayAgo;
+      } else {
+        matchesRole = user.role === filterRole;
+      }
     }
     return matchesSearch && matchesRole;
+  }).sort((a, b) => {
+    // Si hay búsqueda, ordenar alfabéticamente por nombre
+    if (searchTerm) {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+    // De lo contrario, por fecha (más recientes primero)
+    return new Date(b.created_at) - new Date(a.created_at);
   });
 
   useEffect(() => {
@@ -221,7 +237,7 @@ const AdminUsers = () => {
     }
   };
 
-  // El cambio de estado masivo se ha deshabilitado ya que la columna 'status' no existe en el esquema actual.
+  // Acciones Masivas completadas.
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -371,8 +387,18 @@ const AdminUsers = () => {
     resetForm();
   };
 
-  const handleToggleUserStatus = async (user) => {
-    setError('La columna de estado no está disponible en el esquema actual.');
+  const handleToggleUserStatus = async (targetUser) => {
+    setActionLoading(true);
+    const nextStatus = targetUser.status === 'active' ? 'inactive' : 'active';
+    const isApproved = nextStatus === 'active';
+    const result = await updateUserById(targetUser.id, { status: nextStatus, is_approved: isApproved });
+    
+    if (result.success) {
+      setSuccess(`Estado de ${targetUser.name || targetUser.email} actualizado a ${nextStatus}`);
+    } else {
+      setError(result.error || 'Error al cambiar estado');
+    }
+    setActionLoading(false);
   };
 
   const handleExpelUser = async (user) => {
@@ -438,10 +464,11 @@ const AdminUsers = () => {
               className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${isEdit ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800/50' : ''}`}
               placeholder="usuario@ejemplo.com"
               required
+              readOnly={isEdit}
             />
             {isEdit && (
-              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                El correo electrónico no puede ser modificado.
+              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-tight">
+                ⚠️ El correo electrónico está bloqueado para edición.
               </p>
             )}
           </div>
@@ -717,6 +744,7 @@ const AdminUsers = () => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option value="all">Todos los roles</option>
+                    <option value="recent">Recién Creados (24h)</option>
                     <option value="admin">Administradores</option>
                     <option value="user">Usuarios</option>
                   </select>
@@ -896,10 +924,10 @@ const AdminUsers = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateUserQuick(user, { status: 'rejected', is_approved: false })}
-                                    disabled={user.role === 'admin' && adminCount === 1}
-                                    title={user.role === 'admin' && adminCount === 1 ? "No puedes denegar al único administrador" : "Denegar usuario"}
+                                    disabled={user.role === 'admin'}
+                                    title={user.role === 'admin' ? "No puedes denegar a un administrador" : "Denegar usuario"}
                                     aria-label="Denegar usuario"
-                                    className={`p-1.5 rounded-md text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20 transition-colors ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`p-1.5 rounded-md text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20 transition-colors ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     <X className="w-4 h-4" />
                                   </button>
@@ -909,9 +937,10 @@ const AdminUsers = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleEditUser(user)}
-                                  title="Editar usuario"
+                                  disabled={user.role === 'admin' && user.id !== profile?.id}
+                                  title={user.role === 'admin' && user.id !== profile?.id ? "Solo puedes editar tu propia cuenta de admin" : "Editar usuario"}
                                   aria-label="Editar usuario"
-                                  className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
+                                  className={`p-1.5 rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors ${user.role === 'admin' && user.id !== profile?.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -934,10 +963,10 @@ const AdminUsers = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateUserQuick(user, { status: 'inactive', is_approved: false })}
-                                    disabled={user.role === 'admin' && adminCount === 1}
-                                    title={user.role === 'admin' && adminCount === 1 ? "No puedes expulsar al único administrador" : "Expulsar usuario"}
+                                    disabled={user.role === 'admin'}
+                                    title={user.role === 'admin' ? "No puedes expulsar a un administrador" : "Expulsar usuario"}
                                     aria-label="Expulsar usuario"
-                                    className={`p-1.5 rounded-md text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-colors ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`p-1.5 rounded-md text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-colors ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     <Pause className="w-4 h-4" />
                                   </button>
@@ -947,10 +976,10 @@ const AdminUsers = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteUser(user)}
-                                  disabled={user.role === 'admin' && adminCount === 1}
-                                  title={user.role === 'admin' && adminCount === 1 ? "No puedes eliminar al único administrador" : "Eliminar usuario"}
+                                  disabled={user.role === 'admin'}
+                                  title={user.role === 'admin' ? "No puedes eliminar a un administrador" : "Eliminar usuario"}
                                   aria-label="Eliminar usuario"
-                                  className={`p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors ${user.role === 'admin' && adminCount === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -1041,8 +1070,14 @@ const AdminUsers = () => {
 
       {/* Modal de Envío de Notificaciones */}
       {showNotifyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300"
+          onClick={() => setShowNotifyModal(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                 {notificationTarget === 'all' ? 'Notificación Global' : 'Notificar a Usuario'}
@@ -1089,7 +1124,7 @@ const AdminUsers = () => {
                     if (notificationTarget === 'all') {
                       broadcastNotification(finalNotification);
                     } else {
-                      addNotification(notificationTarget, finalNotification);
+                      sendUserNotification(notificationTarget, finalNotification);
                     }
                     setShowNotifyModal(false);
                     setNotificationData({ title: '', message: '', type: 'info' });

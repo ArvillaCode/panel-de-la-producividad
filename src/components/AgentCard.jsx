@@ -48,6 +48,7 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
             e.stopPropagation();
             onToggleFavorite(agent.id);
           }}
+          title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
           className={`p-2.5 rounded-xl transition-all duration-300 backdrop-blur-md ${
             isFavorite 
               ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110' 
@@ -113,6 +114,7 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
           
           <button
             onClick={handleChatClick}
+            title={`Iniciar conversación con ${agent.name}`}
             className="w-full group/btn relative flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/25 active:scale-[0.98] overflow-hidden"
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>

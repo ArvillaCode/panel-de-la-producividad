@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at')
+        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
         .order('created_at', { ascending: false });
       
       if (!error) setUsers(data || []);
@@ -113,47 +113,49 @@ export const AuthProvider = ({ children }) => {
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at')
+        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
         .eq('id', currentUser.id)
         .single();
 
       if (profileError) {
         console.error('[AUTH] Profile sync error:', profileError.message);
-        setProfile({ id: currentUser.id, email: currentUser.email, role: 'user' });
-      } else {
-        // 1. Determinar estados de acceso
-        const isApproved = profileData.is_approved === true;
-        const status = profileData.status || 'pending';
-        const userIsAdmin = profileData.role === 'admin' || currentUser.email === 'admin@admin.com';
-        const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
-
-        console.log(`[AUTH] Sync for ${currentUser.email}: Admin=${userIsAdmin}, Approved=${isApproved}, Status=${status}, Expired=${isExpired}`);
-
-        // 2. Validación forzosa de acceso (excepto para admins)
-        if (!userIsAdmin && (status !== 'active' || !isApproved || isExpired)) {
-          let reason = 'Tu cuenta no tiene acceso permitido.';
-          if (status === 'pending') reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
-          if (status === 'rejected') reason = 'Tu solicitud fue denegada.';
-          if (status === 'inactive') reason = 'Tu cuenta fue expulsada o desactivada.';
-          if (isExpired) reason = 'Tu suscripción ha expirado.';
-
-          console.warn(`[AUTH] Acceso denegado: ${reason}`);
-          
-          // Limpiar estados locales inmediatamente para evitar flashes
-          setProfile(null);
-          setUser(null);
-          setLoading(false); // Detener loading antes de redirigir
-
-          // Cerrar sesión en Supabase
-          await supabase.auth.signOut();
-          
-          // Redirigir con mensaje
-          window.location.href = `/login?error=${encodeURIComponent(reason)}`;
-          return;
-        }
-
-        setProfile(profileData);
+        // Si no hay perfil, creamos uno básico temporal pero lo mantenemos como limitado
+        setProfile({ id: currentUser.id, email: currentUser.email, role: 'user', status: 'pending', is_approved: false });
+        return;
       }
+
+      // 1. Determinar estados de acceso
+      const isApproved = profileData.is_approved === true;
+      const status = profileData.status || 'pending';
+      const userIsAdmin = profileData.role === 'admin' || currentUser.email === 'admin@admin.com';
+      const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
+
+      // 2. Validación forzosa de acceso (excepto para admins)
+      if (!userIsAdmin && (status !== 'active' || !isApproved || isExpired)) {
+        let reason = 'Tu cuenta no tiene acceso permitido.';
+        if (status === 'pending') reason = 'Tu cuenta está pendiente de aprobación por un administrador.';
+        if (status === 'rejected') reason = 'Tu solicitud de acceso fue denegada.';
+        if (status === 'inactive') reason = 'Tu cuenta ha sido desactivada temporalmente.';
+        if (isExpired) reason = 'Tu suscripción ha expirado. Contacta a soporte para renovar.';
+
+        console.warn(`[AUTH] Acceso denegado a ${currentUser.email}: ${reason}`);
+        
+        // Limpiar estados locales
+        setProfile(null);
+        setUser(null);
+
+        // Cerrar sesión en Supabase para invalidar el token
+        await supabase.auth.signOut();
+        
+        // Redirigir al login con el mensaje de error para que el usuario sepa qué pasa
+        const loginUrl = `/login?error=${encodeURIComponent(reason)}`;
+        if (window.location.pathname !== '/login') {
+          window.location.href = loginUrl;
+        }
+        return;
+      }
+
+      setProfile(profileData);
 
       // Cargar lista si es admin
       if (profileData?.role === 'admin' || currentUser.email === 'admin@admin.com') {

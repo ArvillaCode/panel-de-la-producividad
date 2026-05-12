@@ -62,6 +62,15 @@ const AdminReleases = () => {
     }
   };
 
+  const getNextVersion = (lastVersion) => {
+    if (!lastVersion) return '2.5.1';
+    const parts = lastVersion.replace(/[^0-9.]/g, '').split('.');
+    if (parts.length < 3) return lastVersion + '.1';
+    const lastNum = parseInt(parts[parts.length - 1]);
+    parts[parts.length - 1] = isNaN(lastNum) ? 1 : lastNum + 1;
+    return parts.join('.');
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -158,7 +167,11 @@ const AdminReleases = () => {
           </div>
           <button
             onClick={() => {
-              setCurrentRelease({ ...emptyRelease });
+              const lastVer = releases.length > 0 ? releases[0].version : '2.5.0';
+              setCurrentRelease({ 
+                ...emptyRelease, 
+                version: getNextVersion(lastVer) 
+              });
               setIsEditing(true);
             }}
             className="flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-[1.5rem] font-black transition-all shadow-[0_15px_40px_rgba(59,130,246,0.3)] active:scale-95 group"
