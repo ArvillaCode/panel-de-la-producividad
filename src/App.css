@@ -41,6 +41,11 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  pointer-events: auto !important;
+}
+
+.App {
+  pointer-events: auto !important;
 }
 
 /* Line clamp utility for text truncation */

@@ -180,7 +180,7 @@ const AdminLogin = () => {
             <img 
               src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
               alt="Upfunnel Logo" 
-              className="h-28 md:h-32 w-auto object-contain brightness-125 contrast-110 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+              className="h-20 md:h-24 w-auto object-contain"
             />
           </div>
           <h1 className="text-4xl font-black text-white tracking-tight mb-2">
