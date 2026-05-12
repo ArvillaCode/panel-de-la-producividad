@@ -237,6 +237,7 @@ const AgentPanel = () => {
       <button
         onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === 1}
+        title="Página Anterior"
         className="p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
       >
         <ChevronLeft className="w-4 h-4 sm:w-5 h-5" />
@@ -252,6 +253,7 @@ const AgentPanel = () => {
       <button
         onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === totalPages}
+        title="Página Siguiente"
         className="p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
       >
         <ChevronRight className="w-4 h-4 sm:w-5 h-5" />
@@ -377,7 +379,6 @@ const AgentPanel = () => {
                   {isAdmin && (
                     <button 
                       onClick={() => window.location.href = '/admin'}
-                      title="Panel de Administración (Sólo Administradores)"
                       className="hidden md:flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-2xl text-sm font-bold transition-all hover:bg-blue-500 shadow-xl shadow-blue-600/20"
                     >
                       <Shield className="w-4 h-4" />
@@ -400,14 +401,14 @@ const AgentPanel = () => {
                   <div className="flex bg-gray-100 dark:bg-gray-700/50 rounded-xl p-1 shrink-0">
                     <button
                       onClick={() => setViewMode('grid')}
-                      title="Vista de cuadrícula"
+                      title="Vista de Cuadrícula"
                       className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                       <Grid className="w-4 h-4 md:w-5 h-5" />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
-                      title="Vista de lista compacta"
+                      title="Vista de Lista"
                       className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                       <List className="w-4 h-4 md:w-5 h-5" />

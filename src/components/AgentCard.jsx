@@ -48,7 +48,7 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
             e.stopPropagation();
             onToggleFavorite(agent.id);
           }}
-          title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+          title={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
           className={`p-2.5 rounded-xl transition-all duration-300 backdrop-blur-md ${
             isFavorite 
               ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110' 

@@ -59,7 +59,6 @@ const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay 
             e.stopPropagation();
             onToggleFavorite(agent.id);
           }}
-          title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
           className={`p-2.5 rounded-xl transition-all duration-300 ${
             isFavorite 
               ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105' 
@@ -70,7 +69,6 @@ const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay 
         </button>
         <button
           onClick={handleChatClick}
-          title={`Iniciar chat con ${agent.name}`}
           className="p-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 active:scale-95"
         >
           <MessageCircle className="w-4 h-4" />
