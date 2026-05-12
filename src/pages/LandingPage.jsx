@@ -15,7 +15,8 @@ import {
   HelpCircle,
   Timer,
   LayoutDashboard,
-  Cpu
+  Cpu,
+  MessageSquare
 } from 'lucide-react';
 
 // Componente para animaciones estilo Apple (Reveal on Scroll)
@@ -97,7 +98,7 @@ const LandingPage = () => {
           <img 
             src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
             alt="Upfunnel Logo" 
-            className="h-16 md:h-20 w-auto object-contain brightness-110 contrast-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+            className="h-16 md:h-20 w-auto object-contain"
           />
         </div>
         
@@ -254,6 +255,35 @@ const LandingPage = () => {
           </div>
         </Reveal>
       </section>
+      
+      {/* Testimonials Section */}
+      <section className="relative z-10 py-32 px-6 max-w-7xl mx-auto">
+        <Reveal>
+          <div className="text-center mb-20">
+            <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight mb-4">Lo que dicen de nosotros</h2>
+            <p className="text-slate-400 font-medium">Empresarios y creativos que ya están escalando con Upfunnel.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: "Carlos Mendoza", role: "Emprendedor Digital", quote: "Upfunnel ha reducido mi carga de trabajo en un 40%. Los agentes son increíblemente precisos." },
+              { name: "Elena Ríos", role: "Directora de Marketing", quote: "Nunca pensé que la IA pudiera ser tan 'lista para usar'. Es conectar y empezar a producir." },
+              { name: "Javier Soler", role: "Desarrollador Senior", quote: "El nivel de optimización de estos modelos es superior a cualquier otra plataforma que haya probado." }
+            ].map((t, i) => (
+              <div key={i} className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 backdrop-blur-sm hover:border-blue-500/30 transition-all duration-500 h-full flex flex-col">
+                <MessageSquare className="w-8 h-8 text-blue-500/30 mb-6" />
+                <p className="text-lg text-slate-300 font-medium italic mb-8 leading-relaxed flex-1 italic">"{t.quote}"</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-lg font-black italic">{t.name.charAt(0)}</div>
+                  <div>
+                    <h4 className="font-black uppercase text-sm tracking-tight">{t.name}</h4>
+                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </section>
 
       {/* FAQ Section */}
       <section id="faq" className="relative z-10 py-32 px-6 max-w-4xl mx-auto">
@@ -322,7 +352,7 @@ const LandingPage = () => {
             <img 
               src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
               alt="Upfunnel Logo" 
-              className="h-12 md:h-16 w-auto grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all brightness-125"
+              className="h-12 md:h-16 w-auto object-contain"
             />
           </div>
           
@@ -335,7 +365,7 @@ const LandingPage = () => {
 
         <div className="max-w-7xl mx-auto text-center border-t border-white/5 pt-8">
            <p className="text-[10px] font-bold text-slate-700 uppercase tracking-[0.3em]">
-              <a href="/login" className="hover:text-blue-500 transition-colors decoration-transparent">upfunnel</a> || Todos los derechos reservados 2026.
+              <a href="https://app.upfunnel.click/login" className="hover:text-blue-500 transition-colors decoration-transparent">upfunnel</a> || Todos los derechos reservados 2026.
            </p>
         </div>
       </footer>

@@ -55,7 +55,8 @@ const Home = () => {
   // Si estamos en el dominio de la landing, siempre mostramos la landing
   if (!isAppDomain) return <LandingPage />;
   
-  return isAuthenticated ? <AgentPanel /> : <LandingPage />;
+  // Si estamos en el dominio de la app, mostramos el panel si está autenticado, o el login si no lo está
+  return isAuthenticated ? <AgentPanel /> : <AdminLogin />;
 };
 
 // Componente para restringir acceso según el dominio
