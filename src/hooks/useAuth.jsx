@@ -21,6 +21,23 @@ export const AuthProvider = ({ children }) => {
 
   const isAuthenticated = !!user;
   const isAdmin = profile?.role === 'admin' || user?.email === 'admin@admin.com';
+  const isEditor = profile?.role === 'editor' || isAdmin;
+  const isSupport = profile?.role === 'support' || isEditor;
+
+  const logAction = useCallback(async (action, entity, entityId = null, details = {}) => {
+    if (!user) return;
+    try {
+      await supabase.from('audit_logs').insert([{
+        user_id: user.id,
+        action,
+        entity,
+        entity_id: entityId?.toString(),
+        details
+      }]);
+    } catch (e) {
+      console.error('[AUDIT] Log error:', e);
+    }
+  }, [user]);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -37,13 +54,13 @@ export const AuthProvider = ({ children }) => {
         // Esto evita que "se desmarquen" al recargar, ya que el registro en DB es compartido
         const readBroadcastIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
         
-        const enhancedNotifications = (data || []).map(notif => ({
-          ...notif,
-          // Si es difusión, usamos el estado local. Si es personal, usamos el de la DB.
-          read: notif.is_broadcast ? readBroadcastIds.includes(notif.id) : notif.read
+        const savedReadIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
+        const enrichedNotifications = (data || []).map(n => ({
+          ...n,
+          read: n.read || savedReadIds.includes(n.id)
         }));
         
-        setNotifications(enhancedNotifications);
+        setNotifications(enrichedNotifications);
       }
     } catch (err) {
       console.error('[AUTH] Fetch notifications error:', err);
@@ -197,8 +214,11 @@ export const AuthProvider = ({ children }) => {
     
     fetchNotifications(); // Carga inicial
     const notifInterval = setInterval(() => {
-      fetchNotifications();
-    }, 15000);
+      // Solo refrescar si no estamos en el dashboard admin para no causar parpadeos
+      if (!window.location.pathname.includes('/admin')) {
+        fetchNotifications();
+      }
+    }, 60000); // Aumentado a 1 minuto para mayor estabilidad
 
     return () => clearInterval(notifInterval);
   }, [user, fetchNotifications]);
@@ -326,31 +346,32 @@ export const AuthProvider = ({ children }) => {
     return updateUserById(id, { status: nextStatus, is_approved: isApproved });
   };
 
-  const markNotificationAsRead = async (id) => {
-    const notif = notifications.find(n => n.id === id);
+  const markNotificationAsRead = async (notificationId) => {
+    const notif = notifications.find(n => n.id === notificationId);
     if (!notif) return;
 
-    // Si es una notificación de difusión, persistimos la lectura localmente
-    if (notif.is_broadcast) {
-      const storageKey = `read_notifications_${user?.id}`;
-      const readBroadcastIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      
-      if (!readBroadcastIds.includes(id)) {
-        readBroadcastIds.push(id);
-        localStorage.setItem(storageKey, JSON.stringify(readBroadcastIds));
-      }
-      
-      // Actualizar estado local inmediatamente
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    } else {
+    // Actualizar estado local inmediatamente
+    const updatedNotifications = notifications.map(n => 
+      n.id === notificationId ? { ...n, read: true } : n
+    );
+    setNotifications(updatedNotifications);
+
+    // Persistir en localStorage por seguridad extra
+    const savedReadIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
+    if (!savedReadIds.includes(notificationId)) {
+      savedReadIds.push(notificationId);
+      localStorage.setItem(`read_notifications_${user.id}`, JSON.stringify(savedReadIds));
+    }
+
+    if (!notif.is_broadcast) {
       // Si es personal, actualizamos en la base de datos
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('id', id);
+        .eq('id', notificationId);
       
-      if (!error) {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      if (error) {
+        console.error('[AUTH] Error marking notification as read:', error);
       }
     }
   };
@@ -386,7 +407,8 @@ export const AuthProvider = ({ children }) => {
           title: notif.title,
           message: notif.message,
           type: notif.type || 'info',
-          is_broadcast: true
+          is_broadcast: true,
+          origin: notif.origin || 'Sistema'
         }])
         .select();
       
@@ -407,7 +429,8 @@ export const AuthProvider = ({ children }) => {
           title: notif.title,
           message: notif.message,
           type: notif.type || 'info',
-          is_broadcast: false
+          is_broadcast: false,
+          origin: notif.origin || 'Sistema'
         }]);
     } catch (e) {
       console.error('[AUTH] Send notification error:', e);
@@ -508,7 +531,8 @@ export const AuthProvider = ({ children }) => {
     fetchNotifications,
     adminCreateUser,
     sendUserNotification,
-    resetUserPassword
+    resetUserPassword,
+    logAction
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

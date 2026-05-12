@@ -12,7 +12,8 @@ import {
   MessageSquare,
   Sparkles,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -23,6 +24,7 @@ const UserSidebar = ({
   setActiveTab, 
   setShowSettingsModal, 
   setShowNotifications,
+  setShowSuggestionModal,
   isMobile = false,
   isCollapsed = false,
   setIsCollapsed,
@@ -128,8 +130,8 @@ const UserSidebar = ({
           </button>
 
           <button 
-            onClick={() => handleAction(() => setShowSettingsModal(true))} 
-            title="Sugerir Agente / Configurar"
+            onClick={() => handleAction(() => setShowSuggestionModal(true))} 
+            title="Sugerir Agente"
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
           >
             <MessageSquare className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 

@@ -1,8 +1,11 @@
 import React from 'react';
 import { MessageCircle, Heart, Star, Shield, Zap, Sparkles } from 'lucide-react';
 import Avatar from './Avatar';
+import AgentRating from './user/AgentRating';
+import { useAuth } from '../hooks/useAuth';
 
 const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) => {
+  const { user } = useAuth();
   const handleChatClick = () => {
     const prompt = `Hola, soy ${agent.name}, especialista en ${agent.specialty}. ${agent.description}. ¿En qué puedes ayudarte hoy?`;
     const chatGPTUrl = `https://chat.openai.com/?q=${encodeURIComponent(prompt)}`;
@@ -101,6 +104,12 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> 4.9/5
             </span>
           </div>
+          {user && (
+            <AgentRating 
+              agentId={agent.id} 
+              userId={user.id} 
+            />
+          )}
           
           <button
             onClick={handleChatClick}

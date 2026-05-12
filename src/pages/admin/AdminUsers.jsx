@@ -18,11 +18,16 @@ import {
   Mail,
   Shield,
   Calendar,
-  Bell
+  Bell,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Download
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const AdminUsers = () => {
   const { 
@@ -41,6 +46,7 @@ const AdminUsers = () => {
     resetUserPassword
   } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Estados para notificaciones
   const [showNotifyModal, setShowNotifyModal] = useState(false);
@@ -54,8 +60,39 @@ const AdminUsers = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const handleExportUsers = () => {
+    if (users.length === 0) return;
+    
+    const headers = ['ID', 'Nombre', 'Email', 'Rol', 'Estado', 'Aprobado', 'Suscripcion Inicio', 'Suscripcion Fin', 'Creado'];
+    const rows = filteredUsers.map(u => [
+      u.id,
+      u.name || 'Sin nombre',
+      u.email,
+      u.role,
+      u.status,
+      u.is_approved ? 'SI' : 'NO',
+      u.start_date || '',
+      u.end_date || '',
+      new Date(u.created_at).toISOString()
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    
+    logAction('Exportar Usuarios', 'Seguridad', null, { count: filteredUsers.length });
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -83,8 +120,17 @@ const AdminUsers = () => {
       if (e.key === 'Escape') closeModals();
     };
     window.addEventListener('keydown', handleKeyDown);
+    
+    // Detectar acción de creación desde el Dashboard
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('action') === 'create') {
+      setShowCreateModal(true);
+      // Limpiar URL para evitar reapertura al refrescar
+      navigate('/admin/users', { replace: true });
+    }
+
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fetchUsers]);
+  }, [fetchUsers, location.search, navigate]);
 
   const filteredUsers = users.filter(user => {
     let matchesSearch = true;
@@ -388,10 +434,16 @@ const AdminUsers = () => {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              disabled={isEdit}
+              className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${isEdit ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800/50' : ''}`}
               placeholder="usuario@ejemplo.com"
               required
             />
+            {isEdit && (
+              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                El correo electrónico no puede ser modificado.
+              </p>
+            )}
           </div>
 
           {!isEdit ? (
@@ -538,12 +590,22 @@ const AdminUsers = () => {
           <div className="flex space-x-3 mt-4 sm:mt-0">
             <button
               onClick={async () => {
-                console.log("Forzando actualización manual...");
+                setIsRefreshing(true);
                 await fetchUsers();
+                setTimeout(() => setIsRefreshing(false), 500);
               }}
+              disabled={isRefreshing}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Actualizando...' : 'Refrescar Datos'}
+            </button>
+            <button
+              onClick={handleExportUsers}
               className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              Refrescar Datos
+              <Download className="w-4 h-4 mr-2" />
+              Exportar
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -595,20 +657,42 @@ const AdminUsers = () => {
 ) : (
           <>
             {/* Notifications Bar */}
-            <div className="flex justify-between items-center bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4 mb-6">
-              <div>
-                <h3 className="text-purple-800 dark:text-purple-300 font-semibold">Comunicación Directa</h3>
-                <p className="text-xs text-purple-600 dark:text-purple-400">Envía alertas a todos los usuarios del sistema</p>
+            <div className="flex flex-col md:flex-row justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-5 mb-8 shadow-sm">
+              <div className="flex items-center gap-4 mb-4 md:mb-0">
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                  <Bell className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-purple-900 dark:text-purple-100 font-bold text-lg">Comunicación Directa</h3>
+                  <p className="text-purple-600/70 dark:text-purple-400/70 text-sm">Envía alertas personalizadas o globales</p>
+                </div>
               </div>
-              <button
-                onClick={() => {
-                  setNotificationTarget('all');
-                  setShowNotifyModal(true);
-                }}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <Bell className="w-4 h-4" /> Enviar Global
-              </button>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <select
+                    value={notificationTarget}
+                    onChange={(e) => setNotificationTarget(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800/50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none appearance-none cursor-pointer text-gray-700 dark:text-gray-200 transition-all"
+                  >
+                    <option value="all">🚀 Todos los usuarios (Global)</option>
+                    <optgroup label="Usuarios Específicos">
+                      {users.filter(u => u.status === 'active').map(u => (
+                        <option key={u.id} value={u.id}>👤 {u.name || u.email.split('@')[0]}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500" />
+                </div>
+
+                <button 
+                  onClick={() => setShowNotifyModal(true)}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2 group active:scale-95"
+                >
+                  <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                  {notificationTarget === 'all' ? 'Enviar Global' : 'Enviar Privado'}
+                </button>
+              </div>
             </div>
 
             {/* Filters */}
@@ -884,20 +968,28 @@ const AdminUsers = () => {
                       <span className="text-sm text-gray-700 dark:text-gray-300">
                         Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span>
                       </span>
-                      <div className="flex gap-2">
+                      <div className="flex items-center justify-between gap-1 sm:gap-2">
                         <button
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                           disabled={currentPage === 1}
-                          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
                         >
-                          Anterior
+                          <ChevronLeft className="w-4 h-4 sm:w-5 h-5 text-gray-500" />
                         </button>
+                        
+                        <div className="flex items-center bg-white dark:bg-gray-800 px-2 sm:px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                          <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mr-1.5 hidden xs:inline">Pág.</span>
+                          <span className="text-xs sm:text-sm font-black text-blue-600 dark:text-blue-400">{currentPage}</span>
+                          <span className="text-[10px] sm:text-xs font-medium text-gray-400 mx-1">de</span>
+                          <span className="text-xs sm:text-sm font-bold text-gray-600 dark:text-gray-300">{totalPages}</span>
+                        </div>
+
                         <button
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                           disabled={currentPage === totalPages}
-                          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
                         >
-                          Siguiente
+                          <ChevronRight className="w-4 h-4 sm:w-5 h-5 text-gray-500" />
                         </button>
                       </div>
                     </div>

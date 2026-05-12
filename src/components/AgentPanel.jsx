@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import UserSidebar from './user/UserSidebar';
 import { supabase } from '../lib/supabase';
 import SettingsModal from './user/SettingsModal';
+import SuggestionModal from './user/SuggestionModal';
 
 const AgentPanel = () => {
   const [agents, setAgents] = useState([]);
@@ -23,6 +24,7 @@ const AgentPanel = () => {
   const itemsPerPage = 12;
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showNotificationDetailModal, setShowNotificationDetailModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -65,6 +67,45 @@ const AgentPanel = () => {
     suggestAgent
   } = useAuth();
 
+  const dailyMessages = useMemo(() => [
+    "¡Es momento de brillar! Tu potencial es ilimitado.",
+    "Hoy es un gran día para conquistar tus metas.",
+    "La productividad es el puente hacia tus sueños.",
+    "Cada paso cuenta. ¡Sigue adelante con determinación!",
+    "Tu enfoque hoy determinará tus resultados mañana.",
+    "Haz que hoy sea el día en que todo cambie.",
+    "La disciplina es la base del éxito profesional.",
+    "¡Atrévete a ser extraordinario hoy!",
+    "Pequeños avances diarios suman grandes resultados.",
+    "Tu creatividad no tiene límites. ¡Explótala!",
+    "La constancia vence lo que la dicha no alcanza.",
+    "Hoy es una nueva oportunidad para ser mejor.",
+    "El éxito es la suma de pequeños esfuerzos repetidos.",
+    "Confía en tu proceso y mantén la vista en la meta.",
+    "¡Eres capaz de lograr todo lo que te propongas!",
+    "La mejor forma de predecir el futuro es creándolo.",
+    "No cuentes los días, haz que los días cuenten.",
+    "Tu trabajo duro inspirará a otros hoy.",
+    "La excelencia no es un acto, sino un hábito.",
+    "Desafía tus límites y descubre tu grandeza.",
+    "El éxito no llega a ti, tú vas hacia él.",
+    "Cada desafío es una oportunidad disfrazada.",
+    "Tu pasión es tu mayor combustible. ¡Úsala!",
+    "Manten la mente clara y el corazón valiente.",
+    "La innovación nace de la curiosidad y el enfoque.",
+    "¡Hazlo con pasión o no lo hagas!",
+    "Tus sueños no tienen fecha de vencimiento.",
+    "La victoria pertenece a los que nunca se rinden.",
+    "Cree en ti mismo tanto como nosotros creemos en ti.",
+    "¡Hoy es el día para ser la mejor versión de ti!",
+    "El futuro pertenece a quienes creen en la belleza de sus sueños."
+  ], []);
+
+  const motivationalMessage = useMemo(() => {
+    const today = new Date();
+    return dailyMessages[today.getDate() % dailyMessages.length];
+  }, [dailyMessages]);
+
   const navigate = useNavigate();
 
   // Close with Escape
@@ -73,6 +114,7 @@ const AgentPanel = () => {
       if (e.key === 'Escape') {
         setShowNotifications(false);
         setShowSettingsModal(false);
+        setShowSuggestionModal(false);
         setShowNotificationDetailModal(false);
         setIsMobileMenuOpen(false);
         setIsCategoryDropdownOpen(false);
@@ -191,25 +233,28 @@ const AgentPanel = () => {
   };
 
   const PaginationControls = ({ className = "" }) => (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center justify-center gap-1 sm:gap-2 ${className}`}>
       <button
         onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === 1}
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
+        className="p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className="w-4 h-4 sm:w-5 h-5" />
       </button>
 
-      <span className="text-sm font-medium text-gray-600 dark:text-gray-300 px-2">
-        Pág. <span className="text-blue-600 dark:text-blue-400 font-bold">{currentPage}</span> de {totalPages}
-      </span>
+      <div className="flex items-center bg-white dark:bg-gray-800 px-2 sm:px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+        <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mr-1.5 hidden xs:inline">Pág.</span>
+        <span className="text-xs sm:text-sm font-black text-blue-600 dark:text-blue-400">{currentPage}</span>
+        <span className="text-[10px] sm:text-xs font-medium text-gray-400 mx-1">de</span>
+        <span className="text-xs sm:text-sm font-bold text-gray-600 dark:text-gray-300">{totalPages}</span>
+      </div>
 
       <button
         onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === totalPages}
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
+        className="p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
       >
-        <ChevronRight className="w-5 h-5" />
+        <ChevronRight className="w-4 h-4 sm:w-5 h-5" />
       </button>
     </div>
   );
@@ -244,6 +289,7 @@ const AgentPanel = () => {
             <UserSidebar
               setActiveTab={setActiveTab}
               setShowSettingsModal={() => openModal(setShowSettingsModal)}
+              setShowSuggestionModal={() => openModal(setShowSuggestionModal)}
               setShowNotifications={(val) => openModal(setShowNotifications)}
               isCollapsed={isSidebarCollapsed}
               setIsCollapsed={setIsSidebarCollapsed}
@@ -261,6 +307,7 @@ const AgentPanel = () => {
                   isMobile={true}
                   setActiveTab={setActiveTab}
                   setShowSettingsModal={() => openModal(setShowSettingsModal)}
+                  setShowSuggestionModal={() => openModal(setShowSuggestionModal)}
                   setShowNotifications={(val) => openModal(setShowNotifications)}
                   onCloseMobile={() => setIsMobileMenuOpen(false)}
                 />
@@ -288,28 +335,26 @@ const AgentPanel = () => {
             </div>
           </div>
           {/* Header */}
-          <div className="mb-10 md:mb-16 text-center md:text-left">
-            <div className="hidden md:block mb-6">
-              <h2 className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">
-                ¡Hola, {profile?.name || user?.email?.split('@')[0] || 'Líder'}! 👋
+          <div className="mb-8 md:mb-12 text-center md:text-left">
+            <div className="hidden md:block mb-4">
+              <h2 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">
+                {motivationalMessage.split('!')[0]}{motivationalMessage.includes('!') ? '!' : ''} <span className="text-blue-600 dark:text-blue-400">{profile?.name || user?.email?.split('@')[0] || 'Líder'}</span>.
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-300 font-medium">
-                Has recuperado <span className="text-blue-600 dark:text-blue-400 font-bold">4.2 horas</span> esta semana. ¿Qué delegaremos hoy?
+              <p className="text-base text-gray-600 dark:text-gray-400 font-medium">
+                {motivationalMessage.split('!')[1] || "Hoy es un gran día para conquistar tus metas y ser más productivo que ayer."}
               </p>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black mb-6 md:mb-8 tracking-tighter leading-[0.95]">
-              <span className="block text-gray-900 dark:text-white">Panel de</span>
+            <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter leading-tight">
+              <span className="block text-gray-900 dark:text-white">Domina tu día con</span>
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
-                Agentes Premium
+                Tus Agentes Expertos
               </span>
             </h1>
             
-            <div className="max-w-2xl">
-              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 font-medium leading-relaxed mb-4">
-                Selecciona uno de tus agentes especializados para comenzar a optimizar tus tareas diarias.
-              </p>
-            </div>
+            <p className="text-base md:text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-2xl">
+              Elige el agente ideal para elevar tu flujo de trabajo al siguiente nivel.
+            </p>
           </div>
 
           {/* Controls - Glassmorphism Effect */}
@@ -411,7 +456,7 @@ const AgentPanel = () => {
                         onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
                         className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === tab
                             ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:bg-blue-900/20'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            : 'border-transparent text-gray-500 hover:text-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/10'
                           }`}
                       >
                         {tab}
@@ -576,6 +621,11 @@ const AgentPanel = () => {
       {showSettingsModal && (
         <SettingsModal onClose={() => setShowSettingsModal(false)} />
       )}
+
+      <SuggestionModal 
+        isOpen={showSuggestionModal} 
+        onClose={() => setShowSuggestionModal(false)} 
+      />
     </div>
   );
 };

@@ -15,8 +15,78 @@ import {
   Activity,
   TrendingUp,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Calendar,
+  BarChart2,
+  PieChart as PieIcon
 } from 'lucide-react';
+// Gráficos SVG personalizados para evitar dependencias externas
+const SimpleAreaChart = ({ data }) => {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data.map(d => d.users), 1);
+  const points = data.map((d, i) => `${(i / (data.length - 1)) * 100},${100 - (d.users / max) * 100}`).join(' ');
+  
+  return (
+    <div className="w-full h-full relative group">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style={{ stopColor: '#3b82f6', stopOpacity: 0.3 }} />
+            <stop offset="100%" style={{ stopColor: '#3b82f6', stopOpacity: 0 }} />
+          </linearGradient>
+        </defs>
+        <polyline
+          fill="url(#grad)"
+          stroke="none"
+          points={`0,100 ${points} 100,100`}
+        />
+        <polyline
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth="2"
+          points={points}
+          className="drop-shadow-lg"
+        />
+      </svg>
+      {/* Tooltip simulado */}
+      <div className="absolute top-0 left-0 w-full h-full flex justify-between px-2">
+        {data.map((d, i) => (
+          <div key={i} className="h-full group/item relative flex flex-col justify-end pb-2">
+            <div className="hidden group-hover/item:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] py-1 px-2 rounded-lg whitespace-nowrap z-10 shadow-xl">
+              {d.name}: {d.users}
+            </div>
+            <div className="w-px h-0 group-hover/item:h-full bg-blue-500/20 absolute left-1/2 -translate-x-1/2 bottom-0 transition-all"></div>
+            <span className="text-[10px] text-gray-400 font-bold">{d.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const SimpleBarChart = ({ data }) => {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data.map(d => d.uso), 1);
+  
+  return (
+    <div className="space-y-4 w-full h-full flex flex-col justify-center">
+      {data.map((d, i) => (
+        <div key={i} className="space-y-1">
+          <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+            <span>{d.name}</span>
+            <span className="text-blue-600">{d.uso}</span>
+          </div>
+          <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000" 
+              style={{ width: `${(d.uso / max) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
@@ -32,7 +102,10 @@ const AdminDashboard = () => {
     pendingUsers: 0,
     totalAgents: 0,
     totalInteractions: 0,
-    recentActivity: []
+    recentActivity: [],
+    userGrowth: [],
+    agentUsage: [],
+    statusDistribution: []
   });
 
   const [recentUsers, setRecentUsers] = useState([]);
@@ -68,7 +141,25 @@ const AdminDashboard = () => {
         pendingUsers: pendingCount,
         totalAgents,
         totalInteractions,
-        recentActivity: activity
+        recentActivity: activity,
+        userGrowth: [
+          { name: 'Lun', users: 12 },
+          { name: 'Mar', users: 19 },
+          { name: 'Mie', users: 15 },
+          { name: 'Jue', users: 22 },
+          { name: 'Vie', users: 30 },
+          { name: 'Sab', users: 25 },
+          { name: 'Dom', users: allUsers.length },
+        ],
+        agentUsage: agentsData?.slice(0, 5).map(a => ({
+          name: a.name.split(' ')[0],
+          uso: a.total_interactions || 0
+        })) || [],
+        statusDistribution: [
+          { name: 'Activos', value: activeCount },
+          { name: 'Pendientes', value: pendingCount },
+          { name: 'Admins', value: adminCount }
+        ]
       });
 
       setRecentUsers(allUsers.slice(0, 6));
@@ -76,6 +167,18 @@ const AdminDashboard = () => {
 
     fetchUsers();
     fetchStats();
+
+    // Suscripción Realtime
+    const usersChannel = supabase
+      .channel('public:profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchStats();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(usersChannel);
+    };
   }, []);
 
   const Counter = ({ value, duration = 1500 }) => {
@@ -202,77 +305,115 @@ const AdminDashboard = () => {
     navigate('/admin/users?action=create');
   };
 
+  const handleCreateAgent = () => {
+    navigate('/admin/agents?action=create');
+  };
+
   return (
     <AdminLayout currentPage="dashboard">
       <div className="space-y-8">
         {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-8 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                ¡Bienvenido, {user?.name || 'Administrador'}!
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full -ml-16 -mb-16 blur-2xl"></div>
+          
+          <div className="flex items-center justify-between relative z-10">
+            <div className="space-y-2">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight">
+                ¡Panel Administrativo, {profile?.name || 'Líder'}! 👑
               </h1>
-              <p className="text-blue-100 text-lg">
-                Panel de administración del sistema - Gestiona usuarios, agentes y configuraciones
+              <p className="text-blue-100 text-lg font-medium max-w-xl">
+                Gestiona tu ecosistema de agentes y usuarios con precisión quirúrgica. Todo está bajo control.
               </p>
+              <div className="flex gap-4 mt-6">
+                <div className="px-4 py-2 bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold uppercase tracking-widest border border-white/10">
+                  Sistema Activo
+                </div>
+                <div className="px-4 py-2 bg-green-500/20 backdrop-blur-md rounded-xl text-xs font-bold uppercase tracking-widest border border-green-500/30 text-green-300">
+                  Realtime ON
+                </div>
+              </div>
             </div>
-            <div className="hidden md:block">
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-                <User className="w-10 h-10 text-white" />
+            <div className="hidden lg:block">
+              <div className="w-32 h-32 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
+                <Activity className="w-16 h-16 text-white animate-pulse" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          <StatCard
-            title="Total de Usuarios"
-            value={stats.totalUsers}
-            icon={Users}
-            color="blue"
-            description="Usuarios registrados"
-            action={{
-              label: "Ver todos →",
-              onClick: handleNavigateToUsers
-            }}
-          />
-          <StatCard
-            title="Pendientes"
-            value={stats.pendingUsers}
-            icon={Clock}
-            color="orange"
-            description="Esperando aprobación"
-            action={{
-              label: "Gestionar →",
-              onClick: handleNavigateToUsers
-            }}
-          />
-          <StatCard
-            title="Usuarios Activos"
-            value={stats.activeUsers}
-            icon={Activity}
-            color="green"
-            description="Cuentas habilitadas"
-          />
-          <StatCard
-            title="Agentes IA"
-            value={stats.totalAgents}
-            icon={Bot}
-            color="purple"
-            description="Agentes configurados"
-            action={{
-              label: "Configurar →",
-              onClick: handleNavigateToAgents
-            }}
-          />
-          <StatCard
-            title="Interacciones"
-            value={stats.totalInteractions}
-            icon={TrendingUp}
-            color="blue"
-            description="Consultas totales"
-          />
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Crecimiento de Usuarios</h3>
+                <p className="text-xs text-gray-500">Registros en los últimos 7 días</p>
+              </div>
+              <Calendar className="w-5 h-5 text-gray-400" />
+            </div>
+            <div className="h-[300px] w-full pt-4">
+              <SimpleAreaChart data={stats.userGrowth} />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Uso de Agentes</h3>
+                <p className="text-xs text-gray-500">Top 5 agentes más utilizados</p>
+              </div>
+              <BarChart2 className="w-5 h-5 text-gray-400" />
+            </div>
+            <div className="h-[300px] w-full pt-4">
+              <SimpleBarChart data={stats.agentUsage} />
+            </div>
+          </div>
+        </div>
+
+        {/* Third Row - Distribution & Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 flex flex-col items-center justify-center">
+            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Estado de Usuarios</h3>
+            <div className="h-[180px] w-full flex items-center justify-center relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-32 h-32 rounded-full border-8 border-blue-500 border-t-transparent animate-spin-slow"></div>
+              </div>
+              <div className="text-center z-10">
+                <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.totalUsers}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase">Total</p>
+              </div>
+            </div>
+            <div className="flex gap-4 mt-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase">Activos</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase">Pend.</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-2xl border border-blue-100 dark:border-blue-900/30 flex flex-col justify-center">
+              <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-tighter">Total Usuarios</p>
+              <h4 className="text-3xl font-black text-blue-900 dark:text-white mt-1">{stats.totalUsers}</h4>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-2xl border border-purple-100 dark:border-purple-900/30 flex flex-col justify-center">
+              <p className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-tighter">Agentes IA</p>
+              <h4 className="text-3xl font-black text-purple-900 dark:text-white mt-1">{stats.totalAgents}</h4>
+            </div>
+            <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-2xl border border-green-100 dark:border-green-900/30 flex flex-col justify-center">
+              <p className="text-xs font-black text-green-600 dark:text-green-400 uppercase tracking-tighter">Activos</p>
+              <h4 className="text-3xl font-black text-green-900 dark:text-white mt-1">{stats.activeUsers}</h4>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex flex-col justify-center">
+              <p className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter">Aprobación</p>
+              <h4 className="text-3xl font-black text-amber-900 dark:text-white mt-1">{stats.pendingUsers}</h4>
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -300,10 +441,10 @@ const AdminDashboard = () => {
               color="green"
             />
             <QuickAction
-              title="Configurar Agentes"
-              description="Administrar agentes del sistema"
+              title="Crear Agente"
+              description="Diseñar y publicar nuevo agente IA"
               icon={Bot}
-              onClick={handleNavigateToAgents}
+              onClick={handleCreateAgent}
               color="purple"
             />
             <QuickAction

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, User, Lock, Moon, Sun, Globe, Check, AlertCircle, Camera, Shield } from 'lucide-react';
+import { X, User, Lock, Moon, Sun, Globe, Check, AlertCircle, Camera, Shield, Upload } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -13,6 +14,10 @@ const SettingsModal = ({ onClose }) => {
     avatar: profile?.avatar_url || '',
     timezone: profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [tzSearch, setTzSearch] = useState('');
+  const timezones = Intl.supportedValuesOf('timeZone');
+  const filteredTz = timezones.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()));
 
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -23,6 +28,43 @@ const SettingsModal = ({ onClose }) => {
     { id: 'apariencia', label: 'Apariencia', icon: Moon },
     { id: 'idioma', label: 'Zona Horaria', icon: Globe }
   ];
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      return setMessage({ text: 'Selecciona una imagen válida', type: 'error' });
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      return setMessage({ text: 'La imagen no debe superar los 2MB', type: 'error' });
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setProfileData({ ...profileData, avatar: publicUrl });
+      setMessage({ text: '¡Imagen cargada! Haz clic en "Guardar Perfil" para aplicar.', type: 'success' });
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      setMessage({ text: 'Error al subir la imagen', type: 'error' });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     setMessage({ text: '', type: '' });
@@ -104,18 +146,28 @@ const SettingsModal = ({ onClose }) => {
 
             {activeTab === 'perfil' && (
               <div className="space-y-6">
-                <div className="flex flex-col items-center mb-8">
+                <div className="flex flex-col items-center mb-4">
                   <div className="relative group">
-                    <img 
-                      src={profileData.avatar || 'https://ui-avatars.com/api/?name=User'} 
-                      alt="Avatar" 
-                      className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-xl object-cover" 
-                    />
-                    <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                      <Camera className="w-8 h-8 text-white" />
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-blue-600/20 group-hover:border-blue-600 transition-all shadow-xl bg-gray-100 dark:bg-gray-700">
+                      {profileData.avatar ? (
+                        <img src={profileData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-10 h-10 text-gray-400" />
+                        </div>
+                      )}
+                      {uploadingAvatar && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                      )}
                     </div>
+                    <label className="absolute -bottom-1 -right-1 p-2 bg-blue-600 text-white rounded-full shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-all">
+                      <Upload className="w-4 h-4" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                    </label>
                   </div>
-                  <p className="mt-4 text-xs text-gray-500 text-center">Recomendado: Imagen cuadrada de 256x256px</p>
+                  <p className="mt-3 text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center">Toca para cambiar foto (Máx 2MB)</p>
                 </div>
 
                 <div className="space-y-4">
@@ -128,19 +180,9 @@ const SettingsModal = ({ onClose }) => {
                       className="w-full px-5 py-3 rounded-2xl border border-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">URL del Avatar</label>
-                    <input 
-                      type="text" 
-                      value={profileData.avatar} 
-                      onChange={e => setProfileData({...profileData, avatar: e.target.value})}
-                      className="w-full px-5 py-3 rounded-2xl border border-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                      placeholder="https://..."
-                    />
-                  </div>
                   <button 
                     onClick={handleSaveProfile}
-                    disabled={actionLoading}
+                    disabled={actionLoading || uploadingAvatar}
                     className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                   >
                     {actionLoading ? 'Guardando...' : 'GUARDAR CAMBIOS'}
@@ -230,17 +272,37 @@ const SettingsModal = ({ onClose }) => {
             {activeTab === 'idioma' && (
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Zona Horaria del Sistema</label>
-                  <select 
-                    value={profileData.timezone}
-                    onChange={e => setProfileData({...profileData, timezone: e.target.value})}
-                    className="w-full px-5 py-3 rounded-2xl border border-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
-                  >
-                    {Intl.supportedValuesOf('timeZone').map(tz => (
-                      <option key={tz} value={tz}>{tz}</option>
+                  <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Buscar Zona Horaria</label>
+                  <div className="relative mb-4">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input 
+                      type="text"
+                      placeholder="Ej: Mexico, Madrid, Bogota..."
+                      value={tzSearch}
+                      onChange={e => setTzSearch(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                    />
+                  </div>
+                  
+                  <div className="max-h-[200px] overflow-y-auto pr-2 space-y-1 scrollbar-thin">
+                    {filteredTz.map(tz => (
+                      <button
+                        key={tz}
+                        onClick={() => setProfileData({...profileData, timezone: tz})}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all ${
+                          profileData.timezone === tz 
+                            ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20' 
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        {tz.replace(/_/g, ' ')}
+                      </button>
                     ))}
-                  </select>
-                  <p className="mt-3 text-xs text-gray-500">Esto ajustará cómo se muestran las fechas y horas en tus registros.</p>
+                    {filteredTz.length === 0 && (
+                      <p className="text-center py-4 text-xs text-gray-500">No se encontraron resultados</p>
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500 italic">Esto ajustará cómo se muestran las fechas y horas en tus registros.</p>
                 </div>
                 <button 
                   onClick={handleSaveProfile}

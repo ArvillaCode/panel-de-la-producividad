@@ -12,13 +12,34 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Obtener tema guardado del localStorage o usar 'dark' por defecto
+    // 1. Prioridad: Tema guardado manualmente
     const savedTheme = localStorage.getItem('theme');
-    return savedTheme || 'dark';
+    if (savedTheme) return savedTheme;
+
+    // 2. Prioridad: Preferencia del sistema (Modo Inteligente)
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    
+    // 3. Fallback: Horario (Opcional: Oscuro de 19:00 a 07:00)
+    const hour = new Date().getHours();
+    if (hour < 7 || hour >= 19) return 'dark';
+
+    return 'light';
   });
 
   useEffect(() => {
-    // Guardar tema en localStorage
+    // Escuchar cambios en la preferencia del sistema
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => {
+      if (!localStorage.getItem('theme')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    
+    // Guardar tema en localStorage si fue seleccionado manualmente
     localStorage.setItem('theme', theme);
     
     // Aplicar clase al documento

@@ -24,8 +24,11 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import { categories } from '../../data/agents';
 import { useAuth } from '../../hooks/useAuth';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const AdminAgents = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [agents, setAgents] = useState([]);
   const [filteredAgents, setFilteredAgents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,8 +67,17 @@ const AdminAgents = () => {
       if (e.key === 'Escape') closeModals();
     };
     window.addEventListener('keydown', handleKeyDown);
+    
+    // Detectar acción de creación desde el Dashboard
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('action') === 'create') {
+      setShowCreateModal(true);
+      // Limpiar URL
+      navigate('/admin/agents', { replace: true });
+    }
+
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [location.search, navigate]);
 
   const fetchSuggestions = async () => {
     setLoadingSuggestions(true);

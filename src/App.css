@@ -259,3 +259,17 @@ img {
   box-shadow: 0 0 25px rgba(59, 130, 246, 0.15);
   border-color: rgba(59, 130, 246, 0.3) !important;
 }
+
+/* Dashboard V3.0 Animations */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+.chart-gradient-bg {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0) 100%);
+}

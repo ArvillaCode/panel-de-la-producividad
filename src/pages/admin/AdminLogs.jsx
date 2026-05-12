@@ -27,18 +27,13 @@ const AdminLogs = () => {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      // Intentamos cargar de la tabla activity_logs
       const { data, error } = await supabase
-        .from('activity_logs')
+        .from('audit_logs')
         .select('*, profiles(name, email)')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
 
-      if (error) {
-        // Si la tabla no existe aún, mostramos logs locales o simulados
-        console.warn('Tabla activity_logs no encontrada. Usando datos de respaldo.');
-        setLogs([]);
-      } else {
+      if (!error) {
         setLogs(data || []);
       }
     } catch (err) {
@@ -48,21 +43,51 @@ const AdminLogs = () => {
     }
   };
 
+  const handleExportCSV = () => {
+    if (logs.length === 0) return;
+    
+    const headers = ['ID', 'Accion', 'Usuario', 'Email', 'Entidad', 'Detalles', 'Fecha'];
+    const rows = filteredLogs.map(log => [
+      log.id,
+      log.action,
+      log.profiles?.name || 'Sistema',
+      log.profiles?.email || '',
+      log.entity || '',
+      JSON.stringify(log.details || {}).replace(/,/g, ';'),
+      new Date(log.created_at).toISOString()
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `auditoria_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
   const getLogIcon = (action) => {
     const a = action.toLowerCase();
-    if (a.includes('delete') || a.includes('error') || a.includes('rechaz')) return <AlertCircle className="w-5 h-5 text-red-500" />;
-    if (a.includes('create') || a.includes('add') || a.includes('aprob') || a.includes('login')) return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+    if (a.includes('delete') || a.includes('error') || a.includes('rechaz') || a.includes('expuls')) return <AlertCircle className="w-5 h-5 text-red-500" />;
+    if (a.includes('create') || a.includes('add') || a.includes('aprob') || a.includes('login') || a.includes('activ')) return <CheckCircle2 className="w-5 h-5 text-green-500" />;
     return <Info className="w-5 h-5 text-blue-500" />;
   };
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = 
       log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.entity?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filterType === 'all') return matchesSearch;
-    return matchesSearch && log.action.toLowerCase().includes(filterType.toLowerCase());
+    return matchesSearch && (
+      log.action.toLowerCase().includes(filterType.toLowerCase()) ||
+      (log.entity && log.entity.toLowerCase().includes(filterType.toLowerCase()))
+    );
   });
 
   return (
@@ -106,7 +131,11 @@ const AdminLogs = () => {
                 <option value="update">Actualizaciones</option>
                 <option value="delete">Eliminaciones</option>
               </select>
-              <button className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700">
+              <button 
+                onClick={handleExportCSV}
+                title="Exportar a CSV"
+                className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
                 <Download className="w-5 h-5 text-gray-500" />
               </button>
             </div>
