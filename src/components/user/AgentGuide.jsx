@@ -6,6 +6,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
+import { useCloseModal } from '../../hooks/useCloseModal';
 
 const AgentGuide = () => {
   const { isAdmin, isAuthenticated, profile, user } = useAuth();
@@ -16,6 +17,8 @@ const AgentGuide = () => {
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('Usuario');
   const messagesEndRef = useRef(null);
+
+  const { modalRef } = useCloseModal(isOpen, () => setIsOpen(false));
 
   // No mostrar a usuarios no autenticados
   if (!isAuthenticated) return null;
@@ -195,7 +198,10 @@ const AgentGuide = () => {
       </button>
 
       {/* Ventana de Chat - Premium Dark Glass */}
-      <div className={`fixed bottom-4 right-4 w-full max-w-[380px] h-[580px] bg-deep-dark/80 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] transition-all duration-500 flex flex-col rounded-[2.5rem] border border-white/10 overflow-hidden ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
+      <div 
+        ref={modalRef}
+        className={`fixed bottom-4 right-4 w-full max-w-[380px] h-[580px] bg-deep-dark/80 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] transition-all duration-500 flex flex-col rounded-[2.5rem] border border-white/10 overflow-hidden ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}
+      >
         
         {/* Header - Glass Overlay */}
         <div className="p-6 bg-white/5 border-b border-white/5 flex items-center justify-between">

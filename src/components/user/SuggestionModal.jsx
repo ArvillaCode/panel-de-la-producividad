@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { X, Send, Sparkles, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useCloseModal } from '../../hooks/useCloseModal';
 
 const SuggestionModal = ({ isOpen, onClose }) => {
   const [suggestion, setSuggestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { suggestAgent } = useAuth();
+  
+  const { modalRef } = useCloseModal(isOpen, onClose);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,6 +41,7 @@ const SuggestionModal = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div 
+        ref={modalRef}
         className="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-gray-100 dark:border-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
