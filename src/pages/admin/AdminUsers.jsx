@@ -269,7 +269,7 @@ const AdminUsers = () => {
     setActionLoading(true);
     try {
       for (const userId of selectedRows) {
-        await updateUserById(userId, { status: 'active' });
+        await updateUserById(userId, { status: 'active', is_approved: true });
       }
       toast.success(`${selectedRows.length} usuarios activados`);
       setSelectedRows([]);

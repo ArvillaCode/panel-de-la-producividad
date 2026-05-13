@@ -317,6 +317,9 @@ export const AuthProvider = ({ children }) => {
     
     // Si se está activando al usuario
     if (data.status === 'active' || data.is_approved === true) {
+      finalData.status = 'active';
+      finalData.is_approved = true;
+
       // Si no tiene fechas, asignamos 1 año por defecto desde hoy
       if (!targetUser?.start_date || !targetUser?.end_date || data.force_dates) {
         const startDate = new Date();
