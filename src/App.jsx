@@ -13,6 +13,7 @@ import AdminLogs from './pages/admin/AdminLogs';
 import ReleaseHistory from './pages/ReleaseHistory';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
+import { ToastProvider } from './context/ToastContext';
 import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
 import Policies from './pages/Policies';
 import Privacy from './pages/Privacy';
@@ -73,56 +74,58 @@ const DomainRestrictedRoute = ({ children, appOnly = false }) => {
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <div className="App min-h-screen w-full relative z-0 pointer-events-auto">
-          <ReleaseAutoNotification />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/coming-soon" element={<ComingSoon />} />
-            <Route 
-              path="/login" 
-              element={<DomainRestrictedRoute appOnly={true}><AdminLogin /></DomainRestrictedRoute>} 
-            />
+      <ToastProvider>
+        <Router>
+          <div className="App min-h-screen w-full relative z-0 pointer-events-auto">
+            <ReleaseAutoNotification />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/coming-soon" element={<ComingSoon />} />
+              <Route 
+                path="/login" 
+                element={<DomainRestrictedRoute appOnly={true}><AdminLogin /></DomainRestrictedRoute>} 
+              />
 
-            {/* Rutas administrativas protegidas */}
-            <Route 
-              path="/admin/dashboard" 
-              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} 
-            />
-            <Route 
-              path="/admin/users" 
-              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} 
-            />
-            <Route 
-              path="/admin/agents" 
-              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} 
-            />
-            <Route 
-              path="/admin/config" 
-              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} 
-            />
-            <Route 
-              path="/admin/releases" 
-              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} 
-            />
-            <Route 
-              path="/admin/logs" 
-              element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} 
-            />
-            
-            <Route path="/novedades" element={<ReleaseHistory />} />
-            <Route path="/politicas" element={<Policies />} />
-            <Route path="/privacidad" element={<Privacy />} />
-            <Route path="/soporte" element={<Support />} />
-            
-            {/* Redirect /admin a /admin/dashboard */}
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            
-            {/* Ruta catch-all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </Router>
+              {/* Rutas administrativas protegidas */}
+              <Route 
+                path="/admin/dashboard" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              <Route 
+                path="/admin/users" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              <Route 
+                path="/admin/agents" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              <Route 
+                path="/admin/config" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              <Route 
+                path="/admin/releases" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              <Route 
+                path="/admin/logs" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              
+              <Route path="/novedades" element={<ReleaseHistory />} />
+              <Route path="/politicas" element={<Policies />} />
+              <Route path="/privacidad" element={<Privacy />} />
+              <Route path="/soporte" element={<Support />} />
+              
+              {/* Redirect /admin a /admin/dashboard */}
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              
+              {/* Ruta catch-all */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </Router>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

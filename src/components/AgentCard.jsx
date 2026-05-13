@@ -35,7 +35,7 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
 
   return (
     <div 
-      className="group relative bg-white dark:bg-gray-800 rounded-[2.5rem] p-5 shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 dark:border-gray-700/50 flex flex-col h-full hover:-translate-y-2 overflow-hidden animate-in fade-in slide-in-from-bottom-4"
+      className="group relative glass-card p-5 glass-card-hover flex flex-col h-full overflow-hidden animate-fade-in-up"
       onMouseMove={handleMouseMove}
       style={{ 
         animationDelay: `${animationDelay}ms`, 
@@ -51,43 +51,43 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
           title={isFavorite ? "Quitar de favoritos" : "Añadir a favoritos"}
           className={`p-2.5 rounded-xl transition-all duration-300 backdrop-blur-md ${
             isFavorite 
-              ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110' 
-              : 'bg-white/80 dark:bg-gray-900/80 text-gray-400 hover:text-red-500 border border-gray-100 dark:border-gray-700'
+              ? 'bg-red-500/80 text-white shadow-lg shadow-red-500/30 scale-110' 
+              : 'bg-white/10 dark:bg-black/20 text-gray-400 hover:text-red-500 border border-white/10'
           }`}
         >
           <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
         </button>
       </div>
 
-      <div className="p-5 md:p-6 flex flex-col flex-1">
-        <div className="flex items-start gap-4 mb-4">
+      <div className="p-5 md:p-6 flex flex-col flex-1 relative z-10">
+        <div className="flex items-start gap-4 mb-5">
           <div className="relative">
             <Avatar 
               name={agent.name}
               avatar={agent.avatar}
               size="lg"
             />
-            <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
+            <div className="absolute -bottom-1 -right-1 bg-neon-teal w-4 h-4 rounded-full border-2 border-white dark:border-deep-dark neon-glow shadow-sm"></div>
           </div>
           <div className="flex-1 min-w-0 pt-1">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-gray-900 dark:text-white truncate text-base md:text-lg tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              <h3 className="font-bold text-gray-900 dark:text-white truncate text-base md:text-lg tracking-tight group-hover:neon-text transition-colors">
                 {agent.name}
               </h3>
               {agent.isNew && (
-                <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-full border border-amber-200 dark:border-amber-800/50 uppercase tracking-wider">
+                <span className="flex items-center gap-0.5 px-2 py-0.5 bg-neon-teal/10 text-neon-teal text-[10px] font-bold rounded-full border border-neon-teal/20 uppercase tracking-wider neon-glow">
                   <Zap className="w-2.5 h-2.5 fill-current" /> Nuevo
                 </span>
               )}
             </div>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-sm ${getCategoryColor(agent.category)}`}>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-white/10 bg-white/5 text-gray-600 dark:text-gray-300 shadow-sm">
               {agent.category}
             </span>
           </div>
         </div>
 
-        <div className="mb-4">
-          <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+        <div className="mb-6">
+          <p className="text-sm font-bold text-neon-teal mb-2 flex items-center gap-1.5 uppercase tracking-wide neon-glow">
             <Shield className="w-3.5 h-3.5" />
             {agent.specialty}
           </p>
@@ -96,13 +96,13 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
           </p>
         </div>
 
-        <div className="mt-auto space-y-3">
-          <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pb-3 border-b border-gray-50 dark:border-gray-700/50">
-            <span className="flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> IA Avanzada
+        <div className="mt-auto space-y-4">
+          <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pb-3 border-b border-white/10">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-neon-teal" /> IA Certificada
             </span>
-            <span className="flex items-center gap-1">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> 4.9/5
+            <span className="flex items-center gap-1.5">
+              <Star className="w-3.5 h-3.5 fill-neon-teal text-neon-teal neon-glow" /> 4.9/5
             </span>
           </div>
           {user && (
@@ -115,10 +115,10 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) 
           <button
             onClick={handleChatClick}
             title={`Iniciar conversación con ${agent.name}`}
-            className="w-full group/btn relative flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/25 active:scale-[0.98] overflow-hidden"
+            className="w-full group/btn relative flex items-center justify-center gap-3 py-4 bg-white/5 dark:bg-white/5 border border-white/10 dark:hover:border-neon-teal/50 hover:bg-neon-teal hover:text-deep-dark text-gray-800 dark:text-white rounded-2xl font-bold transition-all duration-500 shadow-xl overflow-hidden group"
           >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
-            <MessageCircle className="w-5 h-5 relative z-10" />
+            <div className="absolute inset-0 bg-neon-teal opacity-0 group-hover:opacity-10 transition-opacity"></div>
+            <MessageCircle className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
             <span className="relative z-10">Chatear con {agent.name.split(' ')[0]}</span>
           </button>
         </div>

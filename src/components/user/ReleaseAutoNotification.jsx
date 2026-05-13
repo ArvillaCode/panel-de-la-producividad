@@ -15,18 +15,20 @@ const ReleaseAutoNotification = () => {
       return;
     }
     
+    // TAREA: Desactivar auto-modal de novedades (Zero State)
+    // El modal ahora solo se abre manualmente desde el sidebar/panel.
+    /*
     if (!loading && unreadCount > 0 && allReleases.length > 0) {
-      // Find the first unread release (starting from the most recent)
-      // Check if it hasn't been shown in this session (optional, but good for UX)
       const hasSeenSession = sessionStorage.getItem(`seen_release_${allReleases[0].id}`);
       
       if (!hasSeenSession) {
-        setReleaseToShow(allReleases[0]);
-        setShowModal(true);
+        // setReleaseToShow(allReleases[0]);
+        // setShowModal(true);
         sessionStorage.setItem(`seen_release_${allReleases[0].id}`, 'true');
       }
     }
-  }, [loading, unreadCount, allReleases]);
+    */
+  }, [loading, unreadCount, allReleases, user]);
 
   if (!showModal || !releaseToShow) return null;
 

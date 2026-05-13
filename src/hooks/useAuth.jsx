@@ -55,7 +55,21 @@ export const AuthProvider = ({ children }) => {
         const readBroadcastIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
         
         const savedReadIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
-        const enrichedNotifications = (data || []).map(n => ({
+        
+        // Filtrar notificaciones: 
+        // 1. Las personales (user_id === user.id) se muestran siempre.
+        // 2. Las globales (is_broadcast) solo si se crearon después de que el usuario se registró.
+        const userCreatedAt = profile?.created_at || user?.created_at || user?.user_metadata?.created_at;
+        
+        const filteredData = (data || []).filter(n => {
+          if (n.user_id === user.id) return true;
+          if (n.is_broadcast && userCreatedAt) {
+            return new Date(n.created_at) > new Date(userCreatedAt);
+          }
+          return n.is_broadcast; // Fallback si no hay fecha de creación
+        });
+
+        const enrichedNotifications = filteredData.map(n => ({
           ...n,
           read: n.read || savedReadIds.includes(n.id)
         }));

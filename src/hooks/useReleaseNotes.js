@@ -45,7 +45,17 @@ export const useReleaseNotes = () => {
         if (readError) throw readError;
 
         const readIds = new Set(readData.map(r => r.release_id));
-        const unread = (releases || []).filter(r => !readIds.has(r.id));
+        
+        // Un usuario nuevo solo ve novedades publicadas DESPUÉS de su fecha de creación (Zero State)
+        // Intentamos obtener la fecha de creación del perfil o del objeto de usuario
+        const userCreatedAt = user.created_at || user.user_metadata?.created_at;
+        
+        const unread = (releases || []).filter(r => {
+          const isUnread = !readIds.has(r.id);
+          const isNewerThanUser = userCreatedAt ? new Date(r.publish_date) > new Date(userCreatedAt) : true;
+          return isUnread && isNewerThanUser;
+        });
+        
         setUnreadCount(unread.length);
       }
     } catch (err) {

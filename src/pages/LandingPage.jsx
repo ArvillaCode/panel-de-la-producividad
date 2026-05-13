@@ -18,6 +18,7 @@ import {
   Cpu,
   MessageSquare
 } from 'lucide-react';
+import { BRANDING } from '../constants/branding';
 
 // Componente para animaciones estilo Apple (Reveal on Scroll)
 const Reveal = ({ children, delay = 0 }) => {
@@ -58,8 +59,8 @@ const FAQItem = ({ question, answer }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between text-left group"
       >
-        <span className="text-lg font-bold text-slate-300 group-hover:text-white transition-colors uppercase italic tracking-tight">{question}</span>
-        {isOpen ? <Minus className="w-5 h-5 text-blue-500" /> : <Plus className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-all" />}
+        <span className="text-lg font-bold text-slate-300 group-hover:neon-text transition-colors uppercase italic tracking-tight">{question}</span>
+        {isOpen ? <Minus className="w-5 h-5 text-neon-teal" /> : <Plus className="w-5 h-5 text-slate-500 group-hover:text-neon-teal transition-all" />}
       </button>
       <div className={`overflow-hidden transition-all duration-500 ${isOpen ? 'max-h-96 mt-4 opacity-100' : 'max-h-0 opacity-0'}`}>
         <p className="text-slate-400 font-medium leading-relaxed">{answer}</p>
@@ -85,134 +86,137 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#020203] text-white selection:bg-blue-500/30 overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-deep-dark text-white selection:bg-neon-teal/30 overflow-x-hidden font-sans spatial-grid">
       {/* Premium Background: Grid + Radial Glows */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-600/5 blur-[120px] rounded-full opacity-30" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-neon-teal/5 blur-[120px] rounded-full opacity-30" />
       </div>
 
       {/* Navigation Header */}
-      <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto backdrop-blur-sm border-b border-white/5">
+      <nav className="relative z-50 flex items-center justify-between px-8 py-8 max-w-7xl mx-auto backdrop-blur-xl border-b border-white/5 bg-white/5">
         <div className="flex items-center">
           <img 
-            src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
-            alt="Upfunnel Logo" 
-            className="h-16 md:h-20 w-auto object-contain"
+            src={BRANDING.logo} 
+            alt={BRANDING.name} 
+            className="h-10 md:h-12 w-auto object-contain dark:brightness-0 dark:invert"
           />
+          <span className="ml-3 text-2xl font-black tracking-tighter italic text-white neon-glow">
+            {BRANDING.name.toUpperCase()}
+          </span>
         </div>
         
         <div className="hidden md:flex items-center gap-10">
-          <a href="#solucion" className="text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-[0.2em]">Solución</a>
-          <a href="#elegirnos" className="text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-[0.2em]">Por qué nosotros</a>
-          <a href="#pricing" className="text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-[0.2em]">Inversión</a>
-          <a href="#faq" className="text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-[0.2em]">FAQ</a>
+          <a href="#solucion" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">Solución</a>
+          <a href="#elegirnos" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">Por qué nosotros</a>
+          <a href="#pricing" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">Inversión</a>
+          <a href="#faq" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">FAQ</a>
         </div>
 
-        <button onClick={handleAction} className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+        <button onClick={handleAction} className="px-8 py-3 bg-neon-teal/10 border border-neon-teal/20 text-neon-teal rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neon-teal hover:text-deep-dark transition-all neon-glow">
           Reservar Demo
         </button>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative z-10 pt-32 pb-24 px-6 max-w-7xl mx-auto text-center">
+      <section className="relative z-10 pt-40 pb-32 px-6 max-w-7xl mx-auto text-center">
         <Reveal>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/5 border border-blue-500/10 mb-8">
-            <Sparkles className="w-4 h-4 text-blue-400" />
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-blue-400/80">Tu tiempo no es negociable</span>
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-neon-teal/5 border border-neon-teal/10 mb-10 neon-glow">
+            <Sparkles className="w-4 h-4 text-neon-teal" />
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-neon-teal/80">Ecosistema IA de Alto Nivel</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-black mb-8 tracking-tighter leading-[0.95] max-w-4xl mx-auto">
-            <span className="block text-slate-500 italic font-medium text-3xl md:text-4xl mb-4 tracking-normal">Mira, sé que estás cansado de correr.</span>
+          <h1 className="text-6xl md:text-8xl font-black mb-10 tracking-tighter leading-[0.9] max-w-5xl mx-auto">
+            <span className="block text-slate-500 italic font-medium text-3xl md:text-5xl mb-6 tracking-normal">Tu tiempo es el activo más caro.</span>
             <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 uppercase">
-              Haz que el tiempo trabaje para ti.
+              Haz que el <span className="neon-text">tiempo</span> trabaje para ti.
             </span>
           </h1>
 
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-            Tú y yo sabemos que el ruido de la IA te está robando energía. <span className="text-white">Si no tomas el control ahora</span>, el tiempo seguirá escapándose. Upfunnel es tu atajo para recuperar tu vida.
+          <p className="text-xl md:text-2xl text-slate-400 max-w-3xl mx-auto mb-16 leading-relaxed font-medium">
+            Tú y yo sabemos que el ruido de la IA te está robando energía. <span className="text-white">Si no tomas el control ahora</span>, el tiempo seguirá escapándose. Upfunnel es tu atajo maestro.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <button
               onClick={handleAction}
-              className="group relative flex items-center gap-4 px-10 py-5 bg-blue-600 text-white rounded-full shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 transition-all duration-500"
+              className="group relative flex items-center gap-6 px-12 py-6 bg-neon-teal text-deep-dark rounded-2xl shadow-[0_0_50px_-5px_rgba(0,229,255,0.4)] hover:scale-105 active:scale-95 transition-all duration-500"
             >
-              <span className="relative font-black tracking-widest uppercase text-xs italic">Quiero mi tiempo de vuelta</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span className="relative font-black tracking-widest uppercase text-sm italic">Quiero mi tiempo de vuelta</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </button>
           </div>
         </Reveal>
       </section>
 
       {/* Infinite Logo Scroll */}
-      <div className="relative z-10 py-12 border-y border-white/5 overflow-hidden">
+      <div className="relative z-10 py-16 border-y border-white/5 overflow-hidden bg-white/2">
         <div className="flex whitespace-nowrap animate-infinite-scroll">
           {[...logos, ...logos, ...logos].map((logo, i) => (
-            <div key={i} className="flex items-center gap-4 px-12 opacity-20 hover:opacity-100 transition-opacity">
-              <span className="text-xl">{logo.icon}</span>
-              <span className="text-sm font-black tracking-tighter uppercase italic">{logo.name}</span>
+            <div key={i} className="flex items-center gap-6 px-16 opacity-30 hover:opacity-100 hover:neon-text transition-all cursor-default">
+              <span className="text-3xl">{logo.icon}</span>
+              <span className="text-lg font-black tracking-tighter uppercase italic">{logo.name}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Solution Section (La Solución) */}
-      <section id="solucion" className="relative z-10 py-32 px-6 max-w-7xl mx-auto">
+      {/* Solution Section */}
+      <section id="solucion" className="relative z-10 py-40 px-6 max-w-7xl mx-auto">
         <Reveal>
-          <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight mb-6">La Solución: <span className="text-blue-500">Un Solo Cerebro</span></h2>
-            <p className="text-slate-400 max-w-2xl mx-auto font-medium">Olvídate de tener 20 pestañas abiertas. Hemos unificado el poder de más de 70 agentes especializados (y sumamos nuevos constantemente) en una interfaz diseñada para la ejecución inmediata.</p>
+          <div className="text-center mb-24">
+            <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tight mb-8 leading-none">La Solución: <span className="neon-text">Un Solo Cerebro</span></h2>
+            <p className="text-slate-400 max-w-3xl mx-auto text-lg font-medium leading-relaxed">Olvídate de tener 20 pestañas abiertas. Hemos unificado el poder de más de 70 agentes especializados en una interfaz diseñada para la ejecución pura y dura.</p>
           </div>
         </Reveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {[
             { icon: <Brain />, title: "IA Unificada", desc: "Los modelos líderes del mercado, optimizados para tu flujo de trabajo diario." },
-            { icon: <LayoutDashboard />, title: "Panel Ejecutivo", desc: "Diseñado para emprendedores que no tienen tiempo que perder." },
-            { icon: <Cpu />, title: "Agentes Expertos", desc: "Más de 70 Agentes pre-entrenados para ventas, copy, estrategia y más." }
+            { icon: <LayoutDashboard />, title: "Panel Maestro", desc: "Diseñado para ejecutivos y fundadores que no tienen tiempo que perder." },
+            { icon: <Cpu />, title: "Agentes Expertos", desc: "Más de 70 Agentes pre-entrenados para ventas, copy, estrategia y automatización." }
           ].map((item, i) => (
             <Reveal key={i} delay={i * 200}>
-              <div className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-blue-500/30 transition-all h-full group">
-                <div className="w-14 h-14 rounded-2xl bg-blue-600/10 flex items-center justify-center mb-6 text-blue-500 group-hover:scale-110 transition-transform">
-                  {item.icon}
+              <div className="p-10 rounded-[3rem] glass-card glass-card-hover border-white/5 h-full group flex flex-col items-center text-center">
+                <div className="w-20 h-20 rounded-3xl bg-neon-teal/10 flex items-center justify-center mb-8 text-neon-teal neon-glow group-hover:scale-110 transition-transform">
+                  {React.cloneElement(item.icon, { size: 36 })}
                 </div>
-                <h3 className="text-xl font-black uppercase italic italic mb-4">{item.title}</h3>
-                <p className="text-slate-400 font-medium leading-relaxed">{item.desc}</p>
+                <h3 className="text-2xl font-black uppercase italic mb-6">{item.title}</h3>
+                <p className="text-slate-400 font-medium leading-relaxed text-lg">{item.desc}</p>
               </div>
             </Reveal>
           ))}
         </div>
       </section>
 
-      {/* Why Us Section (¿Por qué nosotros?) */}
-      <section id="elegirnos" className="relative z-10 py-32 px-6 bg-white/[0.01]">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+      {/* Why Us Section */}
+      <section id="elegirnos" className="relative z-10 py-40 px-6 bg-white/[0.02]">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
           <Reveal>
-            <div className="relative aspect-square max-w-md mx-auto">
-              <div className="absolute inset-0 bg-blue-500/20 blur-[100px] rounded-full animate-pulse" />
-              <div className="relative h-full w-full rounded-[4rem] border border-white/10 bg-black/50 backdrop-blur-xl flex flex-col items-center justify-center p-12 text-center">
-                <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mb-8 shadow-2xl">
-                  <Award className="w-10 h-10 text-white" />
+            <div className="relative aspect-square max-w-lg mx-auto">
+              <div className="absolute inset-0 bg-neon-teal/20 blur-[120px] rounded-full animate-pulse" />
+              <div className="relative h-full w-full rounded-[5rem] border border-white/10 bg-black/60 backdrop-blur-3xl flex flex-col items-center justify-center p-16 text-center shadow-2xl">
+                <div className="w-24 h-24 bg-neon-teal text-deep-dark rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl shadow-neon-teal/40">
+                  <Award className="w-12 h-12" />
                 </div>
-                <h3 className="text-3xl font-black uppercase italic leading-tight mb-4">¿Por qué Upfunnel?</h3>
-                <p className="text-slate-400 font-medium italic">"Porque no estamos aquí para darte más herramientas, estamos aquí para darte el resultado que ellas prometen."</p>
+                <h3 className="text-4xl font-black uppercase italic leading-none mb-6">¿Por qué Upfunnel?</h3>
+                <p className="text-xl text-slate-300 font-medium italic leading-relaxed">"No estamos aquí para darte más herramientas, estamos aquí para darte el resultado que ellas prometen."</p>
               </div>
             </div>
           </Reveal>
 
-          <div className="space-y-12">
+          <div className="space-y-16">
             {[
-              { q: "¿Por qué seguir pagando 10 IAs?", a: "Tú sabes que es ineficiente. Upfunnel te da el poder de los modelos más potentes por una fracción del costo." },
-              { q: "¿Realmente seré más productivo?", a: "Absolutamente. Al eliminar la fricción de '¿qué IA uso para esto?', tu velocidad de ejecución se multiplica." },
-              { q: "¿Es una inversión segura?", a: "$50 al año por más de 70 agentes especializados es el mayor atajo que puedes comprar hoy. El costo de oportunidad de no tenerlo es incalculable." }
+              { q: "¿Por qué seguir pagando 10 IAs?", a: "Es ineficiente y costoso. Upfunnel te da el poder de los modelos más potentes del mundo en un solo lugar por una fracción del costo." },
+              { q: "¿Realmente seré más productivo?", a: "Absolutamente. Al eliminar la fricción mental de decidir qué herramienta usar, tu velocidad de ejecución se multiplica por diez." },
+              { q: "¿Es una inversión inteligente?", a: "$50 al año es el mayor atajo que puedes comprar hoy. El costo de oportunidad de no tenerlo es simplemente incalculable." }
             ].map((item, i) => (
               <Reveal key={i} delay={i * 200}>
-                <div className="flex gap-6">
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-400 font-black text-xs italic">0{i+1}</div>
+                <div className="flex gap-8">
+                  <div className="shrink-0 w-10 h-10 rounded-2xl bg-neon-teal/10 flex items-center justify-center text-neon-teal font-black text-sm italic neon-glow">0{i+1}</div>
                   <div>
-                    <h4 className="text-lg font-black uppercase italic mb-2 tracking-tight">{item.q}</h4>
-                    <p className="text-slate-400 font-medium leading-relaxed">{item.a}</p>
+                    <h4 className="text-2xl font-black uppercase italic mb-3 tracking-tight">{item.q}</h4>
+                    <p className="text-lg text-slate-400 font-medium leading-relaxed">{item.a}</p>
                   </div>
                 </div>
               </Reveal>
@@ -221,124 +225,52 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Pain Point Section */}
-      <section className="relative z-10 py-32 px-6 max-w-7xl mx-auto">
-        <Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            <div>
-              <h2 className="text-3xl md:text-5xl font-black mb-8 tracking-tighter leading-tight italic uppercase">
-                ¿Vas a seguir dejando <br /> que se te <span className="text-red-500 underline decoration-red-500/30">escape</span> el día?
-              </h2>
-              <div className="space-y-6">
-                {[
-                  { title: "Deja de tirar dinero", desc: "No te hablo de otra suscripción. Te hablo de dejar de pagar 10 herramientas que no conectan entre sí." },
-                  { title: "Sal de la parálisis", desc: "No pierdas horas buscando 'el mejor prompt'. Nuestros agentes ya están configurados para ganar." }
-                ].map((item, i) => (
-                  <div key={i} className="flex gap-6 p-6 rounded-3xl bg-white/5 border border-white/5">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center shrink-0">
-                      <Target className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-black text-sm mb-1 uppercase italic">{item.title}</h3>
-                      <p className="text-slate-400 text-sm font-medium leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="p-8 rounded-[3rem] border border-white/10 bg-white/[0.01] backdrop-blur-3xl text-center">
-              <Timer className="w-12 h-12 text-blue-500 mx-auto mb-6" />
-              <p className="text-5xl font-black tracking-tighter mb-2 italic">2,100 Horas</p>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Perdidas por año en tareas manuales</p>
-            </div>
-          </div>
-        </Reveal>
-      </section>
-      
-      {/* Testimonials Section */}
-      <section className="relative z-10 py-32 px-6 max-w-7xl mx-auto">
-        <Reveal>
-          <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight mb-4">Lo que dicen de nosotros</h2>
-            <p className="text-slate-400 font-medium">Empresarios y creativos que ya están escalando con Upfunnel.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "Carlos Mendoza", role: "Emprendedor Digital", quote: "Upfunnel ha reducido mi carga de trabajo en un 40%. Los agentes son increíblemente precisos." },
-              { name: "Elena Ríos", role: "Directora de Marketing", quote: "Nunca pensé que la IA pudiera ser tan 'lista para usar'. Es conectar y empezar a producir." },
-              { name: "Javier Soler", role: "Desarrollador Senior", quote: "El nivel de optimización de estos modelos es superior a cualquier otra plataforma que haya probado." }
-            ].map((t, i) => (
-              <div key={i} className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 backdrop-blur-sm hover:border-blue-500/30 transition-all duration-500 h-full flex flex-col">
-                <MessageSquare className="w-8 h-8 text-blue-500/30 mb-6" />
-                <p className="text-lg text-slate-300 font-medium italic mb-8 leading-relaxed flex-1 italic">"{t.quote}"</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-lg font-black italic">{t.name.charAt(0)}</div>
-                  <div>
-                    <h4 className="font-black uppercase text-sm tracking-tight">{t.name}</h4>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{t.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-      </section>
-
       {/* FAQ Section */}
-      <section id="faq" className="relative z-10 py-32 px-6 max-w-4xl mx-auto">
+      <section id="faq" className="relative z-10 py-40 px-6 max-w-5xl mx-auto">
         <Reveal>
-          <div className="text-center mb-16">
-            <HelpCircle className="w-12 h-12 text-blue-500 mx-auto mb-6" />
-            <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight">Preguntas Frecuentes</h2>
+          <div className="text-center mb-24">
+            <HelpCircle className="w-16 h-16 text-neon-teal mx-auto mb-8 neon-glow" />
+            <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tight">Preguntas Frecuentes</h2>
           </div>
-          <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] p-8 md:p-12">
+          <div className="glass-card border-white/5 rounded-[4rem] p-10 md:p-16">
             <FAQItem 
               question="¿Por qué solo cuesta $50 al año?" 
-              answer="Nuestra misión es democratizar el acceso a la IA de alto nivel para emprendedores. Queremos ser tu primer paso hacia la libertad, no otra carga financiera."
+              answer="Nuestra misión es democratizar el acceso a la IA de élite. Queremos que el presupuesto no sea una barrera para que tu negocio escale al siguiente nivel."
             />
             <FAQItem 
               question="¿Necesito conocimientos técnicos?" 
-              answer="Ninguno. El panel está diseñado para que cualquier persona pueda empezar a interactuar con los agentes en segundos."
+              answer="Ninguno. El panel está diseñado con simplicidad quirúrgica para que cualquier persona pueda empezar a producir resultados en segundos."
             />
             <FAQItem 
               question="¿Qué tipos de agentes incluye?" 
-              answer="Desde especialistas en copy persuasivo y estrategia de marketing, hasta analistas de datos y generadores de contenido técnico."
-            />
-            <FAQItem 
-              question="¿Necesito instalar, descargar o configurar algo?" 
-              answer="Para nada. Nuestro panel es 'Ready to Use'. El acceso es 100% web, lo que significa que puedes entrar desde cualquier dispositivo con internet y empezar a producir en segundos sin complicaciones técnicas."
-            />
-            <FAQItem 
-              question="¿Es un pago recurrente?" 
-              answer="Sí, es una suscripción anual de $50 USD que te garantiza acceso ilimitado a todas las actualizaciones y nuevos agentes que lancemos con frecuencia."
+              answer="Desde expertos en marketing y ventas, hasta analistas financieros y generadores de código. Cubrimos todos los pilares de un negocio moderno."
             />
           </div>
         </Reveal>
       </section>
 
       {/* Pricing CTA */}
-      <section id="pricing" className="relative z-10 py-32 px-6">
+      <section id="pricing" className="relative z-10 py-40 px-6">
         <Reveal>
-          <div className="max-w-4xl mx-auto p-12 md:p-16 rounded-[4rem] bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-center relative overflow-hidden shadow-2xl">
-             <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:20px_20px]" />
+          <div className="max-w-5xl mx-auto p-16 md:p-24 rounded-[5rem] bg-gradient-to-br from-deep-dark via-deep-dark to-neon-teal/20 border border-white/10 text-center relative overflow-hidden shadow-2xl">
+             <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:20px_20px]" />
              <div className="relative z-10">
-                <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter leading-tight uppercase italic">
-                   No dejes pasar <br /> un año más igual.
+                <h2 className="text-5xl md:text-8xl font-black mb-12 tracking-tighter leading-tight uppercase italic">
+                   No dejes pasar <br /> un año más <span className="neon-text">igual</span>.
                 </h2>
-                <div className="inline-block px-10 py-4 bg-white text-blue-600 rounded-full mb-10 shadow-2xl">
-                   <span className="text-5xl font-black tracking-tighter">$50</span>
-                   <span className="text-xs font-bold uppercase tracking-widest ml-2">USD / Año</span>
+                <div className="inline-block px-12 py-6 glass-card !bg-white/10 border-white/20 mb-12 shadow-2xl">
+                   <span className="text-6xl font-black tracking-tighter neon-text">$50</span>
+                   <span className="text-sm font-bold uppercase tracking-widest ml-4 opacity-60">USD / Año</span>
                 </div>
-                <p className="text-white/80 text-lg mb-10 max-w-xl mx-auto font-medium">
-                   Si lo piensas, es menos de lo que cuesta una cena. Pero el valor de recuperar tu tiempo es incalculable. <span className="block mt-4 text-white font-bold italic underline decoration-white/30">Esta oportunidad no durará siempre.</span>
+                <p className="text-slate-400 text-xl mb-12 max-w-2xl mx-auto font-medium">
+                   Es menos de lo que cuesta un café a la semana. Pero el valor de recuperar tu tiempo es infinito. <span className="block mt-6 text-white font-bold italic underline decoration-neon-teal/30">Esta oferta de lanzamiento es por tiempo limitado.</span>
                 </p>
                 <button
                   onClick={handleAction}
-                  className="flex items-center gap-3 px-12 py-5 bg-black text-white rounded-full font-black tracking-widest uppercase text-xs hover:scale-105 active:scale-95 transition-all shadow-2xl mx-auto italic"
+                  className="flex items-center gap-4 px-16 py-7 bg-neon-teal text-deep-dark rounded-[2rem] font-black tracking-widest uppercase text-sm hover:scale-105 active:scale-95 transition-all shadow-2xl mx-auto italic neon-glow"
                 >
                   Sí, quiero mi libertad ahora
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-5 h-5" />
                 </button>
              </div>
           </div>
@@ -346,26 +278,26 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 pt-20 pb-12 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 mb-16">
+      <footer className="relative z-10 pt-32 pb-16 px-6 border-t border-white/5 bg-black/20">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 mb-24">
           <div className="flex items-center">
             <img 
-              src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
+              src={BRANDING.logo} 
               alt="Upfunnel Logo" 
-              className="h-12 md:h-16 w-auto object-contain"
+              className="h-14 md:h-20 w-auto object-contain dark:invert brightness-110"
             />
           </div>
           
-          <div className="flex flex-wrap justify-center gap-8 text-[9px] font-black uppercase tracking-[0.4em] text-slate-500">
-            <a href="/politicas" className="hover:text-blue-400 transition-colors">Políticas</a>
-            <a href="/privacidad" className="hover:text-blue-400 transition-colors">Privacidad</a>
-            <a href="/soporte" className="hover:text-blue-400 transition-colors">Soporte</a>
+          <div className="flex flex-wrap justify-center gap-12 text-[10px] font-black uppercase tracking-[0.5em] text-slate-500">
+            <a href="/politicas" className="hover:neon-text transition-colors">Políticas</a>
+            <a href="/privacidad" className="hover:neon-text transition-colors">Privacidad</a>
+            <a href="/soporte" className="hover:neon-text transition-colors">Soporte</a>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto text-center border-t border-white/5 pt-8">
-           <p className="text-[10px] font-bold text-slate-700 uppercase tracking-[0.3em]">
-              <a href="https://app.upfunnel.click/login" className="hover:text-blue-500 transition-colors decoration-transparent">upfunnel</a> || Todos los derechos reservados 2026.
+        <div className="max-w-7xl mx-auto text-center border-t border-white/5 pt-12">
+           <p className="text-[11px] font-bold text-slate-700 uppercase tracking-[0.4em]">
+              <span className="neon-text opacity-50">upfunnel</span> || Ecosistema de Productividad 2026.
            </p>
         </div>
       </footer>

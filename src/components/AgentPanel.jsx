@@ -7,11 +7,11 @@ import AgentCompactCard from './AgentCompactCard.jsx';
 import { useFavorites } from '../hooks/useFavorites';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
-import UserSidebar from './user/UserSidebar';
+import UserSidebar from './user/UserSidebar.jsx';
 import { supabase } from '../lib/supabase';
-import SettingsModal from './user/SettingsModal';
-import SuggestionModal from './user/SuggestionModal';
-import AgentGuide from './user/AgentGuide';
+import SettingsModal from './user/SettingsModal.jsx';
+import SuggestionModal from './user/SuggestionModal.jsx';
+import AgentGuide from './user/AgentGuide.jsx';
 
 const AgentPanel = () => {
   const [agents, setAgents] = useState([]);
@@ -288,7 +288,7 @@ const AgentPanel = () => {
         <>
           {/* Sidebar de Escritorio (LG+) */}
           <aside 
-            className={`hidden lg:flex fixed left-0 top-0 h-screen z-40 transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}
+            className={`hidden lg:flex flex-col fixed left-0 top-0 h-screen max-h-screen overflow-hidden z-40 transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}
           >
             <UserSidebar
               activeTab={activeTab}
@@ -307,7 +307,7 @@ const AgentPanel = () => {
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300"
                 onClick={() => setIsMobileMenuOpen(false)}
               />
-              <aside className="relative h-full w-[280px] bg-deep-dark border-r border-white/10 shadow-2xl animate-in slide-in-from-left duration-300">
+              <aside className="relative h-[100dvh] max-h-screen w-[280px] flex flex-col bg-deep-dark border-r border-white/10 shadow-2xl animate-in slide-in-from-left duration-300 overflow-hidden">
                 <UserSidebar
                   isMobile={true}
                   activeTab={activeTab}

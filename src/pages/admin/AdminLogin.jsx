@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import RegisterForm from '../../components/RegisterForm';
+import { BRANDING } from '../../constants/branding';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -178,9 +179,9 @@ const AdminLogin = () => {
         <div className="text-center mb-10">
           <div className="inline-flex p-4 rounded-3xl bg-white/10 border border-white/20 mb-6 shadow-2xl shadow-white/5 overflow-hidden">
             <img 
-              src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
-              alt="Upfunnel Logo" 
-              className="h-20 md:h-24 w-auto object-contain"
+              src={BRANDING.logo} 
+              alt={BRANDING.name} 
+              className="h-20 md:h-24 w-auto object-contain dark:brightness-0 dark:invert"
             />
           </div>
           <h1 className="text-4xl font-black text-white tracking-tight mb-2">

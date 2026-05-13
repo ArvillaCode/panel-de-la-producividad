@@ -22,9 +22,17 @@ import {
   Send,
   ChevronLeft,
   ChevronRight,
-  RotateCcw,
-  Download
+  ShieldCheck,
+  CheckCircle,
+  Clock,
+  XCircle,
+  UserCheck,
+  UserMinus,
+  Eraser,
+  Download,
+  RotateCcw
 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -43,14 +51,16 @@ const AdminUsers = () => {
     sendUserNotification,
     register,
     adminCreateUser,
-    resetUserPassword
+    resetUserPassword,
+    expelUser
   } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Estados para notificaciones
   const [showNotifyModal, setShowNotifyModal] = useState(false);
-  const [notificationTarget, setNotificationTarget] = useState('all'); // 'all' o userId
+  const [notificationTarget, setNotificationTarget] = useState('all'); 
   const [notificationData, setNotificationData] = useState({ title: '', message: '', type: 'info' });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,36 +73,6 @@ const AdminUsers = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  const handleExportUsers = () => {
-    if (users.length === 0) return;
-    
-    const headers = ['ID', 'Nombre', 'Email', 'Rol', 'Estado', 'Aprobado', 'Suscripcion Inicio', 'Suscripcion Fin', 'Creado'];
-    const rows = filteredUsers.map(u => [
-      u.id,
-      u.name || 'Sin nombre',
-      u.email,
-      u.role,
-      u.status,
-      u.is_approved ? 'SI' : 'NO',
-      u.start_date || '',
-      u.end_date || '',
-      new Date(u.created_at).toISOString()
-    ]);
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    
-    logAction('Exportar Usuarios', 'Seguridad', null, { count: filteredUsers.length });
-  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -114,18 +94,14 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers();
-
-    
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') closeModals();
     };
     window.addEventListener('keydown', handleKeyDown);
     
-    // Detectar acción de creación desde el Dashboard
     const queryParams = new URLSearchParams(location.search);
     if (queryParams.get('action') === 'create') {
       setShowCreateModal(true);
-      // Limpiar URL para evitar reapertura al refrescar
       navigate('/admin/users', { replace: true });
     }
 
@@ -143,7 +119,6 @@ const AdminUsers = () => {
     let matchesRole = true;
     if (filterRole !== 'all') {
       if (filterRole === 'recent') {
-        // Recién creados (últimas 24 horas)
         const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         matchesRole = new Date(user.created_at) > dayAgo;
       } else {
@@ -151,16 +126,7 @@ const AdminUsers = () => {
       }
     }
     return matchesSearch && matchesRole;
-  }).sort((a, b) => {
-    // Si hay búsqueda, ordenar alfabéticamente por nombre
-    if (searchTerm) {
-      const nameA = (a.name || '').toLowerCase();
-      const nameB = (b.name || '').toLowerCase();
-      return nameA.localeCompare(nameB);
-    }
-    // De lo contrario, por fecha (más recientes primero)
-    return new Date(b.created_at) - new Date(a.created_at);
-  });
+  }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   useEffect(() => {
     setCurrentPage(1);
@@ -171,18 +137,14 @@ const AdminUsers = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      // Filtrar para no seleccionar al administrador protegido si es el único o si es el usuario actual
-      const selectableUsers = currentUsers.filter(u => {
-        const isAdmin = u.role === 'admin';
-        const isLastAdmin = isAdmin && users.filter(usr => usr.role === 'admin').length === 1;
-        const isCurrentUser = u.id === user?.id;
-        return !isCurrentUser && !isLastAdmin;
-      });
-      setSelectedRows(selectableUsers.map(u => u.id));
+  const handleSelectAll = () => {
+    const selectableIds = currentUsers.map(u => u.id);
+    const allOnPageSelected = selectableIds.every(id => selectedRows.includes(id));
+
+    if (allOnPageSelected && selectableIds.length > 0) {
+      setSelectedRows(prev => prev.filter(id => !selectableIds.includes(id)));
     } else {
-      setSelectedRows([]);
+      setSelectedRows(prev => [...new Set([...prev, ...selectableIds])]);
     }
   };
 
@@ -191,53 +153,6 @@ const AdminUsers = () => {
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
     );
   };
-
-  const handleBulkDelete = async () => {
-    if (window.confirm(`¿Estás seguro de eliminar los ${selectedRows.length} usuarios seleccionados? Esta acción es irreversible.`)) {
-      setActionLoading(true);
-      let count = 0;
-      for (const id of selectedRows) {
-        const result = await deleteUserById(id);
-        if (result.success) count++;
-      }
-      setSelectedRows([]);
-      setSuccess(`${count} usuarios eliminados exitosamente`);
-      setActionLoading(false);
-      fetchUsers();
-    }
-  };
-
-  const handleBulkApprove = async () => {
-    if (window.confirm(`¿Aceptar y activar a los ${selectedRows.length} usuarios seleccionados?`)) {
-      setActionLoading(true);
-      let count = 0;
-      for (const id of selectedRows) {
-        const result = await updateUserById(id, { status: 'active', is_approved: true });
-        if (result.success) count++;
-      }
-      setSelectedRows([]);
-      setSuccess(`${count} usuarios activados correctamente`);
-      setActionLoading(false);
-      fetchUsers();
-    }
-  };
-
-  const handleBulkExpel = async () => {
-    if (window.confirm(`¿Expulsar y desactivar el acceso a los ${selectedRows.length} usuarios seleccionados?`)) {
-      setActionLoading(true);
-      let count = 0;
-      for (const id of selectedRows) {
-        const result = await updateUserById(id, { status: 'inactive', is_approved: false });
-        if (result.success) count++;
-      }
-      setSelectedRows([]);
-      setSuccess(`${count} usuarios expulsados correctamente`);
-      setActionLoading(false);
-      fetchUsers();
-    }
-  };
-
-  // Acciones Masivas completadas.
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -253,15 +168,6 @@ const AdminUsers = () => {
         throw new Error('Las contraseñas no coinciden');
       }
 
-      if (formData.password.length < 6) {
-        throw new Error('La contraseña debe tener al menos 6 caracteres');
-      }
-
-      const existingUsers = users;
-      if (existingUsers.some(u => u.email === formData.email)) {
-        throw new Error('Ya existe un usuario con este email');
-      }
-
       const result = await adminCreateUser(formData.email, formData.password, {
         name: formData.name,
         role: formData.role,
@@ -269,7 +175,7 @@ const AdminUsers = () => {
       });
       
       if (result.success) {
-        setSuccess('Usuario creado exitosamente');
+        toast.success('Usuario creado exitosamente');
         setShowCreateModal(false);
         resetForm();
       } else {
@@ -282,43 +188,12 @@ const AdminUsers = () => {
     }
   };
 
-  const handleEditUser = (user) => {
-    setSelectedUser(user);
-    setFormData({
-      name: user.name || '',
-      email: user.email || '',
-      password: '',
-      confirmPassword: '',
-      role: user.role || 'user',
-      avatar: user.avatar_url || user.avatar || ''
-    });
-    setShowEditModal(true);
-  };
-
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     setActionLoading(true);
     setError('');
 
     try {
-      if (!formData.name || !formData.email) {
-        throw new Error('Nombre y email son obligatorios');
-      }
-
-      if (formData.password) {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error('Las contraseñas no coinciden');
-        }
-        if (formData.password.length < 6) {
-          throw new Error('La contraseña debe tener al menos 6 caracteres');
-        }
-      }
-
-      const existingUsers = users;
-      if (existingUsers.some(u => u.email === formData.email && u.id !== selectedUser.id)) {
-        throw new Error('Ya existe un usuario con este email');
-      }
-
       const result = await updateUserById(selectedUser.id, {
         name: formData.name,
         email: formData.email,
@@ -326,11 +201,9 @@ const AdminUsers = () => {
         avatar_url: formData.avatar
       });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Error al actualizar usuario');
-      }
+      if (!result.success) throw new Error(result.error || 'Error al actualizar');
       
-      setSuccess('Usuario actualizado exitosamente');
+      toast.success('Usuario actualizado exitosamente');
       setShowEditModal(false);
       resetForm();
     } catch (err) {
@@ -340,30 +213,16 @@ const AdminUsers = () => {
     }
   };
 
-  const handleDeleteUser = (user) => {
-    setSelectedUser(user);
-    setShowDeleteModal(true);
-  };
-
   const confirmDeleteUser = async () => {
-    try {
-      if (selectedUser.id === user?.id) {
-        setError('No puedes eliminar tu propio usuario');
-        return;
-      }
-
-      const result = await deleteUserById(selectedUser.id);
-      if (!result.success) {
-        setError(result.error || 'Error al eliminar usuario');
-        return;
-      }
-      
-      setSuccess('Usuario eliminado exitosamente');
+    setActionLoading(true);
+    const result = await deleteUserById(selectedUser.id);
+    if (result.success) {
+      toast.success('Usuario eliminado');
       setShowDeleteModal(false);
-      setSelectedUser(null);
-    } catch (err) {
-      setError('Error al eliminar usuario');
+    } else {
+      setError(result.error);
     }
+    setActionLoading(false);
   };
 
   const resetForm = () => {
@@ -387,762 +246,417 @@ const AdminUsers = () => {
     resetForm();
   };
 
-  const handleToggleUserStatus = async (targetUser) => {
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
     setActionLoading(true);
-    const nextStatus = targetUser.status === 'active' ? 'inactive' : 'active';
-    const isApproved = nextStatus === 'active';
-    const result = await updateUserById(targetUser.id, { status: nextStatus, is_approved: isApproved });
     
-    if (result.success) {
-      setSuccess(`Estado de ${targetUser.name || targetUser.email} actualizado a ${nextStatus}`);
-    } else {
-      setError(result.error || 'Error al cambiar estado');
+    try {
+        if (notificationTarget === 'all') {
+            await broadcastNotification(notificationData);
+        } else {
+            await sendUserNotification(notificationTarget, notificationData);
+        }
+        toast.success('Notificación enviada');
+        setShowNotifyModal(false);
+    } catch (err) {
+        toast.error('Error al enviar notificación');
+    } finally {
+        setActionLoading(false);
     }
-    setActionLoading(false);
   };
-
-  const handleExpelUser = async (user) => {
-    const result = await expelUser(user.id);
-    if (!result.success) {
-      setError(result.error || 'Error al expulsar usuario');
-      return;
-    }
-
-    setSuccess('Sesión del usuario expulsada. Podrá iniciar sesión nuevamente si está activo.');
-  };
-
-  const handleUpdateUserQuick = async (user, data) => {
+  
+  const handleBulkApprove = async () => {
     setActionLoading(true);
-    const result = await updateUserById(user.id, { ...user, ...data });
-    if (result.success) {
-      setSuccess('Usuario actualizado correctamente');
-    } else {
-      setError(result.error || 'Error al actualizar');
+    try {
+      for (const userId of selectedRows) {
+        await updateUserById(userId, { status: 'active' });
+      }
+      toast.success(`${selectedRows.length} usuarios activados`);
+      setSelectedRows([]);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Error en activación masiva');
+    } finally {
+      setActionLoading(false);
     }
-    setActionLoading(false);
   };
 
-  const renderUserModal = (isEdit = false) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={closeModals}>
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {isEdit ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-          </h3>
-          <button
-            onClick={closeModals}
-            className="p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  const handleBulkExpel = async () => {
+    setActionLoading(true);
+    try {
+      for (const userId of selectedRows) {
+        await expelUser(userId);
+      }
+      toast.success(`${selectedRows.length} usuarios expulsados`);
+      setSelectedRows([]);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Error en expulsión masiva');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-        <form onSubmit={isEdit ? handleUpdateUser : handleCreateUser} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nombre completo
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="Ingresa el nombre completo"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={isEdit}
-              className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${isEdit ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800/50' : ''}`}
-              placeholder="usuario@ejemplo.com"
-              required
-              readOnly={isEdit}
-            />
-            {isEdit && (
-              <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-tight">
-                ⚠️ El correo electrónico está bloqueado para edición.
-              </p>
-            )}
-          </div>
-
-          {!isEdit ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    placeholder="Mínimo 6 caracteres"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Confirmar contraseña
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="Confirma la contraseña"
-                  required
-                />
-              </div>
-            </>
-          ) : (
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">Seguridad de Usuario</p>
-                  <p className="text-xs text-blue-700 dark:text-blue-400">La contraseña no puede editarse manualmente.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (window.confirm('¿Estás seguro de que deseas restaurar la contraseña de este usuario a la predeterminada (CommonUser.123)?')) {
-                      setActionLoading(true);
-                      const result = await resetUserPassword(selectedUser.id);
-                      if (result.success) {
-                        setSuccess('Contraseña restaurada exitosamente a: CommonUser.123');
-                      } else {
-                        setError(result.error || 'Error al restaurar contraseña');
-                      }
-                      setActionLoading(false);
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-sm transition-all"
-                >
-                  Restaurar Default
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Rol
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            >
-              <option value="user" disabled={isEdit && selectedUser?.role === 'admin' && users.filter(u => u.role === 'admin').length === 1}>
-                Usuario {isEdit && selectedUser?.role === 'admin' && users.filter(u => u.role === 'admin').length === 1 && '(Protegido)'}
-              </option>
-              <option value="admin">Administrador</option>
-            </select>
-          </div>
-
-          {/* Campos de estado y fechas eliminados por no existir en el esquema */}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Avatar URL opcional
-            </label>
-            <input
-              type="url"
-              value={formData.avatar}
-              onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="https://ejemplo.com/avatar.jpg"
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={closeModals}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={actionLoading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {actionLoading ? 'Procesando...' : (isEdit ? 'Actualizar' : 'Crear Usuario')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  const adminCount = users.filter(u => u.role === 'admin').length;
+  const handleBulkDelete = async () => {
+    setActionLoading(true);
+    try {
+      for (const userId of selectedRows) {
+        await deleteUserById(userId);
+      }
+      toast.success(`${selectedRows.length} usuarios eliminados`);
+      setSelectedRows([]);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Error en eliminación masiva');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <AdminLayout currentPage="users">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Gestión de Usuarios
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Administra los usuarios del sistema
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic neon-glow">Gestión de Usuarios</h1>
+            <p className="text-gray-500 font-bold text-xs uppercase tracking-widest">
+              Control de acceso y privilegios de la comunidad
             </p>
           </div>
-          <div className="flex space-x-3 mt-4 sm:mt-0">
-            <button
-              onClick={async () => {
-                setIsRefreshing(true);
-                await fetchUsers();
-                setTimeout(() => setIsRefreshing(false), 500);
-              }}
-              disabled={isRefreshing}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-            >
-              <RotateCcw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Actualizando...' : 'Refrescar Datos'}
-            </button>
-            <button
-              onClick={handleExportUsers}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Exportar
-            </button>
+          <div className="flex gap-4">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-neon-teal text-deep-dark rounded-xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-neon-teal/20"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Crear Usuario
+              <Plus className="w-4 h-4 mr-2" /> Nuevo Usuario
             </button>
           </div>
         </div>
 
-        {/* Alerts */}
-        {success && (
-          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-            <div className="flex items-center">
-              <Check className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
-              <p className="text-green-600 dark:text-green-400">{success}</p>
-              <button
-                onClick={() => setSuccess('')}
-                className="ml-auto text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-            <div className="flex items-center">
-              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
-              <p className="text-red-600 dark:text-red-400">{error}</p>
-              <button
-                onClick={() => setError('')}
-                className="ml-auto text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Filters and List */}
-        {authLoading ? (
-  <div className="flex flex-col items-center justify-center min-h-[400px] gap-6">
-    <div className="premium-spinner"></div>
-    <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Cargando gestión de usuarios premium...</p>
-  </div>
-) : (
-          <>
-            {/* Notifications Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-5 mb-8 shadow-sm">
-              <div className="flex items-center gap-4 mb-4 md:mb-0">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                  <Bell className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        {/* Quick Stats & Notifications */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 glass-card p-8 border-white/10 !bg-gradient-to-br from-white/5 to-neon-teal/5 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-neon-teal/10 blur-[60px] group-hover:bg-neon-teal/20 transition-all"></div>
+                <div className="flex items-center gap-6 relative z-10">
+                    <div className="w-16 h-16 rounded-2xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow">
+                        <Bell className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-white uppercase italic tracking-tight">Comunicación Directa</h3>
+                        <p className="text-gray-500 font-bold text-[10px] uppercase tracking-widest">Envía alertas globales o individuales</p>
+                    </div>
                 </div>
-                <div>
-                  <h3 className="text-purple-900 dark:text-purple-100 font-bold text-lg">Comunicación Directa</h3>
-                  <p className="text-purple-600/70 dark:text-purple-400/70 text-sm">Envía alertas personalizadas o globales</p>
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto relative z-10">
+                    <select
+                        value={notificationTarget}
+                        onChange={(e) => setNotificationTarget(e.target.value)}
+                        className="w-full sm:w-56 premium-input py-2 text-xs font-black uppercase tracking-widest"
+                    >
+                        <option value="all">🚀 Global</option>
+                        {users.filter(u => u.status === 'active').map(u => (
+                            <option key={u.id} value={u.id}>👤 {u.name || u.email.split('@')[0]}</option>
+                        ))}
+                    </select>
+                    <button 
+                        onClick={() => setShowNotifyModal(true)}
+                        className="w-full sm:w-auto px-6 py-3 bg-neon-teal text-deep-dark rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-neon-teal/20 flex items-center gap-2"
+                    >
+                        <Send className="w-4 h-4" />
+                        {notificationTarget === 'all' ? 'Broadcast' : 'Directo'}
+                    </button>
                 </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-                <div className="relative w-full sm:w-64">
-                  <select
-                    value={notificationTarget}
-                    onChange={(e) => setNotificationTarget(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800/50 rounded-xl text-sm font-medium focus:ring-2 focus:ring-purple-500 outline-none appearance-none cursor-pointer text-gray-700 dark:text-gray-200 transition-all"
-                  >
-                    <option value="all">🚀 Todos los usuarios (Global)</option>
-                    <optgroup label="Usuarios Específicos">
-                      {users.filter(u => u.status === 'active').map(u => (
-                        <option key={u.id} value={u.id}>👤 {u.name || u.email.split('@')[0]}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500" />
-                </div>
-
-                <button 
-                  onClick={() => setShowNotifyModal(true)}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2 group active:scale-95"
-                >
-                  <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                  {notificationTarget === 'all' ? 'Enviar Global' : 'Enviar Privado'}
-                </button>
-              </div>
             </div>
+            
+            <div className="glass-card p-8 border-white/10 flex flex-col justify-center text-center">
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-2">Población Total</p>
+                <p className="text-5xl font-black text-white italic tracking-tighter neon-glow">{users.length}</p>
+                <p className="text-[10px] font-bold text-neon-teal uppercase mt-2">Sincronizado</p>
+            </div>
+        </div>
 
-            {/* Filters */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        {/* Filters */}
+        <div className="glass-card p-6 border-white/10">
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-neon-teal transition-colors w-4 h-4" />
                     <input
-                      type="text"
-                      placeholder="Buscar por nombre o email..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        type="text"
+                        placeholder="Escanear base de datos por nombre o email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-12 pr-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-neon-teal/30 focus:border-neon-teal transition-all outline-none"
                     />
-                  </div>
                 </div>
-                <div className="sm:w-48">
-                  <select
+                <select
                     value={filterRole}
                     onChange={(e) => setFilterRole(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="all">Todos los roles</option>
-                    <option value="recent">Recién Creados (24h)</option>
+                    className="px-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white font-bold text-xs uppercase tracking-widest outline-none appearance-none cursor-pointer"
+                >
+                    <option value="all">Todos los Roles</option>
                     <option value="admin">Administradores</option>
                     <option value="user">Usuarios</option>
-                  </select>
-                </div>
-              </div>
+                    <option value="recent">Recientes (24h)</option>
+                </select>
             </div>
+        </div>
 
-            {/* Bulk Actions Bar */}
-            {selectedRows.length > 0 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                    {selectedRows.length}
-                  </div>
-                  <span className="text-blue-800 dark:text-blue-300 font-medium">
-                    Usuarios seleccionados
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={handleBulkApprove}
-                    disabled={actionLoading}
-                    className="flex-1 sm:flex-none px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Check className="w-4 h-4" /> Aceptar Todos
-                  </button>
-                  <button
-                    onClick={handleBulkExpel}
-                    disabled={actionLoading}
-                    className="flex-1 sm:flex-none px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Pause className="w-4 h-4" /> Expulsar Todos
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    disabled={actionLoading}
-                    className="flex-1 sm:flex-none px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" /> Eliminar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Users Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Usuarios ({filteredUsers.length})
-                </h3>
-              </div>
-              {filteredUsers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
-                    {searchTerm || filterRole !== 'all' ? 'No se encontraron usuarios con los filtros aplicados' : 'No hay usuarios registrados'}
-                  </p>
-                  {!searchTerm && filterRole === 'all' && (
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Crear primer usuario
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                          <th className="px-6 py-3 w-10 text-left">
-                            <input 
-                              type="checkbox" 
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600"
-                              onChange={handleSelectAll}
-                              checked={currentUsers.length > 0 && selectedRows.length === currentUsers.length}
-                            />
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Usuario
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Email
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Rol
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Estado
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {currentUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                            <td className="px-6 py-4">
-                              <input 
-                                type="checkbox" 
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600"
-                                checked={selectedRows.includes(user.id)}
-                                onChange={() => handleSelectRow(user.id)}
-                              />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                                </div>
-                                <div className="ml-3">
-                                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {user.name || 'Sin nombre'}
-                                  </p>
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    ID: {user.id}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                                <span className="text-sm text-gray-900 dark:text-white">{user.email}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                user.role === 'admin' 
-                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                              }`}>
-                                <Shield className="w-3 h-3 mr-1" />
-                                {user.role === 'admin' ? 'Administrador' : 'Usuario'}
-                              </span>
-                              {user.role === 'admin' && users.filter(u => u.role === 'admin').length === 1 && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
-                                  Principal Protegido
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                user.status === 'active' && user.is_approved
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                                  : user.status === 'pending' || !user.is_approved
-                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                                  : user.status === 'rejected'
-                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                              }`}>
-                                {user.status === 'active' && user.is_approved ? 'Activo' : 
-                                 (user.status === 'pending' || !user.is_approved) ? 'Pendiente' :
-                                 user.status === 'rejected' ? 'Denegado' : 'Inactivo'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-end gap-2">
-                                {/* 1. Aceptar usuario (Pendientes) */}
-                                {(user.status === 'pending' || !user.is_approved) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateUserQuick(user, { status: 'active', is_approved: true })}
-                                    title="Aceptar usuario"
-                                    aria-label="Aceptar usuario"
-                                    className="p-1.5 rounded-md text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 transition-colors"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </button>
-                                )}
-
-                                {/* 2. Denegar usuario (Pendientes) */}
-                                {(user.status === 'pending') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateUserQuick(user, { status: 'rejected', is_approved: false })}
-                                    disabled={user.role === 'admin'}
-                                    title={user.role === 'admin' ? "No puedes denegar a un administrador" : "Denegar usuario"}
-                                    aria-label="Denegar usuario"
-                                    className={`p-1.5 rounded-md text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20 transition-colors ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                )}
-
-                                {/* 3. Editar usuario */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditUser(user)}
-                                  disabled={user.role === 'admin' && user.id !== profile?.id}
-                                  title={user.role === 'admin' && user.id !== profile?.id ? "Solo puedes editar tu propia cuenta de admin" : "Editar usuario"}
-                                  aria-label="Editar usuario"
-                                  className={`p-1.5 rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors ${user.role === 'admin' && user.id !== profile?.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-
-                                {/* 4. Reactivar usuario (Inactivos/Denegados) */}
-                                {(user.status === 'inactive' || user.status === 'rejected' || user.status === 'expired') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateUserQuick(user, { status: 'active', is_approved: true })}
-                                    title="Reactivar usuario"
-                                    aria-label="Reactivar usuario"
-                                    className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors"
-                                  >
-                                    <Play className="w-4 h-4" />
-                                  </button>
-                                )}
-
-                                {/* 5. Expulsar usuario (Activos) */}
-                                {(user.status === 'active' && user.is_approved) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateUserQuick(user, { status: 'inactive', is_approved: false })}
-                                    disabled={user.role === 'admin'}
-                                    title={user.role === 'admin' ? "No puedes expulsar a un administrador" : "Expulsar usuario"}
-                                    aria-label="Expulsar usuario"
-                                    className={`p-1.5 rounded-md text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-colors ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  >
-                                    <Pause className="w-4 h-4" />
-                                  </button>
-                                )}
-
-                                {/* 6. Eliminar usuario */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteUser(user)}
-                                  disabled={user.role === 'admin'}
-                                  title={user.role === 'admin' ? "No puedes eliminar a un administrador" : "Eliminar usuario"}
-                                  aria-label="Eliminar usuario"
-                                  className={`p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {/* Paginación */}
-                  {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span>
-                      </span>
-                      <div className="flex items-center justify-between gap-1 sm:gap-2">
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentPage === 1}
-                          className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
+        {/* Selected Rows Bulk Actions - Premium Minimalist Glass */}
+        {selectedRows.length > 0 && (
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[110] animate-in slide-in-from-bottom-10 duration-500">
+                <div className="glass-card flex items-center gap-6 px-8 py-4 shadow-2xl border-slate-100 dark:border-white/20 backdrop-blur-2xl">
+                    <div className="flex items-center gap-3 pr-6 border-r border-white/10">
+                        <div className="w-10 h-10 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow">
+                            <Users className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{selectedRows.length} Seleccionados</p>
+                            <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Acciones Masivas</p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={handleBulkApprove}
+                            title="Aceptar Todos"
+                            className="p-3 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95 group relative"
                         >
-                          <ChevronLeft className="w-4 h-4 sm:w-5 h-5 text-gray-500" />
+                            <UserCheck className="w-5 h-5" />
                         </button>
                         
-                        <div className="flex items-center bg-white dark:bg-gray-800 px-2 sm:px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-                          <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mr-1.5 hidden xs:inline">Pág.</span>
-                          <span className="text-xs sm:text-sm font-black text-blue-600 dark:text-blue-400">{currentPage}</span>
-                          <span className="text-[10px] sm:text-xs font-medium text-gray-400 mx-1">de</span>
-                          <span className="text-xs sm:text-sm font-bold text-gray-600 dark:text-gray-300">{totalPages}</span>
-                        </div>
-
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                          disabled={currentPage === totalPages}
-                          className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
+                        <button 
+                            onClick={handleBulkExpel}
+                            title="Expulsar Todos"
+                            className="p-3 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
                         >
-                          <ChevronRight className="w-4 h-4 sm:w-5 h-5 text-gray-500" />
+                            <UserMinus className="w-5 h-5" />
                         </button>
-                      </div>
+                        
+                        <button 
+                            onClick={handleBulkDelete}
+                            title="Eliminar Permanente"
+                            className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </button>
+                        
+                        <button 
+                            onClick={() => setSelectedRows([])}
+                            title="Limpiar Selección"
+                            className="p-3 bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
+                        >
+                            <XCircle className="w-5 h-5" />
+                        </button>
                     </div>
-                  )}
-                </>
-              )}
+                </div>
             </div>
-          </>
         )}
+
+        {/* Users Table */}
+        <div className="glass-card border-white/10 overflow-hidden">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="bg-white/5 border-b border-white/10">
+                            <th className="px-6 py-4">
+                                <input type="checkbox" onChange={handleSelectAll} className="w-5 h-5 rounded border-white/10 bg-white/5 text-neon-teal" />
+                            </th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Identidad</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Privilegios</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Estado</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Actividad</th>
+                            <th className="px-6 py-4 text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {currentUsers.map((u) => (
+                            <tr key={u.id} className="hover:bg-white/[0.02] transition-colors group">
+                                <td className="px-6 py-4">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedRows.includes(u.id)}
+                                        onChange={() => handleSelectRow(u.id)}
+                                        className="w-5 h-5 rounded border-white/10 bg-white/5 text-neon-teal" 
+                                    />
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal font-black text-sm border border-neon-teal/20">
+                                            {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full rounded-xl object-cover" /> : (u.name || 'A').charAt(0)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-black text-white truncate uppercase tracking-tighter">{u.name || 'Sin nombre'}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 truncate">{u.email}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-gray-400'}`}>
+                                        {u.role === 'admin' ? 'Administrador' : 'Usuario'}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`}></div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-300">
+                                            {u.status === 'active' ? 'Online' : 'Offline'}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-tighter">
+                                    {new Date(u.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleEditUser(u)} className="p-2.5 glass-card border-white/5 text-neon-teal hover:bg-neon-teal hover:text-deep-dark transition-all rounded-xl">
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => handleDeleteUser(u)} className="p-2.5 glass-card border-white/5 text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-xl">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {totalPages > 1 && (
+                <div className="p-6 border-t border-white/10 flex justify-center gap-3">
+                    {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentPage(i + 1)}
+                            className={`w-10 h-10 rounded-xl font-black transition-all ${currentPage === i + 1 ? 'bg-neon-teal text-deep-dark' : 'glass-card border-white/5 text-gray-500 hover:text-white'}`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
       </div>
 
-      {/* Modals */}
-      {showCreateModal && renderUserModal()}
-      {showEditModal && renderUserModal(true)}
-      {showDeleteModal && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={closeModals}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirmar Eliminación</h3>
-              <button onClick={closeModals} className="text-gray-400 hover:text-gray-500"><X /></button>
+      {/* Modal Notificar */}
+      {showNotifyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
+            <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95">
+                <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-neon-teal/10 rounded-2xl text-neon-teal neon-glow">
+                            <Send className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">Lanzar Alerta</h2>
+                    </div>
+                    <button onClick={closeModals} className="p-2 text-gray-500 hover:text-white transition-all">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSendNotification} className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Título de la Notificación</label>
+                        <input required value={notificationData.title} onChange={e => setNotificationData({...notificationData, title: e.target.value})} className="premium-input w-full" placeholder="Ej: Actualización Importante" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Mensaje del Sistema</label>
+                        <textarea required rows="4" value={notificationData.message} onChange={e => setNotificationData({...notificationData, message: e.target.value})} className="premium-input w-full resize-none" placeholder="Escribe el mensaje detallado..." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Prioridad</label>
+                            <select value={notificationData.type} onChange={e => setNotificationData({...notificationData, type: e.target.value})} className="premium-input w-full appearance-none">
+                                <option value="info">INFO</option>
+                                <option value="success">SUCCESS</option>
+                                <option value="warning">WARNING</option>
+                            </select>
+                        </div>
+                        <div className="flex items-end">
+                            <button type="submit" disabled={actionLoading} className="w-full py-4 bg-neon-teal text-deep-dark rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-neon-teal/20 hover:scale-105 transition-all">
+                                {actionLoading ? 'ENVIANDO...' : 'EJECUTAR'}
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
-            <div className="mb-6">
-              <div className="flex items-center space-x-3 mb-3">
-                <AlertTriangle className="w-8 h-8 text-red-500" />
-                <p className="text-sm text-gray-900 dark:text-white font-medium">¿Estás seguro de que quieres eliminar a {selectedUser.name || selectedUser.email}?</p>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Esta acción no se puede deshacer.</p>
-            </div>
-            <div className="flex space-x-3">
-              <button onClick={closeModals} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">Cancelar</button>
-              <button 
-                onClick={async () => {
-                  const result = await deleteUserById(selectedUser.id);
-                  if (result.success) {
-                    setSuccess('Usuario eliminado exitosamente');
-                    closeModals();
-                  } else {
-                    setError(result.error || 'Error al eliminar usuario');
-                  }
-                }} 
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* Modal de Envío de Notificaciones */}
-      {showNotifyModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300"
-          onClick={() => setShowNotifyModal(false)}
-        >
-          <div 
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                {notificationTarget === 'all' ? 'Notificación Global' : 'Notificar a Usuario'}
-              </h3>
-              <button onClick={() => setShowNotifyModal(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+      {/* Modal Crear/Editar */}
+      {(showCreateModal || showEditModal) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
+            <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95">
+                <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-neon-teal/10 rounded-2xl text-neon-teal neon-glow">
+                            <User className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">{showEditModal ? 'Editar Perfil' : 'Alta de Usuario'}</h2>
+                    </div>
+                    <button onClick={closeModals} className="p-2 text-gray-500 hover:text-white transition-all">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+
+                <form onSubmit={showEditModal ? handleUpdateUser : handleCreateUser} className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Nombre Completo</label>
+                        <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="premium-input w-full" placeholder="John Doe" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Email Corporativo</label>
+                        <input required type="email" disabled={showEditModal} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="premium-input w-full disabled:opacity-50" placeholder="user@upfunnel.click" />
+                    </div>
+                    {!showEditModal && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Contraseña</label>
+                                <input required type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="premium-input w-full" placeholder="******" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Confirmar</label>
+                                <input required type="password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} className="premium-input w-full" placeholder="******" />
+                            </div>
+                        </div>
+                    )}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Nivel de Acceso</label>
+                        <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="premium-input w-full appearance-none">
+                            <option value="user">USUARIO ESTÁNDAR</option>
+                            <option value="admin">ADMINISTRADOR CORE</option>
+                        </select>
+                    </div>
+                    <div className="flex gap-4 pt-4">
+                        <button type="button" onClick={closeModals} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>
+                        <button type="submit" disabled={actionLoading} className="flex-1 py-4 bg-neon-teal text-deep-dark rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-neon-teal/20">
+                            {actionLoading ? 'PROCESANDO...' : 'GUARDAR'}
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
-                <input 
-                  type="text" 
-                  value={notificationData.title}
-                  onChange={(e) => setNotificationData({...notificationData, title: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Ej: Mantenimiento del sistema"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mensaje</label>
-                <textarea 
-                  value={notificationData.message}
-                  onChange={(e) => setNotificationData({...notificationData, message: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white h-24"
-                  placeholder="Escribe el mensaje aquí..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prioridad</label>
-                <select 
-                  value={notificationData.type}
-                  onChange={(e) => setNotificationData({...notificationData, type: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                >
-                  <option value="info">Información (Azul)</option>
-                  <option value="success">Éxito (Verde)</option>
-                  <option value="warning">Advertencia (Amarillo)</option>
-                  <option value="error">Crítico (Rojo)</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button 
-                  onClick={() => {
-                    const finalNotification = { ...notificationData, origin: 'Administración' };
-                    if (notificationTarget === 'all') {
-                      broadcastNotification(finalNotification);
-                    } else {
-                      sendUserNotification(notificationTarget, finalNotification);
-                    }
-                    setShowNotifyModal(false);
-                    setNotificationData({ title: '', message: '', type: 'info' });
-                    setSuccess('Notificación enviada correctamente');
-                  }}
-                  className="flex-1 bg-purple-600 text-white py-2.5 rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-lg shadow-purple-200 dark:shadow-none"
-                >
-                  Enviar Ahora
-                </button>
-                <button 
-                  onClick={() => setShowNotifyModal(false)}
-                  className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
+        </div>
+      )}
+
+      {/* Modal Eliminar */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
+            <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95">
+                <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-red-500/10">
+                    <AlertTriangle className="w-10 h-10" />
+                </div>
+                <h2 className="text-3xl font-black text-white uppercase italic mb-4">¿Confirmar Baja?</h2>
+                <p className="text-gray-500 font-bold mb-10 text-sm leading-relaxed uppercase tracking-wider">
+                    Esta acción eliminará permanentemente al usuario <span className="text-red-500">"{selectedUser?.name || selectedUser?.email}"</span>. Se perderá todo su historial.
+                </p>
+                <div className="flex gap-4">
+                    <button onClick={closeModals} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>
+                    <button onClick={confirmDeleteUser} disabled={actionLoading} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20">
+                        CONFIRMAR
+                    </button>
+                </div>
             </div>
-          </div>
         </div>
       )}
     </AdminLayout>

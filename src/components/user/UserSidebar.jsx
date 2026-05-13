@@ -58,8 +58,8 @@ const UserSidebar = ({
   };
 
   const sidebarClasses = isMobile 
-    ? "w-full flex flex-col h-full bg-deep-dark/95 backdrop-blur-2xl"
-    : `glass-card !rounded-none border-y-0 border-l-0 shadow-2xl flex flex-col h-screen sticky top-0 border-r border-white/10 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'}`;
+    ? "w-full flex flex-col h-[100dvh] bg-deep-dark/95 backdrop-blur-2xl overflow-hidden"
+    : `glass-card w-full !rounded-none border-y-0 border-l-0 shadow-2xl flex flex-col h-[100dvh] sticky top-0 border-r border-white/10 transition-all duration-300 overflow-hidden`;
 
   return (
     <div className={sidebarClasses}>
@@ -91,7 +91,7 @@ const UserSidebar = ({
       </div>
 
       {/* Área de Navegación con Scroll Independiente */}
-      <div className="flex-1 overflow-y-auto py-6 scrollbar-hide">
+      <div className="flex-grow overflow-y-auto min-h-0 py-6 scrollbar-hide">
         {(!isCollapsed || isMobile) && (
           <div className="px-8 mb-4 text-[9px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.4em]">Sistemas</div>
         )}
@@ -185,7 +185,7 @@ const UserSidebar = ({
       </div>
 
       {/* Footer Fijo - Botón Cerrar Sesión y Colapso */}
-      <div className={`p-4 pb-8 border-t border-slate-100 dark:border-white/10 ${isMobile ? 'bg-slate-50/50 dark:bg-deep-dark/50' : 'bg-transparent'}`}>
+      <div className={`mt-auto p-4 pb-12 border-t border-slate-100 dark:border-white/10 ${isMobile ? 'bg-slate-50/50 dark:bg-deep-dark/50' : 'bg-transparent'}`}>
         <div className="space-y-3">
           <button 
             onClick={() => handleAction(() => navigate('/'))} 

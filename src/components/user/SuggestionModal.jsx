@@ -14,7 +14,10 @@ const SuggestionModal = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
-      const result = await suggestAgent(suggestion);
+      const result = await suggestAgent({ 
+        name: 'Sugerencia de Usuario', 
+        description: suggestion 
+      });
       if (result.success) {
         setSuccess(true);
         setTimeout(() => {

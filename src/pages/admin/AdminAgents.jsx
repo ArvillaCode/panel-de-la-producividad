@@ -1,25 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Bot, 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit, 
-  Trash2, 
-  Play,
-  Pause,
-  RotateCcw,
-  X,
-  Check,
-  AlertTriangle,
-  Activity,
-  Zap,
-  Clock,
-  Settings,
-  Eye,
-  BarChart3,
-  User
+  Bot, Plus, Search, Edit, Trash2, X, AlertTriangle, Clock, Eye, User, Check, Send, Bell, CheckCircle
 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import { categories } from '../../data/agents';
@@ -37,12 +20,16 @@ const AdminAgents = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeAdminTab, setActiveAdminTab] = useState('agents');
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showDeleteSuggestionModal, setShowDeleteSuggestionModal] = useState(false);
+  const [suggestionToDelete, setSuggestionToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -68,11 +55,9 @@ const AdminAgents = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     
-    // Detectar acción de creación desde el Dashboard
     const queryParams = new URLSearchParams(location.search);
     if (queryParams.get('action') === 'create') {
       setShowCreateModal(true);
-      // Limpiar URL
       navigate('/admin/agents', { replace: true });
     }
 
@@ -95,8 +80,6 @@ const AdminAgents = () => {
   const handleUpdateSuggestionStatus = async (id, status) => {
     setLoading(true);
     setError('');
-    
-    // Encontrar la sugerencia antes de actualizar para tener el user_id
     const suggestion = suggestions.find(s => s.id === id);
     
     try {
@@ -107,7 +90,6 @@ const AdminAgents = () => {
       
       if (error) throw error;
 
-      // Notificar al usuario (Regla 10)
       if (suggestion && suggestion.user_id) {
         await sendUserNotification(suggestion.user_id, {
           title: status === 'approved' ? '¡Sugerencia Aprobada! 🎉' : 'Sugerencia Revisada',
@@ -118,36 +100,42 @@ const AdminAgents = () => {
         });
       }
 
-      setSuccess(`Sugerencia ${status === 'approved' ? 'aprobada' : 'rechazada'} correctamente`);
+      toast.success(status === 'approved' ? 'Sugerencia aprobada correctamente' : 'Sugerencia rechazada');
       fetchSuggestions();
     } catch (err) {
-      setError(err.message);
+      console.error('Error updating suggestion status:', err);
+      toast.error('Error al actualizar el estado');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteSuggestion = async (id) => {
-    if (!window.confirm('¿Eliminar esta sugerencia permanentemente?')) return;
-    
     setLoadingSuggestions(true);
     setError('');
     
     try {
-      const { error } = await supabase
+      const { data, error: deleteError } = await supabase
         .from('agent_suggestions')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
       
-      if (error) throw error;
+      if (deleteError) throw deleteError;
       
-      setSuccess('Sugerencia eliminada correctamente');
-      fetchSuggestions();
+      if (data && data.length > 0) {
+        toast('Sugerencia eliminada correctamente');
+        setSuggestions(prev => prev.filter(s => s.id !== id));
+      } else {
+        setError('No se pudo eliminar: El registro no existe o no tienes permisos.');
+      }
     } catch (err) {
       console.error('Error deleting suggestion:', err);
-      setError('No se pudo eliminar la sugerencia');
+      setError('Error al intentar eliminar la sugerencia');
     } finally {
       setLoadingSuggestions(false);
+      setShowDeleteSuggestionModal(false);
+      setSuggestionToDelete(null);
     }
   };
 
@@ -196,15 +184,12 @@ const AdminAgents = () => {
     if (error) {
       setError(error.message);
     } else {
-      setSuccess('Agente creado exitosamente');
-      
-      // Notificación global de novedad (Regla 10)
+      toast('Agente creado con éxito');
       await broadcastNotification({
         title: '🚀 ¡Nuevo Agente Disponible!',
         message: `Se ha añadido a "${formData.name}" especializado en ${formData.specialty}. ¡Pruébalo ahora!`,
         type: 'success'
       });
-
       setShowCreateModal(false);
       resetForm();
       fetchAgents();
@@ -223,7 +208,7 @@ const AdminAgents = () => {
     if (error) {
       setError(error.message);
     } else {
-      setSuccess('Agente actualizado exitosamente');
+      toast('Agente actualizado con éxito');
       setShowEditModal(false);
       resetForm();
       fetchAgents();
@@ -241,7 +226,7 @@ const AdminAgents = () => {
     if (error) {
       setError(error.message);
     } else {
-      setSuccess('Agente eliminado exitosamente');
+      toast.success('Agente eliminado exitosamente');
       setShowDeleteModal(false);
       fetchAgents();
     }
@@ -256,7 +241,7 @@ const AdminAgents = () => {
     }
     setSelectedRows([]);
     fetchAgents();
-    setSuccess('Estados actualizados');
+    toast.success('Estados actualizados');
     setLoading(false);
   };
 
@@ -266,7 +251,7 @@ const AdminAgents = () => {
     await supabase.from('agents').delete().in('id', selectedRows);
     setSelectedRows([]);
     fetchAgents();
-    setSuccess('Agentes eliminados');
+    toast.success('Agentes eliminados');
     setLoading(false);
   };
 
@@ -311,81 +296,65 @@ const AdminAgents = () => {
 
   return (
     <AdminLayout currentPage="agents">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestión de Agentes</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic neon-glow">Gestión de Agentes</h1>
+            <p className="text-gray-500 font-bold text-xs uppercase tracking-widest">
               {activeAdminTab === 'agents' 
-                ? `Administra tu catálogo de ${agents.length} agentes IA`
-                : `Revisa las ${suggestions.length} sugerencias enviadas por usuarios`}
+                ? `Centro de control de ${agents.length} unidades operativas`
+                : `${suggestions.length} propuestas de la comunidad`}
             </p>
           </div>
           {activeAdminTab === 'agents' && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-neon-teal text-deep-dark rounded-xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-neon-teal/20"
             >
-              <Plus className="w-4 h-4 mr-2" /> Crear Agente
+              <Plus className="w-4 h-4 mr-2" /> Desplegar Agente
             </button>
           )}
         </div>
 
-        {/* Tabs de Administración */}
-        <div className="flex gap-4 border-b border-gray-200 dark:border-gray-700">
+        {/* Tabs - Premium Glass */}
+        <div className="flex gap-4 p-1.5 glass-card !bg-white/5 border-white/10 w-fit">
           <button
             onClick={() => setActiveAdminTab('agents')}
-            className={`pb-4 text-sm font-bold transition-all border-b-2 px-2 ${activeAdminTab === 'agents' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeAdminTab === 'agents' ? 'bg-neon-teal text-deep-dark shadow-lg shadow-neon-teal/20' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
           >
-            Agentes Activos
+            Terminal Activa
           </button>
           <button
             onClick={() => setActiveAdminTab('suggestions')}
-            className={`pb-4 text-sm font-bold transition-all border-b-2 px-2 flex items-center gap-2 ${activeAdminTab === 'suggestions' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 ${activeAdminTab === 'suggestions' ? 'bg-neon-teal text-deep-dark shadow-lg shadow-neon-teal/20' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
           >
-            Sugerencias de Usuarios
+            Propuestas
             {suggestions.filter(s => s.status === 'pending').length > 0 && (
-              <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
                 {suggestions.filter(s => s.status === 'pending').length}
               </span>
             )}
           </button>
         </div>
 
-        {success && (
-          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center">
-            <Check className="w-5 h-5 text-green-600 mr-2" />
-            <p className="text-green-600 dark:text-green-400">{success}</p>
-            <button onClick={() => setSuccess('')} className="ml-auto"><X className="w-4 h-4 text-green-600" /></button>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center">
-            <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <button onClick={() => setError('')} className="ml-auto"><X className="w-4 h-4 text-red-600" /></button>
-          </div>
-        )}
-
         {activeAdminTab === 'agents' ? (
           <>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <div className="glass-card p-6 border-white/10 shadow-2xl">
               <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <div className="flex-1 relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-neon-teal transition-colors w-4 h-4" />
                   <input
                     type="text"
-                    placeholder="Buscar agente..."
+                    placeholder="Escanear agente por nombre o especialidad..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                    className="w-full pl-12 pr-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-neon-teal/30 focus:border-neon-teal transition-all outline-none"
                   />
                 </div>
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                  className="px-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white font-bold text-xs uppercase tracking-widest focus:ring-2 focus:ring-neon-teal/30 outline-none appearance-none"
                 >
                   <option value="all">Todos los estados</option>
                   <option value="active">Activos</option>
@@ -395,51 +364,68 @@ const AdminAgents = () => {
             </div>
 
             {selectedRows.length > 0 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl flex items-center justify-between border border-blue-200">
-                <span className="text-blue-800 dark:text-blue-300">{selectedRows.length} seleccionados</span>
-                <div className="flex gap-2">
-                  <button onClick={handleBulkToggleStatus} className="px-3 py-1.5 bg-white border rounded-lg text-sm">Alternar Estado</button>
-                  <button onClick={handleBulkDelete} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm">Eliminar</button>
+              <div className="glass-card !bg-neon-teal/10 p-4 rounded-xl flex items-center justify-between border-neon-teal/20 animate-in slide-in-from-top-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-neon-teal text-deep-dark rounded-full flex items-center justify-center text-sm font-black shadow-lg shadow-neon-teal/40">
+                    {selectedRows.length}
+                  </div>
+                  <span className="text-neon-teal font-black text-xs uppercase tracking-widest">Unidades seleccionadas</span>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={handleBulkToggleStatus} 
+                    className="p-3 glass-card border-white/10 text-neon-teal hover:bg-neon-teal hover:text-deep-dark transition-all"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={handleBulkDelete} 
+                    className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {currentAgents.map((agent) => (
-                <div key={agent.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow p-5 relative">
+                <div key={agent.id} className="glass-card p-6 border-white/10 hover:border-neon-teal/50 transition-all duration-500 group relative">
                   <input
                     type="checkbox"
                     checked={selectedRows.includes(agent.id)}
                     onChange={() => setSelectedRows(prev => prev.includes(agent.id) ? prev.filter(id => id !== agent.id) : [...prev, agent.id])}
-                    className="absolute top-4 right-4 rounded"
+                    className="absolute top-6 right-6 w-5 h-5 rounded-lg border-white/10 bg-white/5 text-neon-teal focus:ring-neon-teal focus:ring-offset-deep-dark"
                   />
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-                      <Bot className="w-6 h-6" />
+                  <div className="flex items-start gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow group-hover:scale-110 transition-transform">
+                      <Bot className="w-8 h-8" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-gray-900 dark:text-white truncate">{agent.name}</h3>
-                      <p className="text-sm text-gray-500 truncate">{agent.specialty}</p>
-                      <span className={`mt-2 inline-flex text-xs px-2 py-0.5 rounded-full ${agent.visible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {agent.visible ? 'Activo' : 'Oculto'}
-                      </span>
+                      <h3 className="font-black text-white truncate uppercase italic tracking-tight">{agent.name}</h3>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest truncate">{agent.specialty}</p>
+                      <div className="mt-4">
+                        <span className={`inline-flex text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${agent.visible ? 'bg-neon-teal/20 text-neon-teal neon-glow' : 'bg-white/5 text-gray-600'}`}>
+                          {agent.visible ? 'Activo' : 'Oculto'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex justify-end gap-2 border-t pt-4">
-                    <button onClick={() => handleEditAgent(agent)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => { setSelectedAgent(agent); setShowDeleteModal(true); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                  <div className="mt-6 flex justify-end gap-3 border-t border-white/5 pt-6">
+                    <button onClick={() => handleEditAgent(agent)} className="p-3 glass-card border-white/10 text-neon-teal hover:bg-neon-teal hover:text-deep-dark transition-all rounded-xl"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => { setSelectedAgent(agent); setShowDeleteModal(true); }} className="p-3 glass-card border-white/10 text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-xl"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}
             </div>
 
             {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-8">
+              <div className="flex justify-center gap-3 mt-12">
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`w-10 h-10 rounded-lg font-medium transition-colors ${currentPage === i + 1 ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}
+                    className={`w-12 h-12 rounded-xl font-black transition-all ${currentPage === i + 1 ? 'bg-neon-teal text-deep-dark shadow-lg shadow-neon-teal/20' : 'glass-card border-white/10 text-gray-500 hover:text-white hover:bg-white/5'}`}
                   >
                     {i + 1}
                   </button>
@@ -448,179 +434,142 @@ const AdminAgents = () => {
             )}
           </>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="space-y-6">
             {loadingSuggestions ? (
-              <div className="text-center py-20">
-                <div className="premium-spinner mx-auto mb-4"></div>
-                <p className="text-gray-500">Cargando sugerencias...</p>
+              <div className="text-center py-32 glass-card border-white/5">
+                <div className="premium-spinner mx-auto mb-6"></div>
+                <p className="text-gray-500 font-bold uppercase text-xs tracking-widest">Sincronizando propuestas...</p>
               </div>
             ) : suggestions.length > 0 ? (
               suggestions.map((sug) => (
-                <div key={sug.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
-                  <div className="flex flex-col md:flex-row justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{sug.name}</h3>
-                        <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${
-                          sug.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                          sug.status === 'approved' ? 'bg-green-100 text-green-700' :
-                          'bg-red-100 text-red-700'
+                <div key={sug.id} className="glass-card p-8 border-white/10 hover:border-neon-teal/30 transition-all duration-500">
+                  <div className="flex flex-col md:flex-row justify-between gap-8">
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-xl font-black text-white uppercase italic tracking-tight">{sug.name}</h3>
+                        <span className={`text-[10px] uppercase font-black tracking-widest px-3 py-1 rounded-full ${
+                          sug.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
+                          sug.status === 'approved' ? 'bg-neon-teal/20 text-neon-teal neon-glow' :
+                          'bg-red-500/20 text-red-500'
                         }`}>
                           {sug.status === 'pending' ? 'Pendiente' : sug.status === 'approved' ? 'Aprobada' : 'Rechazada'}
                         </span>
                       </div>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{sug.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <User className="w-3.5 h-3.5" />
-                          <span>{sug.profiles?.name || sug.profiles?.email || 'Usuario desconocido'}</span>
+                      <p className="text-gray-400 font-medium leading-relaxed max-w-3xl">{sug.description}</p>
+                      <div className="flex flex-wrap items-center gap-6">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                          <User className="w-3.5 h-3.5 text-neon-teal" />
+                          <span>{sug.profiles?.name || sug.profiles?.email || 'Anonimo'}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>{new Date(sug.created_at).toLocaleString()}</span>
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                          <Clock className="w-3.5 h-3.5 text-neon-teal" />
+                          <span>{new Date(sug.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0">
                       {sug.status === 'pending' && (
                         <>
                           <button 
                             onClick={() => handleUpdateSuggestionStatus(sug.id, 'approved')}
-                            className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold"
-                            title="Aprobar"
+                            className="w-14 h-14 flex items-center justify-center glass-card border-white/10 text-neon-teal hover:bg-neon-teal hover:text-deep-dark transition-all rounded-2xl shadow-lg"
                           >
-                            <Check className="w-4 h-4" /> Aprobar
+                            <CheckCircle className="w-6 h-6" />
                           </button>
                           <button 
                             onClick={() => handleUpdateSuggestionStatus(sug.id, 'rejected')}
-                            className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold"
-                            title="Rechazar"
+                            className="w-14 h-14 flex items-center justify-center glass-card border-white/10 text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-2xl shadow-lg"
                           >
-                            <X className="w-4 h-4" /> Rechazar
+                            <X className="w-6 h-6" />
                           </button>
                         </>
                       )}
                       <button 
-                        onClick={() => handleDeleteSuggestion(sug.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar"
+                        onClick={() => {
+                          setSuggestionToDelete(sug);
+                          setShowDeleteSuggestionModal(true);
+                        }}
+                        className="w-14 h-14 flex items-center justify-center glass-card border-white/10 text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all rounded-2xl"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
-                <Bot className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-xl text-gray-500 dark:text-gray-400">No hay sugerencias todavía.</p>
+              <div className="text-center py-40 glass-card border-white/5 border-dashed">
+                <Bot className="w-16 h-16 text-white/5 mx-auto mb-6" />
+                <p className="text-xl font-black text-gray-600 uppercase italic">No se detectan propuestas</p>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Modal Crear/Editar */}
+      {/* Modal Crear/Editar - Premium Glass */}
       {(showCreateModal || showEditModal) && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-300"
-          onClick={closeModals}
-        >
-          <div 
-            className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8 shadow-2xl border border-gray-200 dark:border-gray-700 relative animate-in zoom-in-95 duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-8">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600/10 rounded-xl">
-                  {showEditModal ? <Edit className="w-5 h-5 text-blue-600" /> : <Plus className="w-5 h-5 text-blue-600" />}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-deep-dark/80 backdrop-blur-xl" onClick={closeModals}></div>
+          <div className="relative glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-10 border-white/10 shadow-[0_0_100px_-20px_rgba(0,229,255,0.2)] animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-neon-teal/10 rounded-2xl text-neon-teal neon-glow">
+                  {showEditModal ? <Edit className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {showEditModal ? 'Editar Agente' : 'Nuevo Agente'}
-                </h2>
+                <div>
+                    <h2 className="text-3xl font-black text-white uppercase italic tracking-tight">
+                    {showEditModal ? 'Modificar Protocolo' : 'Desplegar Nuevo Agente'}
+                    </h2>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">Configuración técnica de unidad</p>
+                </div>
               </div>
-              <button 
-                onClick={closeModals}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={closeModals} className="p-3 glass-card border-white/5 text-gray-500 hover:text-white transition-all">
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <form onSubmit={showEditModal ? handleUpdateAgent : handleCreateAgent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Nombre del Agente</label>
-                <input 
-                  required 
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})} 
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
-                  placeholder="Ej: Marketing Manager"
-                />
+
+            <form onSubmit={showEditModal ? handleUpdateAgent : handleCreateAgent} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Nombre Operativo</label>
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="premium-input w-full" placeholder="Ej: Visionary Copywriter" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Especialidad</label>
+                  <input required value={formData.specialty} onChange={e => setFormData({...formData, specialty: e.target.value})} className="premium-input w-full" placeholder="Ej: SEO & Content Strategy" />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Especialidad</label>
-                <input 
-                  required 
-                  value={formData.specialty} 
-                  onChange={e => setFormData({...formData, specialty: e.target.value})} 
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
-                  placeholder="Ej: Estrategia y SEO"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Categoría</label>
-                <select 
-                  value={formData.category} 
-                  onChange={e => setFormData({...formData, category: e.target.value})} 
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none appearance-none"
-                >
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Categoría del Núcleo</label>
+                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="premium-input w-full appearance-none">
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Descripción Detallada</label>
-                <textarea 
-                  rows="3" 
-                  value={formData.description} 
-                  onChange={e => setFormData({...formData, description: e.target.value})} 
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none resize-none" 
-                  placeholder="Describe las capacidades del agente..."
-                />
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Descripción del Algoritmo</label>
+                <textarea rows="4" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="premium-input w-full resize-none" placeholder="Define las capacidades maestras de este agente..." />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Link del Chat (iframe/url)</label>
-                <input 
-                  value={formData.chatLink} 
-                  onChange={e => setFormData({...formData, chatLink: e.target.value})} 
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700/50 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none" 
-                  placeholder="https://..."
-                />
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Puente de Comunicación (URL)</label>
+                <input value={formData.chatLink} onChange={e => setFormData({...formData, chatLink: e.target.value})} className="premium-input w-full" placeholder="https://app.customgpt.ai/..." />
               </div>
-              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
-                <input 
-                  type="checkbox" 
-                  checked={formData.visible} 
-                  onChange={e => setFormData({...formData, visible: e.target.checked})} 
-                  id="visible"
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="visible" className="text-sm font-medium text-gray-700 dark:text-gray-300">Visible para los usuarios en el panel</label>
+
+              <div className="flex items-center gap-4 p-5 glass-card !bg-white/5 border-white/10 rounded-2xl">
+                <div className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={formData.visible} onChange={e => setFormData({...formData, visible: e.target.checked})} id="visible" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-teal"></div>
+                    <span className="ml-4 text-xs font-black text-white uppercase tracking-widest">Activar visibilidad en terminales</span>
+                </div>
               </div>
+
               <div className="flex gap-4 pt-6">
-                <button 
-                  type="button" 
-                  onClick={closeModals} 
-                  className="flex-1 py-3 border border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={loading} 
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all"
-                >
-                  {loading ? 'Procesando...' : (showEditModal ? 'Guardar Cambios' : 'Crear Agente')}
+                <button type="button" onClick={closeModals} className="flex-1 py-4 glass-card border-white/10 text-gray-500 font-black uppercase text-xs tracking-[0.3em] hover:text-white hover:bg-white/5 transition-all">Cancelar</button>
+                <button type="submit" disabled={loading} className="flex-1 py-4 bg-neon-teal text-deep-dark rounded-2xl font-black uppercase text-xs tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-neon-teal/20">
+                  {loading ? 'Sincronizando...' : (showEditModal ? 'Guardar Cambios' : 'Desplegar Agente')}
                 </button>
               </div>
             </form>
@@ -628,18 +577,29 @@ const AdminAgents = () => {
         </div>
       )}
 
-      {/* Modal Eliminar */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm text-center">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-8 h-8" />
+      {/* Modal Eliminar - Premium */}
+      {(showDeleteModal || (showDeleteSuggestionModal && suggestionToDelete)) && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
+          <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-red-500/10">
+              <AlertTriangle className="w-10 h-10" />
             </div>
-            <h2 className="text-xl font-bold mb-2">¿Eliminar Agente?</h2>
-            <p className="text-gray-500 mb-6">Esta acción no se puede deshacer.</p>
+            <h2 className="text-3xl font-black text-white uppercase italic italic mb-4">¿Confirmar Purga?</h2>
+            <p className="text-gray-500 font-bold mb-10 text-sm leading-relaxed uppercase tracking-wider">
+              {showDeleteModal 
+                ? `Esta acción eliminará al agente "${selectedAgent?.name}" permanentemente de los servidores.` 
+                : `¿Estás seguro de que deseas eliminar la sugerencia para "${suggestionToDelete?.name}"?`}
+            </p>
             <div className="flex gap-4">
-              <button onClick={closeModals} className="flex-1 py-2 border rounded-lg">Cancelar</button>
-              <button onClick={confirmDeleteAgent} disabled={loading} className="flex-1 py-2 bg-red-600 text-white rounded-lg">Eliminar</button>
+              <button onClick={closeModals} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Abortar</button>
+              <button 
+                onClick={showDeleteModal ? confirmDeleteAgent : () => handleDeleteSuggestion(suggestionToDelete.id)} 
+                disabled={loading || loadingSuggestions} 
+                className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+              >
+                Confirmar
+              </button>
             </div>
           </div>
         </div>
