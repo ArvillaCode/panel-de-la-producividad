@@ -245,6 +245,10 @@ const LandingPage = () => {
               question="¿Qué tipos de agentes incluye?" 
               answer="Desde expertos en marketing y ventas, hasta analistas financieros y generadores de código. Cubrimos todos los pilares de un negocio moderno."
             />
+            <FAQItem 
+              question="¿Tengo que instalar, configurar o descargar algo?" 
+              answer="No, absolutamente nada. Nuestro panel es 100% 'Ready to Use' (listo para usar). Ingresas desde tu navegador y empiezas a producir de inmediato sin fricciones tecnológicas."
+            />
           </div>
         </Reveal>
       </section>
@@ -297,7 +301,18 @@ const LandingPage = () => {
 
         <div className="max-w-7xl mx-auto text-center border-t border-white/5 pt-12">
            <p className="text-[11px] font-bold text-slate-700 uppercase tracking-[0.4em]">
-              <span className="neon-text opacity-50">upfunnel</span> || Ecosistema de Productividad 2026.
+              <a 
+                href="/login"
+                onClick={(e) => {
+                  if (!window.location.hostname.includes('localhost') && !window.location.hostname.includes('app.')) {
+                    e.preventDefault();
+                    window.location.href = 'https://app.upfunnel.click/login';
+                  }
+                }}
+                className="neon-text opacity-50 cursor-default outline-none" 
+              >
+                upfunnel
+              </a> || Ecosistema de Productividad 2026.
            </p>
         </div>
       </footer>
