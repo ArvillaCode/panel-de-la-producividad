@@ -246,7 +246,7 @@ const AdminReleases = () => {
                     rows={3}
                     value={currentRelease.description}
                     onChange={(e) => setCurrentRelease({ ...currentRelease, description: e.target.value })}
-                    className="w-full bg-[#030712]/50 border border-slate-800/50 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all resize-none placeholder:text-slate-700"
+                    className="w-full bg-[#030712]/50 border border-slate-800/50 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all resize-y overflow-auto min-h-[150px] placeholder:text-slate-700"
                   />
                 </div>
 

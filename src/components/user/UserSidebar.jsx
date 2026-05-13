@@ -33,7 +33,7 @@ const UserSidebar = ({
   setIsCollapsed,
   onCloseMobile
 }) => {
-  const { user, profile, logout, notifications } = useAuth();
+  const { user, profile, logout, notifications, markAllNotificationsAsRead } = useAuth();
   const unreadCount = notifications.filter(n => !n.read).length;
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
@@ -132,7 +132,12 @@ const UserSidebar = ({
           </button>
 
           <button 
-            onClick={() => handleAction(() => setShowNotifications(prev => !prev))} 
+            onClick={() => handleAction(() => {
+              if (unreadCount > 0 && markAllNotificationsAsRead) {
+                markAllNotificationsAsRead();
+              }
+              setShowNotifications(prev => !prev);
+            })} 
             title="Notificaciones"
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >

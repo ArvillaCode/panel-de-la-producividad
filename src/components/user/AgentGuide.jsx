@@ -160,7 +160,7 @@ const AgentGuide = () => {
 
     } catch (error) {
       console.error('[GUIDE] Error crítico de conexión:', error.message);
-      setMessages(prev => [...prev, { role: 'model', content: 'Lo siento, he tenido un inconveniente al conectar con el sistema de asistencia. Por favor, intenta de nuevo en unos momentos.' }]);
+      setMessages(prev => [...prev, { role: 'model', content: '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme, por favor.' }]);
     } finally {
       setLoading(false);
     }
@@ -196,7 +196,7 @@ const AgentGuide = () => {
     <>
       {/* Botón Flotante (Burbuja) - Premium Glass */}
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
         className={`fixed bottom-4 right-4 w-16 h-16 bg-neon-teal/10 backdrop-blur-xl text-neon-teal rounded-2xl border border-neon-teal/20 shadow-[0_0_30px_rgba(0,229,255,0.15)] flex items-center justify-center transition-all duration-500 hover:scale-110 hover:rotate-6 active:scale-95 z-[100] group ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
       >
         <div className="absolute inset-0 bg-neon-teal/20 rounded-2xl animate-ping opacity-20 group-hover:opacity-40"></div>

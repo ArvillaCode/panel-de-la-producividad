@@ -105,7 +105,7 @@ const ReleaseHistory = () => {
           </p>
         </div>
 
-        <div className="relative border-l-2 border-white/5 ml-4 md:ml-12 pl-12 space-y-20 pb-20">
+        <div className="relative border-l-2 border-white/5 ml-4 md:ml-40 pl-8 md:pl-12 space-y-20 pb-20">
           {Array.isArray(allReleases) && allReleases.map((release, index) => {
             if (!release) return null;
             const config = typeConfig[release?.type] || typeConfig.improvement;
@@ -115,7 +115,12 @@ const ReleaseHistory = () => {
             return (
               <div key={release.id || index} className="relative group">
                 {/* Timeline Node */}
-                <div className={`absolute -left-[58px] top-2 w-4 h-4 rounded-full border-4 border-deep-dark transition-all duration-700 z-10 
+                {/* Timeline Date (Left of the line) */}
+                <div className="hidden md:flex absolute -left-[150px] top-2 h-4 w-[120px] justify-end items-center text-gray-500 text-[10px] font-black uppercase tracking-widest text-right">
+                  {formatDate(release?.publish_date)}
+                </div>
+
+                <div className={`absolute -left-[42px] md:-left-[58px] top-2 w-4 h-4 rounded-full border-4 border-deep-dark transition-all duration-700 z-10 
                   ${index === 0 
                     ? 'bg-neon-teal shadow-[0_0_20px_rgba(0,229,255,0.8)] scale-150' 
                     : 'bg-white/10 group-hover:bg-neon-teal group-hover:shadow-[0_0_15px_rgba(0,229,255,0.4)]'}`}>
@@ -140,7 +145,7 @@ const ReleaseHistory = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-gray-500 text-[10px] font-black uppercase tracking-widest">
+                    <div className="md:hidden flex items-center gap-3 text-gray-500 text-[10px] font-black uppercase tracking-widest">
                       <Calendar className="w-4 h-4 text-neon-teal" />
                       {formatDate(release?.publish_date)}
                     </div>
