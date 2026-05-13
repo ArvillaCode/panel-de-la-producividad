@@ -13,14 +13,17 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  Shield
+  Shield,
+  ShieldCheck,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ReleaseNotesBadge from './ReleaseNotesBadge';
 
 const UserSidebar = ({ 
+  activeTab,
   setActiveTab, 
   setShowSettingsModal, 
   setShowNotifications,
@@ -34,6 +37,10 @@ const UserSidebar = ({
   const unreadCount = notifications.filter(n => !n.read).length;
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Safe fallback to prevent ReferenceError
+  const currentActiveTab = activeTab || (location.pathname === '/' ? 'Todos' : '');
 
   const handleGoToAdmin = () => {
     if (onCloseMobile) onCloseMobile();
@@ -51,64 +58,75 @@ const UserSidebar = ({
   };
 
   const sidebarClasses = isMobile 
-    ? "w-full flex flex-col h-full bg-[#07080d]"
-    : `bg-white dark:bg-gray-800 shadow-xl flex flex-col h-screen sticky top-0 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'}`;
+    ? "w-full flex flex-col h-full bg-deep-dark/95 backdrop-blur-2xl"
+    : `glass-card !rounded-none border-y-0 border-l-0 shadow-2xl flex flex-col h-screen sticky top-0 border-r border-white/10 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'}`;
 
   return (
     <div className={sidebarClasses}>
-      {/* Header con Perfil */}
-      <div className={`p-4 border-b border-gray-200 dark:border-gray-700 ${isMobile ? 'bg-gray-800/50' : ''}`}>
-        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3'}`}>
-          <img 
-            src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=Usuario&background=6b7280&color=fff'} 
-            alt="Avatar" 
-            className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-600 shadow-sm flex-shrink-0" 
-          />
+      {/* Header con Perfil - Fijo */}
+      <div className={`p-6 border-b border-slate-100 dark:border-white/10 ${isMobile ? 'bg-gray-50/50 dark:bg-white/5' : ''}`}>
+        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4'}`}>
+          <div className="relative group/avatar">
+            <img 
+              src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.name || 'U'}&background=00E5FF&color=0E1A2B&font-size=0.4&bold=true`} 
+              alt="Avatar" 
+              className="w-10 h-10 rounded-xl border border-slate-200 dark:border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-500 object-cover" 
+            />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-deep-dark rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+          </div>
           {(!isCollapsed || isMobile) && (
-            <div className="overflow-hidden">
-              <h3 className="font-semibold text-gray-800 dark:text-white truncate text-sm" title={profile?.name || user?.email?.split('@')[0]}>
+            <div className="overflow-hidden animate-in fade-in slide-in-from-left-2 duration-500">
+              <h3 className="font-black text-slate-900 dark:text-white truncate text-sm uppercase italic tracking-tighter" title={profile?.name || user?.email?.split('@')[0]}>
                 {profile?.name || user?.email?.split('@')[0]}
               </h3>
-              <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full inline-block mt-1 font-bold">
-                {profile?.role === 'admin' ? 'Administrador' : 'Usuario'}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <Shield className="w-3 h-3 text-neon-teal" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">
+                  {profile?.role === 'admin' ? 'Core Admin' : 'Elite User'}
+                </span>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 scrollbar-thin">
+      {/* Área de Navegación con Scroll Independiente */}
+      <div className="flex-1 overflow-y-auto py-6 scrollbar-hide">
         {(!isCollapsed || isMobile) && (
-          <div className="px-6 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Menú Principal</div>
+          <div className="px-8 mb-4 text-[9px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.4em]">Sistemas</div>
         )}
         
-        <nav className="space-y-1 px-3">
+        <nav className="space-y-2 px-4">
           <button 
-            onClick={() => handleAction(() => setActiveTab('Todos'))} 
+            onClick={() => handleAction(() => { if (setActiveTab) setActiveTab('Todos'); navigate('/'); })} 
             title="Explorar Agentes"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${
+              currentActiveTab === 'Todos' && location.pathname === '/' ? 'bg-neon-teal text-deep-dark shadow-xl shadow-neon-teal/20 scale-[1.02]' : 'text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+            }`}
           >
-            <Grid className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
-            {(!isCollapsed || isMobile) && <span>Explorar Agentes</span>}
+            <Grid className={`w-5 h-5 ${currentActiveTab === 'Todos' && location.pathname === '/' ? 'text-deep-dark' : 'text-neon-teal'} group-hover:scale-110 group-hover:rotate-12 transition-all flex-shrink-0`} /> 
+            {(!isCollapsed || isMobile) && <span className="italic">Explorar</span>}
           </button>
 
           <button 
-            onClick={() => handleAction(() => setActiveTab('Favoritos'))} 
+            onClick={() => handleAction(() => { if (setActiveTab) setActiveTab('Favoritos'); navigate('/'); })} 
             title="Mis Favoritos"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${
+              currentActiveTab === 'Favoritos' && location.pathname === '/' ? 'bg-red-500 text-white shadow-xl shadow-red-500/20 scale-[1.02]' : 'text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+            }`}
           >
-            <Heart className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
-            {(!isCollapsed || isMobile) && <span>Mis Favoritos</span>}
+            <Heart className={`w-5 h-5 ${currentActiveTab === 'Favoritos' && location.pathname === '/' ? 'text-white' : 'text-red-500'} group-hover:scale-110 transition-all flex-shrink-0`} /> 
+            {(!isCollapsed || isMobile) && <span className="italic">Favoritos</span>}
           </button>
 
           <button 
             onClick={() => handleAction(() => navigate('/novedades'))} 
             title="Novedades"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group relative`}
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group relative`}
           >
-            <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3'}`}>
-              <Sparkles className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
-              {(!isCollapsed || isMobile) && <span>Novedades</span>}
+            <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4'}`}>
+              <Sparkles className="w-5 h-5 text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-all flex-shrink-0" /> 
+              {(!isCollapsed || isMobile) && <span className="italic">Bitácora</span>}
             </div>
             {(!isCollapsed || isMobile) && <ReleaseNotesBadge />}
           </button>
@@ -116,14 +134,14 @@ const UserSidebar = ({
           <button 
             onClick={() => handleAction(() => setShowNotifications(prev => !prev))} 
             title="Notificaciones"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >
-            <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3'}`}>
-              <Bell className={`w-5 h-5 text-purple-500 ${unreadCount > 0 ? 'animate-push-bell' : ''} group-hover:scale-110 transition-transform flex-shrink-0`} /> 
-              {(!isCollapsed || isMobile) && <span>Notificaciones</span>}
+            <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4'}`}>
+              <Bell className={`w-5 h-5 text-purple-500 ${unreadCount > 0 ? 'animate-push-bell' : ''} group-hover:scale-110 transition-all flex-shrink-0`} /> 
+              {(!isCollapsed || isMobile) && <span className="italic">Alertas</span>}
             </div>
             {(!isCollapsed || isMobile) && unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
+              <span className="bg-neon-teal text-deep-dark text-[9px] font-black px-2 py-0.5 rounded-lg min-w-[20px] text-center shadow-lg shadow-neon-teal/20 neon-glow">
                 {unreadCount}
               </span>
             )}
@@ -132,64 +150,78 @@ const UserSidebar = ({
           <button 
             onClick={() => handleAction(() => setShowSuggestionModal(true))} 
             title="Sugerir Agente"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >
-            <MessageSquare className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform flex-shrink-0" /> 
-            {(!isCollapsed || isMobile) && <span>Sugerir Agente</span>}
+            <MessageSquare className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-all flex-shrink-0" /> 
+            {(!isCollapsed || isMobile) && <span className="italic">Propuestas</span>}
           </button>
         </nav>
 
         {(!isCollapsed || isMobile) && (
-          <div className="px-6 mt-8 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ajustes de Cuenta</div>
+          <div className="px-8 mt-10 mb-4 text-[9px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.4em]">Terminal</div>
         )}
         
-        <nav className="space-y-1 px-3">
+        <nav className="space-y-2 px-4">
           <button 
             onClick={() => handleAction(() => setShowSettingsModal(true))} 
-            title="Configuraciones"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group`}
+            title="Ajustes de Interfaz"
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >
-            <Settings className="w-5 h-5 text-gray-500 group-hover:rotate-90 transition-transform flex-shrink-0" /> 
-            {(!isCollapsed || isMobile) && <span>Ajustes</span>}
+            <Settings className="w-5 h-5 text-slate-400 dark:text-gray-400 group-hover:rotate-90 transition-transform duration-700 flex-shrink-0" /> 
+            {(!isCollapsed || isMobile) && <span className="italic">Configurar</span>}
           </button>
           
           {profile?.role === 'admin' && (
-            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
-              <button 
-                onClick={() => handleAction(handleGoToAdmin)} 
-                title="Administración"
-                className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all font-semibold text-sm group`}
-              >
-                <Shield className="w-5 h-5 group-hover:rotate-90 transition-transform flex-shrink-0" /> 
-                {(!isCollapsed || isMobile) && <span>Administración</span>}
-              </button>
-            </div>
+            <button 
+              onClick={() => handleAction(handleGoToAdmin)} 
+              title="Panel Administrativo"
+              className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-neon-teal/5 text-neon-teal border border-neon-teal/10 hover:bg-neon-teal/10 transition-all duration-500 group`}
+            >
+              <ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-all flex-shrink-0" /> 
+              {(!isCollapsed || isMobile) && <span className="italic">Master Admin</span>}
+            </button>
           )}
         </nav>
       </div>
 
-      {/* Botón Colapsar (Solo Desktop) */}
-      {!isMobile && (
-        <div className="px-3 py-4 border-t border-gray-100 dark:border-gray-700">
+      {/* Footer Fijo - Botón Cerrar Sesión y Colapso */}
+      <div className={`p-4 pb-8 border-t border-slate-100 dark:border-white/10 ${isMobile ? 'bg-slate-50/50 dark:bg-deep-dark/50' : 'bg-transparent'}`}>
+        <div className="space-y-3">
           <button 
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="w-full flex items-center justify-center p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-all"
-            title={isCollapsed ? "Expandir" : "Contraer"}
+            onClick={() => handleAction(() => navigate('/'))} 
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-5'} py-4 rounded-2xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-500 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/10 group border border-blue-500/20 backdrop-blur-md`}
+            title="Ir a Inicio"
           >
-            {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            <Home className="w-5 h-5 group-hover:-translate-x-1 transition-transform flex-shrink-0" /> 
+            {(!isCollapsed || isMobile) && <span className="italic">Ir a Inicio</span>}
           </button>
-        </div>
-      )}
 
-      <div className={`p-4 border-t border-gray-100 dark:border-gray-700 ${isMobile ? 'bg-gray-800/50' : ''}`}>
-        <button 
-          onClick={handleLogout} 
-          className={`w-full flex items-center justify-center ${isCollapsed && !isMobile ? 'px-2' : 'gap-2 px-4'} py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition-all font-bold text-sm shadow-sm border border-red-100 dark:border-red-900/30`}
-          title="Cerrar Sesión"
-        >
-          <LogOut className="w-5 h-5 flex-shrink-0" /> 
-          {(!isCollapsed || isMobile) && <span>Cerrar Sesión</span>}
-        </button>
+          <button 
+            onClick={handleLogout} 
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-5'} py-4 rounded-2xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-500 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/10 group border border-red-500/20 backdrop-blur-md`}
+            title="Cerrar Sesión"
+          >
+            <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform flex-shrink-0" /> 
+            {(!isCollapsed || isMobile) && <span className="italic">Cerrar Sesión</span>}
+          </button>
+
+          {!isMobile && (
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="w-full flex items-center justify-center py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-500 transition-all duration-500 group"
+              title={isCollapsed ? "Expandir" : "Contraer"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                  <span className="text-[8px] font-black uppercase tracking-[0.3em]">Minimizar</span>
+                </div>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import UserSidebar from './user/UserSidebar';
 import { supabase } from '../lib/supabase';
 import SettingsModal from './user/SettingsModal';
 import SuggestionModal from './user/SuggestionModal';
+import AgentGuide from './user/AgentGuide';
 
 const AgentPanel = () => {
   const [agents, setAgents] = useState([]);
@@ -233,51 +234,52 @@ const AgentPanel = () => {
   };
 
   const PaginationControls = ({ className = "" }) => (
-    <div className={`flex items-center justify-center gap-1 sm:gap-2 ${className}`}>
+    <div className={`flex items-center justify-center gap-2 ${className}`}>
       <button
         onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === 1}
-        title="Página Anterior"
-        className="p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
+        className="p-2.5 rounded-xl hover:bg-neon-teal hover:text-deep-dark disabled:opacity-20 transition-all border border-white/10"
       >
-        <ChevronLeft className="w-4 h-4 sm:w-5 h-5" />
+        <ChevronLeft className="w-5 h-5" />
       </button>
 
-      <div className="flex items-center bg-white dark:bg-gray-800 px-2 sm:px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-        <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase mr-1.5 hidden xs:inline">Pág.</span>
-        <span className="text-xs sm:text-sm font-black text-blue-600 dark:text-blue-400">{currentPage}</span>
-        <span className="text-[10px] sm:text-xs font-medium text-gray-400 mx-1">de</span>
-        <span className="text-xs sm:text-sm font-bold text-gray-600 dark:text-gray-300">{totalPages}</span>
+      <div className="flex items-center px-4 py-2 glass-card !bg-white/5 border-white/10 shadow-inner">
+        <span className="text-[10px] font-black text-gray-500 uppercase mr-2 tracking-widest">Pág.</span>
+        <span className="text-sm font-black neon-text">{currentPage}</span>
+        <span className="text-[10px] font-bold text-gray-500 mx-2">/</span>
+        <span className="text-sm font-bold text-gray-300">{totalPages}</span>
       </div>
 
       <button
         onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === totalPages}
-        title="Página Siguiente"
-        className="p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors border border-gray-200 dark:border-gray-600"
+        className="p-2.5 rounded-xl hover:bg-neon-teal hover:text-deep-dark disabled:opacity-20 transition-all border border-white/10"
       >
-        <ChevronRight className="w-4 h-4 sm:w-5 h-5" />
+        <ChevronRight className="w-5 h-5" />
       </button>
     </div>
   );
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-deep-dark flex flex-col items-center justify-center gap-8 spatial-grid">
         <div className="premium-spinner"></div>
-        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Sincronizando panel premium...</p>
+        <div className="text-center space-y-2">
+          <p className="neon-text text-xl font-black tracking-widest animate-pulse uppercase">Iniciando Núcleo</p>
+          <p className="text-gray-500 font-bold text-xs uppercase tracking-[0.3em]">Cargando experiencia premium...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen flex bg-white dark:bg-deep-dark spatial-grid">
       {/* Toast Notifications Overlay */}
       <div className="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => (
-          <div key={toast.id} className="flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border animate-in slide-in-from-right-full duration-300 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 pointer-events-auto">
-            {toast.type === 'success' ? <Check className="w-4 h-4 text-green-500" /> : <Info className="w-4 h-4 text-blue-500" />}
-            <span className="text-sm font-medium text-gray-800 dark:text-white">{toast.message}</span>
+          <div key={toast.id} className="glass-card flex items-center gap-3 px-5 py-4 shadow-2xl animate-in slide-in-from-right-full duration-300 border-white/10 pointer-events-auto">
+            {toast.type === 'success' ? <Check className="w-5 h-5 text-neon-teal neon-glow" /> : <Info className="w-5 h-5 text-blue-500" />}
+            <span className="text-sm font-bold text-gray-800 dark:text-white">{toast.message}</span>
           </div>
         ))}
       </div>
@@ -289,6 +291,7 @@ const AgentPanel = () => {
             className={`hidden lg:flex fixed left-0 top-0 h-screen z-40 transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}
           >
             <UserSidebar
+              activeTab={activeTab}
               setActiveTab={setActiveTab}
               setShowSettingsModal={() => openModal(setShowSettingsModal)}
               setShowSuggestionModal={() => openModal(setShowSuggestionModal)}
@@ -304,9 +307,10 @@ const AgentPanel = () => {
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300"
                 onClick={() => setIsMobileMenuOpen(false)}
               />
-              <aside className="relative h-full w-[280px] bg-[#07080d] border-r border-white/10 shadow-2xl animate-in slide-in-from-left duration-300">
+              <aside className="relative h-full w-[280px] bg-deep-dark border-r border-white/10 shadow-2xl animate-in slide-in-from-left duration-300">
                 <UserSidebar
                   isMobile={true}
+                  activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   setShowSettingsModal={() => openModal(setShowSettingsModal)}
                   setShowSuggestionModal={() => openModal(setShowSuggestionModal)}
@@ -321,58 +325,60 @@ const AgentPanel = () => {
 
       {/* Contenido Principal */}
       <main className={`flex-1 w-full min-h-screen relative z-10 transition-all duration-300 ${isAuthenticated ? (isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72') : ''}`}>
-        <div className="max-w-7xl mx-auto p-3 sm:p-6 min-h-full relative">
+        <div className="max-w-7xl mx-auto p-4 sm:p-8 min-h-full relative">
           {/* Header Mobile Toggle */}
-          <div className="lg:hidden flex items-center justify-between mb-4 px-1">
+          <div className="lg:hidden flex items-center justify-between mb-6 px-1">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-white"
+              className="p-3 glass-card border-white/10 text-gray-700 dark:text-white"
             >
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
               <img 
-                src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/ChatGPT%20Image%2011%20may%202026,%2023_48_25.png" 
+                src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/Sin%20fondo%20letras%20negras.png" 
                 alt="Logo" 
-                className="h-10 w-auto object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                className="h-10 w-auto object-contain dark:invert brightness-110"
               />
             </div>
           </div>
+
           {/* Header */}
-          <div className="mb-8 md:mb-12 text-center md:text-left">
-            <div className="hidden md:block mb-4">
-              <h2 className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">
-                {motivationalMessage.split('!')[0]}{motivationalMessage.includes('!') ? '!' : ''} <span className="text-blue-600 dark:text-blue-400">{profile?.name || user?.email?.split('@')[0] || 'Líder'}</span>.
-              </h2>
-              <p className="text-base text-gray-600 dark:text-gray-400 font-medium">
-                {motivationalMessage.split('!')[1] || "Hoy es un gran día para conquistar tus metas y ser más productivo que ayer."}
-              </p>
+          <div className="mb-10 md:mb-16 animate-fade-in-up">
+            <div className="hidden md:flex items-center gap-4 mb-6">
+              <div className="px-4 py-1.5 glass-card !bg-neon-teal/10 border-neon-teal/20 text-neon-teal text-[10px] font-black uppercase tracking-[0.2em] neon-glow">
+                Sistema Operativo Premium
+              </div>
+              <div className="h-px w-24 bg-white/10" />
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter leading-tight">
-              <span className="block text-gray-900 dark:text-white">Domina tu día con</span>
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
-                Tus Agentes Expertos
-              </span>
-            </h1>
-            
-            <p className="text-base md:text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-2xl">
-              Elige el agente ideal para elevar tu flujo de trabajo al siguiente nivel.
-            </p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-gray-600 dark:text-gray-400 tracking-tight">
+                  {motivationalMessage.split('!')[0]}! <span className="neon-text">{profile?.name || user?.email?.split('@')[0]}</span>
+                </h2>
+                <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-gray-900 dark:text-white">
+                  DOMINA TU <span className="neon-text">PRODUCTIVIDAD</span>
+                </h1>
+                <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xl">
+                  {motivationalMessage.split('!')[1] || "Eleva tu flujo de trabajo con la flota de agentes IA más avanzada del sector."}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Controls - Glassmorphism Effect */}
-          <div className="bg-white/70 dark:bg-gray-800/70 rounded-3xl shadow-2xl p-5 md:p-8 mb-8 md:mb-12 border border-white/20 dark:border-gray-700/30 backdrop-blur-2xl transition-all duration-500 hover:shadow-blue-500/5">
-            <div className="flex flex-col gap-4 md:gap-6">
-                <div className="flex flex-col sm:flex-row w-full gap-3 items-center">
-                  <div className="relative w-full sm:flex-1 max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4.5 h-4.5" />
+          {/* Controls - Premium Glass */}
+          <div className="glass-card p-6 md:p-10 mb-10 md:mb-16 border-white/10 animate-fade-in-up [animation-delay:200ms]">
+            <div className="flex flex-col gap-6 md:gap-8">
+                <div className="flex flex-col sm:flex-row w-full gap-4 items-center">
+                  <div className="relative w-full sm:flex-1 max-w-lg group">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-neon-teal transition-colors w-5 h-5" />
                     <input
                       type="text"
-                      placeholder="Buscar agentes..."
+                      placeholder="Buscar agentes por nombre o especialidad..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 text-sm border border-gray-200/50 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white/50 dark:bg-gray-900/50 dark:text-white transition-all outline-none shadow-inner"
+                      className="w-full pl-12 pr-6 py-4 text-sm border border-white/10 rounded-2xl focus:ring-2 focus:ring-neon-teal/50 focus:border-neon-teal bg-white/5 dark:bg-black/20 dark:text-white transition-all outline-none shadow-2xl"
                     />
                   </div>
 
@@ -632,6 +638,9 @@ const AgentPanel = () => {
         isOpen={showSuggestionModal} 
         onClose={() => setShowSuggestionModal(false)} 
       />
+
+      {/* Agente Guía (Matchmaker) */}
+      <AgentGuide />
     </div>
   );
 };
