@@ -96,30 +96,37 @@ const AgentGuide = () => {
     setLoading(true);
 
     try {
-      // 1. Obtener datos frescos de agentes
-      const agents = await fetchActiveAgents();
-      
-      if (agents.length === 0) {
-        console.warn('[GUIDE] No se encontraron agentes activos en Supabase.');
+      // 1. Obtener datos frescos de agentes (aislado)
+      let agents = [];
+      try {
+        agents = await fetchActiveAgents();
+        if (agents.length === 0) {
+          console.warn('[GUIDE] No se encontraron agentes activos en Supabase.');
+        }
+      } catch (dbError) {
+        console.error('[GUIDE] Error obteniendo agentes de Supabase:', dbError);
+        // Falla silenciosamente y usa una lista vacía
       }
 
-      // 2. Configurar Google Gemini (SDK)
+      // 2. Validación estricta de API Key
       const apiKey = import.meta.env.VITE_GOOGLE_GEMINI_API_KEY;
-      if (!apiKey) {
-        console.error('[GUIDE] VITE_GOOGLE_GEMINI_API_KEY no encontrada en variables de entorno.');
-        throw new Error('Configuración de API ausente');
+      if (!apiKey || apiKey.length < 10) {
+        console.error('[GUIDE] VITE_GOOGLE_GEMINI_API_KEY no encontrada o es muy corta.');
+        setMessages(prev => [...prev, { role: 'model', content: 'Fallo de Configuración: No se ha detectado la clave API de Google Gemini en el entorno. Por favor, asegúrate de que VITE_GOOGLE_GEMINI_API_KEY esté configurada.' }]);
+        setLoading(false);
+        return;
       }
 
+      // 3. Configurar Google Gemini (SDK)
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ 
         model: "gemini-1.5-flash",
         generationConfig: {
-          temperature: 0.1, // Aún más bajo para mayor veracidad
+          temperature: 0.1,
           maxOutputTokens: 500,
         }
       });
 
-      // 3. Construir el prompt de sistema estricto
       const systemInstruction = `
         Eres el Asistente de Upfunnel y del Panel de la Productividad. Te estás dirigiendo a ${userName}.
         Tu misión es ser un consultor profesional que ayuda a los usuarios a encontrar la herramienta ideal en nuestro ecosistema.
@@ -136,21 +143,37 @@ const AgentGuide = () => {
         LISTA DE AGENTES ACTIVOS EN UPFUNNEL:
         ${agents.length > 0 
           ? agents.map(a => `- ${a.name} (${a.specialty}): ${a.description} [LINK:${a.chatLink}]`).join('\n')
-          : 'No hay agentes disponibles en este momento.'}
+          : 'No hay agentes disponibles en este momento debido a que no se pudo conectar con la base de datos.'}
       `;
 
-      // 4. Incorporar el historial en el prompt
       const historyText = messages.map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n');
       const fullPrompt = `${systemInstruction}\n\nHistorial de conversación previo:\n${historyText}\n\nUsuario: ${userMessage}\nAsistente:`;
 
-      // 5. Llamada a la API mediante el SDK
-      const result = await model.generateContent(fullPrompt);
-      const responseText = result.response.text();
+      // 4. Mecanismo de reintento (Retry) y límite de tiempo (Timeout)
+      let responseText = null;
+      let retries = 1;
       
+      while (retries >= 0 && !responseText) {
+        try {
+          const fetchPromise = model.generateContent(fullPrompt);
+          // Timeout preventivo de 8 segundos para no chocar con el límite de Vercel
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 8000));
+          
+          const result = await Promise.race([fetchPromise, timeoutPromise]);
+          responseText = result.response.text();
+        } catch (apiError) {
+          if (retries > 0) {
+            console.warn(`[GUIDE] Fallo de red, reintentando conexión con Gemini (${retries} intentos restantes)...`);
+            retries--;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            throw apiError;
+          }
+        }
+      }
+
       if (responseText) {
         setMessages(prev => [...prev, { role: 'model', content: responseText }]);
-        
-        // Disparar Toast de éxito si hay recomendación
         if (responseText.includes('[BOT_LINK:')) {
           toast.success('Agente recomendado con éxito');
         }
@@ -160,7 +183,15 @@ const AgentGuide = () => {
 
     } catch (error) {
       console.error('[GUIDE] Error crítico de conexión:', error.message);
-      setMessages(prev => [...prev, { role: 'model', content: '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme, por favor.' }]);
+      
+      let userErrorMsg = '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme, por favor.';
+      if (error.message === 'TIMEOUT') {
+        userErrorMsg = 'El sistema está tardando demasiado en responder. Por favor, inténtalo de nuevo en unos segundos.';
+      } else if (error.message.includes('API key not valid')) {
+        userErrorMsg = 'Error de Autorización: La clave API configurada es inválida o expiró.';
+      }
+
+      setMessages(prev => [...prev, { role: 'model', content: userErrorMsg }]);
     } finally {
       setLoading(false);
     }

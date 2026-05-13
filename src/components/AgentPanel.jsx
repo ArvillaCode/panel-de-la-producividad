@@ -378,8 +378,16 @@ const AgentPanel = () => {
                       placeholder="Buscar agentes por nombre o especialidad..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-6 py-4 text-sm border border-white/10 rounded-2xl focus:ring-2 focus:ring-neon-teal/50 focus:border-neon-teal bg-white/5 dark:bg-black/20 dark:text-white transition-all outline-none shadow-2xl"
+                      className="w-full pl-12 pr-10 py-4 text-sm border border-white/10 rounded-2xl focus:ring-2 focus:ring-neon-teal/50 focus:border-neon-teal bg-white/5 dark:bg-black/20 dark:text-white transition-all outline-none shadow-2xl"
                     />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
 
                   {isAdmin && (
