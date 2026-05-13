@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useCloseModal } from '../../hooks/useCloseModal';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const AgentGuide = () => {
   const { isAdmin, isAuthenticated, profile, user } = useAuth();
@@ -28,22 +29,40 @@ const AgentGuide = () => {
     if (profile) {
       const name = profile.name || user?.user_metadata?.name || 'Usuario';
       setUserName(name);
-      setMessages([
-        { 
-          role: 'model', 
-          content: `¡Hola, ${name}! Soy el Asistente de Upfunnel y del Panel de la Productividad. ¿En qué puedo ayudarte hoy?` 
-        }
-      ]);
+      
+      const savedMessages = sessionStorage.getItem('upfunnel_chat_history');
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      } else {
+        setMessages([
+          { 
+            role: 'model', 
+            content: `¡Hola, ${name}! Soy el Asistente de Upfunnel y del Panel de la Productividad. ¿En qué puedo ayudarte hoy?` 
+          }
+        ]);
+      }
     } else if (isAuthenticated) {
       // Fallback mientras carga el perfil
-      setMessages([
-        { 
-          role: 'model', 
-          content: '¡Hola! Bienvenido de nuevo. Soy el Asistente de Upfunnel. ¿En qué puedo ayudarte hoy?' 
-        }
-      ]);
+      const savedMessages = sessionStorage.getItem('upfunnel_chat_history');
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      } else {
+        setMessages([
+          { 
+            role: 'model', 
+            content: '¡Hola! Bienvenido de nuevo. Soy el Asistente de Upfunnel. ¿En qué puedo ayudarte hoy?' 
+          }
+        ]);
+      }
     }
   }, [profile, isAuthenticated, user]);
+
+  // Guardar en sessionStorage cada vez que cambien los mensajes
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem('upfunnel_chat_history', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,12 +103,21 @@ const AgentGuide = () => {
         console.warn('[GUIDE] No se encontraron agentes activos en Supabase.');
       }
 
-      // 2. Configurar Google Gemini (REST API)
+      // 2. Configurar Google Gemini (SDK)
       const apiKey = import.meta.env.VITE_GOOGLE_GEMINI_API_KEY;
       if (!apiKey) {
         console.error('[GUIDE] VITE_GOOGLE_GEMINI_API_KEY no encontrada en variables de entorno.');
         throw new Error('Configuración de API ausente');
       }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          temperature: 0.1, // Aún más bajo para mayor veracidad
+          maxOutputTokens: 500,
+        }
+      });
 
       // 3. Construir el prompt de sistema estricto
       const systemInstruction = `
@@ -111,36 +139,15 @@ const AgentGuide = () => {
           : 'No hay agentes disponibles en este momento.'}
       `;
 
-      // 4. Llamada a la REST API de Gemini
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${systemInstruction}\n\nUsuario: ${userMessage}` }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.1, // Aún más bajo para mayor veracidad
-            maxOutputTokens: 500,
-          }
-        })
-      });
+      // 4. Incorporar el historial en el prompt
+      const historyText = messages.map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n');
+      const fullPrompt = `${systemInstruction}\n\nHistorial de conversación previo:\n${historyText}\n\nUsuario: ${userMessage}\nAsistente:`;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[GUIDE] Error en la API de Gemini:', response.status, errorData);
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // 5. Llamada a la API mediante el SDK
+      const result = await model.generateContent(fullPrompt);
+      const responseText = result.response.text();
       
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        const responseText = data.candidates[0].content.parts[0].text;
+      if (responseText) {
         setMessages(prev => [...prev, { role: 'model', content: responseText }]);
         
         // Disparar Toast de éxito si hay recomendación
@@ -148,8 +155,7 @@ const AgentGuide = () => {
           toast.success('Agente recomendado con éxito');
         }
       } else {
-        console.error('[GUIDE] Respuesta malformada de Gemini:', data);
-        throw new Error('Respuesta malformada');
+        throw new Error('Respuesta vacía de Gemini');
       }
 
     } catch (error) {
