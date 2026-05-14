@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Shield,
   ShieldCheck,
-  Home
+  Home,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -115,6 +116,16 @@ const UserSidebar = ({
           >
             <Heart className={`w-5 h-5 ${currentActiveTab === 'Favoritos' && location.pathname === '/' ? 'text-white' : 'text-red-500'} group-hover:scale-110 transition-all flex-shrink-0`} />
             {(!isCollapsed || isMobile) && <span className="italic">Favoritos</span>}
+          </button>
+
+          <button
+            onClick={() => handleAction(() => navigate('/dashboard/academia'))}
+            title="Upfunne Academy"
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${location.pathname === '/dashboard/academia' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30 scale-[1.02]' : 'text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+              }`}
+          >
+            <GraduationCap className={`w-5 h-5 ${location.pathname === '/dashboard/academia' ? 'text-white' : 'text-blue-500'} group-hover:scale-110 group-hover:-rotate-6 transition-all flex-shrink-0`} />
+            {(!isCollapsed || isMobile) && <span className="italic">Academia</span>}
           </button>
 
           <button

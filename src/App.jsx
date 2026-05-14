@@ -18,6 +18,8 @@ import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
 import Policies from './pages/Policies';
 import Privacy from './pages/Privacy';
 import Support from './pages/Support';
+import AcademiaPage from './app/dashboard/academia/page';
+import LessonCreator from './app/dashboard/academia/admin/page';
 import './App.css';
 
 // Componente para rutas protegidas
@@ -116,6 +118,16 @@ function App() {
               <Route path="/politicas" element={<Policies />} />
               <Route path="/privacidad" element={<Privacy />} />
               <Route path="/soporte" element={<Support />} />
+              
+              {/* Rutas de Academia */}
+              <Route 
+                path="/dashboard/academia" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute><AcademiaPage /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
+              <Route 
+                path="/dashboard/academia/admin" 
+                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><LessonCreator /></ProtectedRoute></DomainRestrictedRoute>} 
+              />
               
               {/* Redirect /admin a /admin/dashboard */}
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
