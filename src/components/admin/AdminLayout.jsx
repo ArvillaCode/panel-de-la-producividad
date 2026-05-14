@@ -15,7 +15,8 @@ import {
   Sparkles,
   Activity,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -47,6 +48,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     if (path === '/admin/config') return 'config';
     if (path === '/admin/releases') return 'releases';
     if (path === '/admin/logs') return 'logs';
+    if (path.startsWith('/dashboard/academia')) return 'academia';
     return 'dashboard';
   };
 
@@ -94,6 +96,13 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       icon: Activity,
       path: '/admin/logs',
       description: 'Log de actividad'
+    },
+    {
+      id: 'academia',
+      name: 'Academia',
+      icon: GraduationCap,
+      path: '/dashboard/academia',
+      description: 'Gestión educativa'
     }
   ];
 
