@@ -121,11 +121,18 @@ const UserSidebar = ({
           <button
             onClick={() => handleAction(() => navigate('/dashboard/academia'))}
             title="Upfunne Academy"
-            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${location.pathname === '/dashboard/academia' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30 scale-[1.02]' : 'text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
-              }`}
+            className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${location.pathname.startsWith('/dashboard/academia') 
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40 scale-[1.02]' 
+              : 'text-slate-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-600 dark:hover:text-blue-400'
+            }`}
           >
-            <GraduationCap className={`w-5 h-5 ${location.pathname === '/dashboard/academia' ? 'text-white' : 'text-blue-500'} group-hover:scale-110 group-hover:-rotate-6 transition-all flex-shrink-0`} />
-            {(!isCollapsed || isMobile) && <span className="italic">Academia</span>}
+            <div className="relative">
+              <GraduationCap className={`w-5 h-5 ${location.pathname.startsWith('/dashboard/academia') ? 'text-white' : 'text-blue-500'} group-hover:scale-110 group-hover:-rotate-12 transition-all flex-shrink-0`} />
+              {profile?.role === 'admin' && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-neon-teal rounded-full animate-pulse shadow-[0_0_8px_rgba(0,229,255,0.6)]"></div>
+              )}
+            </div>
+            {(!isCollapsed || isMobile) && <span className="italic tracking-tight">Upfunne Academy</span>}
           </button>
 
           <button
