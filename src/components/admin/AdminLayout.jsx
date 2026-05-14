@@ -108,9 +108,9 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
   };
 
   return (
-    <div className="min-h-screen bg-deep-dark flex overflow-hidden spatial-grid">
+    <div className="min-h-[100dvh] h-[100dvh] bg-deep-dark flex overflow-hidden spatial-grid">
       {/* Sidebar - Premium Glass */}
-      <div className={`fixed inset-y-0 left-0 z-50 glass-card !rounded-none border-y-0 border-l-0 shadow-2xl transform transition-all duration-300 ease-in-out ${
+      <div className={`fixed inset-y-0 left-0 z-50 glass-card !rounded-none border-y-0 border-l-0 shadow-2xl transform transition-all duration-300 ease-in-out flex flex-col h-[100dvh] ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0 lg:fixed lg:inset-y-0 border-r border-white/10 ${isCollapsed ? 'w-20' : 'w-72'}`}>
         
@@ -197,7 +197,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
         </nav>
 
         {/* Bottom Actions */}
-        <div className="p-4 border-t border-white/10 space-y-2">
+        <div className="p-4 pb-12 border-t border-white/10 space-y-2 mt-auto">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="w-full flex items-center justify-center p-3 rounded-xl glass-card border-white/5 text-gray-500 hover:text-white transition-all"

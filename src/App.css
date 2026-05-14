@@ -5,7 +5,8 @@
 /* Premium Dark Glass Theme & Neon Accents */
 @layer base {
   body {
-    @apply antialiased transition-colors duration-500 font-sans bg-white text-slate-900;
+    @apply antialiased transition-colors duration-500 font-sans text-slate-900;
+    background-color: #ffffff !important;
   }
   
   .dark body {

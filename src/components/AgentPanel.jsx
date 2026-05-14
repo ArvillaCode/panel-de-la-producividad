@@ -11,7 +11,7 @@ import UserSidebar from './user/UserSidebar.jsx';
 import { supabase } from '../lib/supabase';
 import SettingsModal from './user/SettingsModal.jsx';
 import SuggestionModal from './user/SuggestionModal.jsx';
-import AgentGuide from './user/AgentGuide.jsx';
+import AgentGuide from './user/AgentGuide';
 
 const AgentPanel = () => {
   const [agents, setAgents] = useState([]);

@@ -116,7 +116,7 @@ const ReleaseHistory = () => {
               <div key={release.id || index} className="relative group">
                 {/* Timeline Node */}
                 {/* Timeline Date (Left of the line) */}
-                <div className="hidden md:flex absolute left-[-75px] -translate-x-full top-2 h-4 items-center text-gray-500 text-[10px] font-black uppercase tracking-widest text-right whitespace-nowrap">
+                <div className="hidden md:flex absolute -left-[180px] w-[110px] top-1.5 justify-end items-center text-gray-400 text-xs font-black uppercase tracking-widest text-right whitespace-nowrap group-hover:text-neon-teal transition-colors duration-500">
                   {formatDate(release?.publish_date)}
                 </div>
 

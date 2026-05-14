@@ -39,8 +39,8 @@ const UserSidebar = ({
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Safe fallback to prevent ReferenceError
-  const currentActiveTab = activeTab || (location.pathname === '/' ? 'Todos' : '');
+  // Dependencia local de fallback para evitar pantallas negras y crashes en build
+  const currentActiveTab = activeTab !== undefined && activeTab !== null ? activeTab : (location.pathname === '/' ? 'Todos' : '');
 
   const handleGoToAdmin = () => {
     if (onCloseMobile) onCloseMobile();
@@ -133,6 +133,7 @@ const UserSidebar = ({
 
           <button 
             onClick={() => handleAction(() => {
+              // Optimistic UI: we call markAllNotificationsAsRead which updates local state immediately
               if (unreadCount > 0 && markAllNotificationsAsRead) {
                 markAllNotificationsAsRead();
               }

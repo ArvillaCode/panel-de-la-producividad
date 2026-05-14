@@ -334,9 +334,9 @@ const AdminUsers = () => {
         </div>
 
         {/* Quick Stats & Notifications */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 glass-card p-8 border-white/10 !bg-gradient-to-br from-white/5 to-neon-teal/5 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-neon-teal/10 blur-[60px] group-hover:bg-neon-teal/20 transition-all"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3 glass-card p-8 border-white/10 !bg-gradient-to-br from-white/5 to-neon-teal/5 flex flex-col md:flex-row items-center justify-between gap-8 relative group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-neon-teal/10 blur-[60px] group-hover:bg-neon-teal/20 transition-all rounded-tr-[3rem]"></div>
                 <div className="flex items-center gap-6 relative z-10">
                     <div className="w-16 h-16 rounded-2xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow">
                         <Bell className="w-8 h-8" />
@@ -346,11 +346,11 @@ const AdminUsers = () => {
                         <p className="text-gray-500 font-bold text-[10px] uppercase tracking-widest">Envía alertas globales o individuales</p>
                     </div>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto relative z-10">
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto relative z-10 shrink-0 pr-4 sm:pr-0">
                     <select
                         value={notificationTarget}
                         onChange={(e) => setNotificationTarget(e.target.value)}
-                        className="w-full sm:w-56 premium-input py-2 text-xs font-black uppercase tracking-widest"
+                        className="w-full sm:w-56 premium-input py-2 text-xs font-black uppercase tracking-widest shrink-0"
                     >
                         <option value="all">🚀 Global</option>
                         {users.filter(u => u.status === 'active').map(u => (
@@ -359,10 +359,10 @@ const AdminUsers = () => {
                     </select>
                     <button 
                         onClick={() => setShowNotifyModal(true)}
-                        className="w-full sm:w-auto px-6 py-3 bg-neon-teal text-deep-dark rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-neon-teal/20 flex items-center gap-2"
+                        className="w-full sm:w-fit px-6 pr-8 sm:pr-6 py-3 bg-neon-teal text-deep-dark rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-neon-teal/20 flex items-center gap-2 shrink-0"
                     >
-                        <Send className="w-4 h-4" />
-                        {notificationTarget === 'all' ? 'Broadcast' : 'Directo'}
+                        <Send className="w-4 h-4 shrink-0" />
+                        <span className="whitespace-nowrap">{notificationTarget === 'all' ? 'Broadcast' : 'Directo'}</span>
                     </button>
                 </div>
             </div>

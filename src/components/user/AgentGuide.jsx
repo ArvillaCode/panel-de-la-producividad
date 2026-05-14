@@ -120,7 +120,7 @@ const AgentGuide = () => {
       // 3. Configurar Google Gemini (SDK)
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-1.5-flash-latest",
         generationConfig: {
           temperature: 0.1,
           maxOutputTokens: 500,
@@ -184,7 +184,7 @@ const AgentGuide = () => {
     } catch (error) {
       console.error('[GUIDE] Error crítico de conexión:', error.message);
       
-      let userErrorMsg = '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme, por favor.';
+      let userErrorMsg = '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme.';
       if (error.message === 'TIMEOUT') {
         userErrorMsg = 'El sistema está tardando demasiado en responder. Por favor, inténtalo de nuevo en unos segundos.';
       } else if (error.message.includes('API key not valid')) {
