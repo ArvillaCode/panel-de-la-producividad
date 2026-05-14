@@ -17,6 +17,7 @@ const AgentGuide = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('Usuario');
+  const [isEnabled, setIsEnabled] = useState(true);
   const messagesEndRef = useRef(null);
 
   const { modalRef } = useCloseModal(isOpen, () => setIsOpen(false));
@@ -56,6 +57,29 @@ const AgentGuide = () => {
       }
     }
   }, [profile, isAuthenticated, user]);
+  
+  // Verificar si el asistente está activado globalmente
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_config')
+          .select('ai_assistant_enabled')
+          .eq('id', 1)
+          .maybeSingle();
+        
+        if (!error && data) {
+          setIsEnabled(data.ai_assistant_enabled !== false);
+        }
+      } catch (err) {
+        console.warn('[GUIDE] Error checking AI status:', err);
+      }
+    };
+    
+    if (isAuthenticated) {
+      checkStatus();
+    }
+  }, [isAuthenticated]);
 
   // Guardar en sessionStorage cada vez que cambien los mensajes
   useEffect(() => {
@@ -117,15 +141,19 @@ const AgentGuide = () => {
         return;
       }
 
-      // 3. Configurar Google Gemini (SDK)
+      // 3. Configurar Google Gemini (SDK) - Forzando v1 explícitamente
+      // 3. Configurar Google Gemini (SDK) - Forzando v1 en la petición (v0.24.1+)
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash-latest",
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 500,
-        }
-      });
+      const model = genAI.getGenerativeModel(
+        { 
+          model: "gemini-1.5-flash",
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 500,
+          }
+        },
+        { apiVersion: 'v1' }
+      );
 
       const systemInstruction = `
         Eres el Asistente de Upfunnel y del Panel de la Productividad. Te estás dirigiendo a ${userName}.
@@ -182,7 +210,16 @@ const AgentGuide = () => {
       }
 
     } catch (error) {
-      console.error('[GUIDE] Error crítico de conexión:', error.message);
+      console.error('[GUIDE] Error crítico de conexión:', error);
+      // Intentar extraer más información del error si es posible
+      if (error.response) {
+        try {
+          const errorDetails = await error.response.json();
+          console.error('[GUIDE] Detalles técnicos de Google:', errorDetails);
+        } catch (e) {
+          console.error('[GUIDE] No se pudo parsear el detalle del error');
+        }
+      }
       
       let userErrorMsg = '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme.';
       if (error.message === 'TIMEOUT') {
@@ -222,6 +259,9 @@ const AgentGuide = () => {
       return <span key={index}>{part}</span>;
     });
   };
+
+  // No mostrar si está desactivado globalmente
+  if (!isEnabled) return null;
 
   return (
     <>

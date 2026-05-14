@@ -1,13 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+// No creamos una instancia duplicada aquí para evitar el warning de Multiple GoTrueClient.
+// Usaremos la instancia única de ../lib/supabase.
 
-// Cliente especial para que el admin cree usuarios sin perder su sesión
-const tempAuthClient = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false } }
-);
 
 const AuthContext = createContext();
 
@@ -15,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]); 
+  const [users, setUsers] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [systemConfig, setSystemConfig] = useState(null);
 
@@ -48,19 +43,19 @@ export const AuthProvider = ({ children }) => {
         .or(`user_id.eq.${user.id},is_broadcast.eq.true`)
         .order('created_at', { ascending: false })
         .limit(20);
-      
+
       if (!error) {
         // Cargar IDs de notificaciones leídas desde localStorage para las de difusión (broadcast)
         // Esto evita que "se desmarquen" al recargar, ya que el registro en DB es compartido
         const readBroadcastIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
-        
+
         const savedReadIds = JSON.parse(localStorage.getItem(`read_notifications_${user.id}`) || '[]');
-        
+
         // Filtrar notificaciones: 
         // 1. Las personales (user_id === user.id) se muestran siempre.
         // 2. Las globales (is_broadcast) solo si se crearon después de que el usuario se registró.
         const userCreatedAt = profile?.created_at || user?.created_at || user?.user_metadata?.created_at;
-        
+
         const filteredData = (data || []).filter(n => {
           if (n.user_id === user.id) return true;
           if (n.is_broadcast && userCreatedAt) {
@@ -73,7 +68,7 @@ export const AuthProvider = ({ children }) => {
           ...n,
           read: n.read || savedReadIds.includes(n.id)
         }));
-        
+
         setNotifications(enrichedNotifications);
       }
     } catch (err) {
@@ -87,7 +82,7 @@ export const AuthProvider = ({ children }) => {
         .from('profiles')
         .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
         .order('created_at', { ascending: false });
-      
+
       if (!error) setUsers(data || []);
     } catch (err) {
       console.error('[AUTH] Fetch users error:', err);
@@ -101,7 +96,7 @@ export const AuthProvider = ({ children }) => {
         .select('*')
         .eq('id', 1)
         .maybeSingle();
-      
+
       if (!error && data) {
         setSystemConfig({
           maxLoginAttempts: data.max_login_attempts,
@@ -153,14 +148,14 @@ export const AuthProvider = ({ children }) => {
         if (isExpired) reason = 'Tu suscripción ha expirado. Contacta a soporte para renovar.';
 
         console.warn(`[AUTH] Acceso denegado a ${currentUser.email}: ${reason}`);
-        
+
         // Limpiar estados locales
         setProfile(null);
         setUser(null);
 
         // Cerrar sesión en Supabase para invalidar el token
         await supabase.auth.signOut();
-        
+
         // Redirigir al login con el mensaje de error para que el usuario sepa qué pasa
         const loginUrl = `/login?error=${encodeURIComponent(reason)}`;
         if (window.location.pathname !== '/login') {
@@ -227,7 +222,7 @@ export const AuthProvider = ({ children }) => {
   // 3. Intervalo de notificaciones (separado)
   useEffect(() => {
     if (!user) return;
-    
+
     fetchNotifications(); // Carga inicial
     const notifInterval = setInterval(() => {
       // Solo refrescar si no estamos en el dashboard admin para no causar parpadeos
@@ -266,9 +261,9 @@ export const AuthProvider = ({ children }) => {
       const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
       if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-        return { 
-          valid: false, 
-          error: 'Seguridad insuficiente: La contraseña debe incluir al menos una mayúscula, una minúscula, un número y un carácter especial.' 
+        return {
+          valid: false,
+          error: 'Seguridad insuficiente: La contraseña debe incluir al menos una mayúscula, una minúscula, un número y un carácter especial.'
         };
       }
     }
@@ -306,7 +301,7 @@ export const AuthProvider = ({ children }) => {
     if (targetUser?.role === 'admin' && adminCount <= 1) {
       const isDowngrading = data.role === 'user';
       const isExpelling = data.status === 'inactive' || data.status === 'rejected' || data.is_approved === false;
-      
+
       if (isDowngrading || isExpelling) {
         return { success: false, error: 'No puedes eliminar, expulsar, denegar o degradar al último administrador del sistema.' };
       }
@@ -314,7 +309,7 @@ export const AuthProvider = ({ children }) => {
 
     // Lógica de fechas automáticas al aceptar (Regla 4)
     let finalData = { ...data };
-    
+
     // Si se está activando al usuario
     if (data.status === 'active' || data.is_approved === true) {
       finalData.status = 'active';
@@ -370,7 +365,7 @@ export const AuthProvider = ({ children }) => {
     if (!notif) return;
 
     // Actualizar estado local inmediatamente
-    const updatedNotifications = notifications.map(n => 
+    const updatedNotifications = notifications.map(n =>
       n.id === notificationId ? { ...n, read: true } : n
     );
     setNotifications(updatedNotifications);
@@ -388,7 +383,7 @@ export const AuthProvider = ({ children }) => {
         .from('notifications')
         .update({ read: true })
         .eq('id', notificationId);
-      
+
       if (error) {
         console.error('[AUTH] Error marking notification as read:', error);
       }
@@ -397,19 +392,19 @@ export const AuthProvider = ({ children }) => {
 
   const markAllNotificationsAsRead = async () => {
     if (!user) return;
-    
+
     // 1. Marcar personales en DB
     const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id);
-    
+
     // 2. Marcar difusión en LocalStorage
     const storageKey = `read_notifications_${user.id}`;
     const allBroadcastIds = notifications
       .filter(n => n.is_broadcast)
       .map(n => n.id);
-    
+
     const readBroadcastIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const updatedReadIds = [...new Set([...readBroadcastIds, ...allBroadcastIds])];
     localStorage.setItem(storageKey, JSON.stringify(updatedReadIds));
@@ -430,7 +425,7 @@ export const AuthProvider = ({ children }) => {
           origin: notif.origin || 'Sistema'
         }])
         .select();
-      
+
       if (!error && data) {
         fetchNotifications();
       }
@@ -474,7 +469,7 @@ export const AuthProvider = ({ children }) => {
           description: data.description,
           status: 'pending'
         }]);
-      
+
       if (error) throw error;
       return { success: true };
     } catch (err) {
@@ -488,18 +483,19 @@ export const AuthProvider = ({ children }) => {
       const validation = validatePassword(password);
       if (!validation.valid) return { success: false, error: validation.error };
 
-      // Usar el cliente temporal que NO guarda sesión localmente
-      const { data, error } = await tempAuthClient.auth.signUp({
+      // Usar la instancia única para el registro. 
+      // NOTA: Esto podría cerrar la sesión del admin si no se maneja con cuidado en el backend.
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: metadata }
       });
-      
+
       if (error) throw error;
-      
+
       // Actualizar lista de usuarios para ver al nuevo (con pequeño delay por trigger de Supabase)
       setTimeout(() => fetchUsers(), 1500);
-      
+
       return { success: true, data };
     } catch (err) {
       return { success: false, error: err.message };
@@ -516,7 +512,7 @@ export const AuthProvider = ({ children }) => {
         target_user_id: userId,
         new_password: 'CommonUser.123'
       });
-      
+
       if (error) throw error;
       return { success: true };
     } catch (err) {

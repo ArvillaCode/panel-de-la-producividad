@@ -11,12 +11,19 @@
     "announce": "node scripts/announce_updates.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.11.1",
-    "@supabase/supabase-js": "^2.105.3",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/supabase-js": "^2.105.4",
+    "@types/node": "^25.7.0",
+    "@types/pg": "^8.20.0",
+    "dotenv": "^17.4.2",
     "lucide-react": "^0.263.1",
+    "pg": "^8.20.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.9.2"
+    "react-router-dom": "^7.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

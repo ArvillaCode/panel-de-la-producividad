@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { X, User, Lock, Moon, Sun, Globe, Check, AlertCircle, Camera, Shield, Upload } from 'lucide-react';
+import { X, User, Lock, Moon, Sun, Globe, Check, AlertCircle, Camera, Shield, Upload, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
 const SettingsModal = ({ onClose }) => {
-  const { user, profile, updateUser, changePassword, actionLoading } = useAuth();
+  const { user, profile, updateUser, changePassword } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
   
   const [activeTab, setActiveTab] = useState('perfil');
@@ -14,13 +14,33 @@ const SettingsModal = ({ onClose }) => {
     avatar: profile?.avatar_url || '',
     timezone: profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   });
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [tzSearch, setTzSearch] = useState('');
-  const timezones = Intl.supportedValuesOf('timeZone');
-  const filteredTz = timezones.filter(tz => tz.toLowerCase().includes(tzSearch.toLowerCase()));
+  const [isTzOpen, setIsTzOpen] = useState(false);
+  
+  // Función para normalizar texto (quitar acentos y pasar a minúsculas)
+  const normalize = (str) => 
+    (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const timezones = typeof Intl !== 'undefined' && Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [];
+  const filteredTz = timezones.filter(tz => {
+    const search = normalize(tzSearch);
+    return normalize(tz).includes(search) || tz.toLowerCase().includes(tzSearch.toLowerCase());
+  });
 
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
+
+  // Auto-dismiss messages
+  React.useEffect(() => {
+    if (message.text) {
+      const timer = setTimeout(() => {
+        setMessage({ text: '', type: '' });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const tabs = [
     { id: 'perfil', label: 'Perfil', icon: User },
@@ -47,11 +67,17 @@ const SettingsModal = ({ onClose }) => {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { data, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Supabase Storage Error:', uploadError);
+        throw new Error(uploadError.message || 'Error en la subida');
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
@@ -60,8 +86,8 @@ const SettingsModal = ({ onClose }) => {
       setProfileData({ ...profileData, avatar: publicUrl });
       setMessage({ text: '¡Imagen cargada! Haz clic en "Guardar Perfil" para aplicar.', type: 'success' });
     } catch (err) {
-      console.error('Error uploading avatar:', err);
-      setMessage({ text: 'Error al subir la imagen', type: 'error' });
+      console.error('Error detailed:', err);
+      setMessage({ text: `Error: ${err.message || 'No se pudo subir la imagen'}`, type: 'error' });
     } finally {
       setUploadingAvatar(false);
     }
@@ -69,11 +95,13 @@ const SettingsModal = ({ onClose }) => {
 
   const handleSaveProfile = async () => {
     setMessage({ text: '', type: '' });
+    setIsSaving(true);
     const result = await updateUser({
       name: profileData.name,
       avatar_url: profileData.avatar,
       timezone: profileData.timezone
     });
+    setIsSaving(false);
     if (result.success) {
       setMessage({ text: 'Perfil actualizado correctamente', type: 'success' });
     } else {
@@ -137,11 +165,19 @@ const SettingsModal = ({ onClose }) => {
           {/* Content Area */}
           <div className="flex-1 p-8 overflow-y-auto">
             {message.text && (
-              <div className={`mb-6 p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2 ${
+              <div className={`mb-6 p-4 rounded-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top-2 ${
                 message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
               }`}>
-                {message.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                <p className="text-sm font-bold">{message.text}</p>
+                <div className="flex items-center gap-3">
+                  {message.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                  <p className="text-sm font-bold">{message.text}</p>
+                </div>
+                <button 
+                  onClick={() => setMessage({ text: '', type: '' })}
+                  className="p-1 hover:bg-black/5 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4 opacity-50" />
+                </button>
               </div>
             )}
 
@@ -183,10 +219,10 @@ const SettingsModal = ({ onClose }) => {
                   </div>
                   <button 
                     onClick={handleSaveProfile}
-                    disabled={actionLoading || uploadingAvatar}
+                    disabled={isSaving || uploadingAvatar}
                     className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                   >
-                    {actionLoading ? 'Guardando...' : 'GUARDAR CAMBIOS'}
+                    {isSaving ? 'Guardando...' : 'GUARDAR CAMBIOS'}
                   </button>
                 </div>
               </div>
@@ -236,81 +272,108 @@ const SettingsModal = ({ onClose }) => {
 
             {activeTab === 'apariencia' && (
               <div className="space-y-6">
-                <div className="p-6 rounded-3xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-gray-800 dark:text-white">Modo Oscuro</h4>
-                      <p className="text-sm text-gray-500">Cambia entre el tema claro y oscuro</p>
-                    </div>
-                    <button 
-                      onClick={toggleTheme}
-                      className={`w-16 h-8 rounded-full transition-all relative ${isDark ? 'bg-blue-600' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-sm transition-all ${isDark ? 'left-9' : 'left-1'}`} />
-                    </button>
-                  </div>
-                </div>
-                
                 <div className="grid grid-cols-2 gap-4">
                   <button 
                     onClick={() => !isDark && toggleTheme()}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${isDark ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-transparent bg-gray-100 dark:bg-gray-900'}`}
+                    className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 ${isDark ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-transparent bg-gray-100 dark:bg-gray-900'}`}
                   >
                     <Moon className={`w-8 h-8 ${isDark ? 'text-blue-500' : 'text-gray-400'}`} />
-                    <span className="text-xs font-bold">Oscuro</span>
+                    <span className="text-sm font-bold">Modo Oscuro</span>
                   </button>
                   <button 
                     onClick={() => isDark && toggleTheme()}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${!isDark ? 'border-blue-600 bg-blue-50' : 'border-transparent bg-gray-100 dark:bg-gray-900'}`}
+                    className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 ${!isDark ? 'border-blue-600 bg-blue-50' : 'border-transparent bg-gray-100 dark:bg-gray-900'}`}
                   >
                     <Sun className={`w-8 h-8 ${!isDark ? 'text-amber-500' : 'text-gray-400'}`} />
-                    <span className="text-xs font-bold">Claro</span>
+                    <span className="text-sm font-bold">Modo Claro</span>
                   </button>
                 </div>
+                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                  La interfaz se adapta automáticamente a tu preferencia de brillo.
+                </p>
               </div>
             )}
 
             {activeTab === 'idioma' && (
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Buscar Zona Horaria</label>
-                  <div className="relative mb-4">
-                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input 
-                      type="text"
-                      placeholder="Ej: Mexico, Madrid, Bogota..."
-                      value={tzSearch}
-                      onChange={e => setTzSearch(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
-                    />
-                  </div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2 text-center md:text-left">Zona Horaria Configurada</label>
                   
-                  <div className="max-h-[200px] overflow-y-auto pr-2 space-y-1 scrollbar-thin">
-                    {filteredTz.map(tz => (
-                      <button
-                        key={tz}
-                        onClick={() => setProfileData({...profileData, timezone: tz})}
-                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all ${
-                          profileData.timezone === tz 
-                            ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20' 
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                        }`}
-                      >
-                        {tz.replace(/_/g, ' ')}
-                      </button>
-                    ))}
-                    {filteredTz.length === 0 && (
-                      <p className="text-center py-4 text-xs text-gray-500">No se encontraron resultados</p>
-                    )}
+                  {/* Visualización de Zona Actual */}
+                  <div 
+                    onClick={() => setIsTzOpen(!isTzOpen)}
+                    className="w-full p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-100 dark:border-blue-900/30 flex items-center justify-between cursor-pointer hover:border-blue-400 transition-all group mb-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-600/20">
+                        <Globe className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Activa Ahora</p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-white">
+                          {profileData.timezone.replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className={`transition-transform duration-300 ${isTzOpen ? 'rotate-180' : ''}`}>
+                      <ChevronRight className="w-5 h-5 text-blue-400 rotate-90" />
+                    </div>
                   </div>
-                  <p className="mt-3 text-xs text-gray-500 italic">Esto ajustará cómo se muestran las fechas y horas en tus registros.</p>
+
+                  {/* Panel Desplegable de Selección */}
+                  {isTzOpen && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
+                      <div className="relative">
+                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input 
+                          type="text"
+                          placeholder="Buscar otra zona (Ej: Mexico, Madrid...)"
+                          value={tzSearch}
+                          onChange={e => setTzSearch(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      
+                      <div className="max-h-[180px] overflow-y-auto pr-2 space-y-1 scrollbar-thin border-t border-gray-50 dark:border-white/5 pt-2">
+                        {filteredTz.map(tz => (
+                          <button
+                            key={tz}
+                            type="button"
+                            onClick={() => {
+                              setProfileData(prev => ({ ...prev, timezone: tz }));
+                              setTzSearch('');
+                              setIsTzOpen(false); // Colapsar al seleccionar
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all ${
+                              profileData.timezone === tz 
+                                ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20' 
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                            }`}
+                          >
+                            <span className="truncate">{tz.replace(/_/g, ' ')}</span>
+                            {profileData.timezone === tz && (
+                              <Check className="w-4 h-4" />
+                            )}
+                          </button>
+                        ))}
+                        {filteredTz.length === 0 && (
+                          <p className="text-center py-4 text-xs text-gray-500">No se encontraron resultados</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="mt-4 text-[10px] text-gray-400 italic text-center leading-relaxed">
+                    Afecta la visualización de fechas en registros de actividad y reportes.
+                  </p>
                 </div>
+
                 <button 
                   onClick={handleSaveProfile}
-                  disabled={actionLoading}
+                  disabled={isSaving || uploadingAvatar}
                   className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                 >
-                  {actionLoading ? 'Guardando...' : 'GUARDAR ZONA HORARIA'}
+                  {isSaving ? 'Guardando...' : 'CONFIRMAR CAMBIO'}
                 </button>
               </div>
             )}

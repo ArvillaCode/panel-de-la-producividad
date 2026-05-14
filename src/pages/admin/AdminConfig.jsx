@@ -13,7 +13,8 @@ import {
   AlertTriangle,
   X,
   ChevronDown,
-  Search 
+  Search,
+  Bot
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useTheme } from '../../hooks/useTheme';
@@ -152,7 +153,8 @@ const AdminConfig = () => {
     allowUserThemeChange: true,
     maintenanceMode: false,
     debugMode: false,
-    logLevel: 'info'
+    logLevel: 'info',
+    aiAssistantEnabled: true
   });
 
   const [originalConfig, setOriginalConfig] = useState({});
@@ -188,7 +190,8 @@ const AdminConfig = () => {
           userRegistrationNotify: data.user_registration_notify, backupFrequency: data.backup_frequency,
           retentionDays: data.retention_days, autoBackup: data.auto_backup, defaultTheme: data.default_theme,
           allowUserThemeChange: data.allow_user_theme_change, maintenanceMode: data.maintenance_mode,
-          debugMode: data.debug_mode, logLevel: data.log_level
+          debugMode: data.debug_mode, logLevel: data.log_level,
+          aiAssistantEnabled: data.ai_assistant_enabled !== false // Default to true
         };
         setConfig(mapped); setOriginalConfig(mapped);
       }
@@ -224,6 +227,7 @@ const AdminConfig = () => {
         maintenance_mode: config.maintenanceMode,
         debug_mode: config.debugMode,
         log_level: config.logLevel,
+        ai_assistant_enabled: config.aiAssistantEnabled,
         updated_at: new Date().toISOString()
       };
 
@@ -317,6 +321,15 @@ const AdminConfig = () => {
           <ConfigSection title="Base de Datos" icon={Database}>
             <SelectField label="Respaldo" value={config.backupFrequency} onChange={(val) => handleConfigChange('backupFrequency', val)} options={[{value: 'daily', label: 'Diario'}, {value: 'weekly', label: 'Semanal'}]} />
             <InputField label="Retención (días)" type="number" value={config.retentionDays} onChange={(val) => handleConfigChange('retentionDays', parseInt(val, 10))} />
+          </ConfigSection>
+          
+          <ConfigSection title="Inteligencia Artificial" icon={Bot}>
+            <ToggleField 
+              label="Asistente Gemini" 
+              value={config.aiAssistantEnabled} 
+              onChange={(val) => handleConfigChange('aiAssistantEnabled', val)}
+              description="Activa o desactiva el asistente de IA (Matchmaker) en el panel de usuarios."
+            />
           </ConfigSection>
         </div>
       </div>
