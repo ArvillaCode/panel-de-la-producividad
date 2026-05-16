@@ -18,121 +18,109 @@ import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
 import Policies from './pages/Policies';
 import Privacy from './pages/Privacy';
 import Support from './pages/Support';
+import WaitingApproval from './pages/WaitingApproval';
+import AdminBanners from './pages/admin/AdminBanners';
+import GlobalBanner from './components/user/GlobalBanner';
+import PWAInstallPrompt from './components/user/PWAInstallPrompt';
 import AcademiaPage from './app/dashboard/academia/page';
 import LessonCreator from './app/dashboard/academia/admin/page';
 import './App.css';
 
-// Componente para rutas protegidas
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center gap-8">
-        <div className="premium-spinner"></div>
-        <div className="text-center space-y-4">
-          <p className="text-blue-400/80 font-bold tracking-widest uppercase text-xs animate-pulse">Sincronizando Acceso Seguro</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
-  
-  return children;
-};
-
-const Home = () => {
-  const { isAuthenticated, loading } = useAuth();
-  const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center gap-8">
-        <div className="premium-spinner"></div>
-      </div>
-    );
-  }
-  
-  // Si estamos en el dominio de la landing, siempre mostramos la landing
-  if (!isAppDomain) return <LandingPage />;
-  
-  // Si estamos en el dominio de la app, mostramos el panel si está autenticado, o el login si no lo está
-  return isAuthenticated ? <AgentPanel /> : <AdminLogin />;
-};
-
-// Componente para restringir acceso según el dominio
+// 1. Componente de Restricción de Dominio (Restaurado)
 const DomainRestrictedRoute = ({ children, appOnly = false }) => {
   const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
-  
-  if (appOnly && !isAppDomain) {
-    return <Navigate to="/" replace />;
-  }
-  
+  if (appOnly && !isAppDomain) return <Navigate to="/" replace />;
   return children;
+};
+
+// 2. Componente de Rutas Protegidas (Optimizado)
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { isAuthenticated, isAdmin, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center">
+        <div className="premium-spinner"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  if (!isAdmin && profile && !profile.is_approved) {
+    if (window.location.pathname !== '/dashboard/espera-aprobacion') {
+      return <Navigate to="/dashboard/espera-aprobacion" replace />;
+    }
+  }
+
+  if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  return children;
+};
+
+// 3. Componente Home (Selector Landing/App)
+const Home = () => {
+  const { isAuthenticated, profile, isAdmin, loading } = useAuth();
+  const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
+
+  if (loading) return <div className="min-h-screen bg-[#020203] flex items-center justify-center"><div className="premium-spinner"></div></div>;
+  if (!isAppDomain) return <LandingPage />;
+
+  if (isAuthenticated) {
+    if (!isAdmin && profile && !profile.is_approved) return <Navigate to="/dashboard/espera-aprobacion" replace />;
+    return <AgentPanel />;
+  }
+
+  return <AdminLogin />;
 };
 
 function App() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <ThemeProvider>
       <ToastProvider>
         <Router>
-          <div className="App min-h-screen w-full relative z-0 pointer-events-auto">
-            <ReleaseAutoNotification />
+          <div className="App min-h-screen w-full pointer-events-auto">
+            {/* Todas las capas globales solo se activan si hay sesión */}
+            {isAuthenticated && (
+              <>
+                <ReleaseAutoNotification />
+                <GlobalBanner />
+                <PWAInstallPrompt />
+              </>
+            )}
+
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/coming-soon" element={<ComingSoon />} />
-              <Route 
-                path="/login" 
-                element={<DomainRestrictedRoute appOnly={true}><AdminLogin /></DomainRestrictedRoute>} 
-              />
-
-              {/* Rutas administrativas protegidas */}
-              <Route 
-                path="/admin/dashboard" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              <Route 
-                path="/admin/users" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              <Route 
-                path="/admin/agents" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              <Route 
-                path="/admin/config" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              <Route 
-                path="/admin/releases" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              <Route 
-                path="/admin/logs" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
+              <Route path="/login" element={<DomainRestrictedRoute appOnly={true}><AdminLogin /></DomainRestrictedRoute>} />
               
+              <Route path="/dashboard/espera-aprobacion" element={
+                <DomainRestrictedRoute appOnly={true}>
+                  <ProtectedRoute><WaitingApproval /></ProtectedRoute>
+                </DomainRestrictedRoute>
+              } />
+
+              {/* Rutas Admin */}
+              <Route path="/admin/dashboard" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/users" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/agents" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/releases" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/logs" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/banners" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminBanners /></ProtectedRoute></DomainRestrictedRoute>} />
+
+              {/* Páginas de Información */}
               <Route path="/novedades" element={<ReleaseHistory />} />
               <Route path="/politicas" element={<Policies />} />
               <Route path="/privacidad" element={<Privacy />} />
               <Route path="/soporte" element={<Support />} />
-              
-              {/* Rutas de Academia */}
-              <Route 
-                path="/dashboard/academia" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute><AcademiaPage /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              <Route 
-                path="/dashboard/academia/admin" 
-                element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><LessonCreator /></ProtectedRoute></DomainRestrictedRoute>} 
-              />
-              
-              {/* Redirect /admin a /admin/dashboard */}
+
+              {/* Academia */}
+              <Route path="/dashboard/academia" element={<ProtectedRoute><AcademiaPage /></ProtectedRoute>} />
+              <Route path="/dashboard/academia/admin" element={<ProtectedRoute adminOnly={true}><LessonCreator /></ProtectedRoute>} />
+
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-              
-              {/* Ruta catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>

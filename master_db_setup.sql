@@ -139,12 +139,30 @@ CREATE TRIGGER on_profile_created_subscription
     FOR EACH ROW
     EXECUTE FUNCTION set_subscription_dates();
 
--- 8. RPC PARA RESET DE CONTRASEÑA (REQUERIDO POR EL PANEL ADMIN)
+-- 8. RPC PARA RESET DE CONTRASEÑA (solo admins autenticados)
 CREATE OR REPLACE FUNCTION reset_user_password(target_user_id UUID, new_password TEXT)
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
 BEGIN
-    UPDATE auth.users 
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'No autenticado';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+    ) THEN
+        RAISE EXCEPTION 'Solo administradores pueden resetear contraseñas';
+    END IF;
+
+    IF new_password IS NULL OR length(new_password) < 8 THEN
+        RAISE EXCEPTION 'La contraseña debe tener al menos 8 caracteres';
+    END IF;
+
+    UPDATE auth.users
     SET encrypted_password = crypt(new_password, gen_salt('bf'))
     WHERE id = target_user_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;

@@ -1,49 +1,52 @@
 import fs from 'fs';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { agents } from './src/data/agents.js';
 
-// Leer credenciales de .env.local manualmente
-const envContent = fs.readFileSync('.env.local', 'utf-8');
-const envUrlMatch = envContent.match(/VITE_SUPABASE_URL=(.*)/);
-const envKeyMatch = envContent.match(/VITE_SUPABASE_ANON_KEY=(.*)/);
+dotenv.config({ path: '.env.local' });
 
-const supabaseUrl = envUrlMatch ? envUrlMatch[1].trim() : null;
-const supabaseAnonKey = envKeyMatch ? envKeyMatch[1].trim() : null;
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const adminEmail = process.env.UPLOAD_SCRIPT_ADMIN_EMAIL;
+const adminPassword = process.env.UPLOAD_SCRIPT_ADMIN_PASSWORD;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("No se encontraron las credenciales en .env.local");
+  console.error('Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en .env.local');
+  process.exit(1);
+}
+
+if (!adminEmail || !adminPassword) {
+  console.error('Define UPLOAD_SCRIPT_ADMIN_EMAIL y UPLOAD_SCRIPT_ADMIN_PASSWORD en .env.local');
+  console.error('Usa una cuenta admin real de Supabase (nunca subas esas credenciales a Git).');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function uploadAgents() {
-  console.log('🚀 Iniciando subida de 50 agentes a Supabase...');
-  
-  // Iniciar sesión para poder insertar datos (pasar las políticas RLS)
+  console.log('🚀 Iniciando subida de agentes a Supabase...');
+
   const { error: authError } = await supabase.auth.signInWithPassword({
-    email: 'admin@admin.com',
-    password: 'admin123'
+    email: adminEmail,
+    password: adminPassword
   });
 
   if (authError) {
-    console.error('❌ No se pudo iniciar sesión como admin. Revisa el correo/contraseña.', authError.message);
-    return;
+    console.error('❌ No se pudo iniciar sesión como admin:', authError.message);
+    process.exit(1);
   }
-  
-  console.log('🔓 Sesión iniciada con éxito. Subiendo datos...');
 
-  // Limpiar la tabla antes de insertar por si se corre múltiples veces
-  // Primero revisamos si hay datos
+  console.log('🔓 Sesión iniciada. Subiendo datos...');
+
   const { data: existingData } = await supabase.from('agents').select('id');
   if (existingData && existingData.length > 0) {
-    console.log(`⚠️ Se encontraron ${existingData.length} agentes. No los subiremos de nuevo para evitar duplicados.`);
+    console.log(`⚠️ Se encontraron ${existingData.length} agentes. No se insertan duplicados.`);
     return;
   }
 
   for (const agent of agents) {
     const { error } = await supabase.from('agents').insert({
-      id: agent.id, // Mantenemos los IDs para que las URL sigan funcionando
+      id: agent.id,
       name: agent.name,
       specialty: agent.specialty,
       description: agent.description,
@@ -54,12 +57,13 @@ async function uploadAgents() {
     });
 
     if (error) {
-      console.error(`❌ Error subiendo el agente ${agent.name}:`, error.message);
+      console.error(`❌ Error subiendo ${agent.name}:`, error.message);
     } else {
       console.log(`✅ Agente subido: ${agent.name}`);
     }
   }
-  console.log('🎉 ¡Migración de agentes completada exitosamente!');
+
+  console.log('🎉 Migración completada.');
 }
 
 uploadAgents();

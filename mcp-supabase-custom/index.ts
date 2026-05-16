@@ -2,10 +2,20 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import pkg from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 const { Client } = pkg;
 
-// URL Directa para evitar errores de codificación en archivos .env
-const DB_URL = "postgresql://postgres:DF61HdWAVEzuqgUM@db.krtthtzljlyewlngaklo.supabase.co:5432/postgres";
+const DB_URL = process.env.SUPABASE_DB_URL;
+
+if (!DB_URL) {
+  console.error(
+    "[MCP] Falta SUPABASE_DB_URL. Copia mcp-supabase-custom/.env.example a .env y define la URL de Postgres."
+  );
+  process.exit(1);
+}
 
 const server = new Server(
     { name: "supabase-direct", version: "1.0.0" },

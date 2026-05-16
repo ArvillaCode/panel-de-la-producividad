@@ -154,3 +154,50 @@
 .z-max {
   z-index: 9999;
 }
+
+/* Landing page */
+.landing-page {
+  color-scheme: dark;
+}
+
+.landing-page [id] {
+  scroll-margin-top: 6rem;
+}
+
+html:has(.landing-page) {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.landing-page) {
+    scroll-behavior: auto;
+  }
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-logo-marquee {
+    display: flex;
+    width: max-content;
+    animation: landing-marquee 55s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-logo-marquee {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.5rem;
+    width: 100%;
+    white-space: normal;
+  }
+}

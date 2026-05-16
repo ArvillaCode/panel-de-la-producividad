@@ -262,10 +262,10 @@ const SettingsModal = ({ onClose }) => {
                 </div>
                 <button 
                   type="submit"
-                  disabled={actionLoading}
+                  disabled={isSaving}
                   className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                 >
-                  {actionLoading ? 'Actualizando...' : 'ACTUALIZAR CONTRASEÑA'}
+                  {isSaving ? 'Actualizando...' : 'ACTUALIZAR CONTRASEÑA'}
                 </button>
               </form>
             )}

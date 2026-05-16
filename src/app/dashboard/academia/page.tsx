@@ -2,47 +2,32 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase.js';
-import { useAuth } from '../../../hooks/useAuth';
+import { useAuth } from '../../../hooks/useAuth.jsx';
+import { 
+  PlayIcon, 
+  CheckCircleIcon, 
+  ChevronDownIcon, 
+  DownloadIcon,
+  Plus,
+  X,
+  Image as ImageIcon,
+  Save,
+  Trash2
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
 
-// --- ICONOS INLINE (SVG) ---
-// Usamos iconos nativos para no requerir dependencias externas (Lucide/Heroicons)
-const PlayIcon = ({ className = "w-5 h-5" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-  </svg>
-);
-
-const CheckCircleIcon = ({ className = "w-5 h-5" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-  </svg>
-);
-
-const ChevronDownIcon = ({ className = "w-5 h-5" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path fillRule="evenodd" d="M12.53 16.28a.75.75 0 01-1.06 0l-7.5-7.5a.75.75 0 011.06-1.06L12 14.69l6.97-6.97a.75.75 0 111.06 1.06l-7.5 7.5z" clipRule="evenodd" />
-  </svg>
-);
-
-const DownloadIcon = ({ className = "w-5 h-5" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v11.69l3.22-3.22a.75.75 0 111.06 1.06l-4.5 4.5a.75.75 0 01-1.06 0l-4.5-4.5a.75.75 0 111.06-1.06l3.22 3.22V3a.75.75 0 01.75-.75zm-9 13.5a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
-  </svg>
-);
-
-
-
-// --- TIPOS ---
+// --- INTERFACES ---
 interface Lesson {
   id: string;
   title: string;
   description: string;
   video_path: string;
-  is_completed?: boolean; // El "?" lo hace opcional por ahora
-  duration?: string;      // El "?" lo hace opcional por ahora
-  materiales?: { nombre: string; url: string }[]; // Cambiamos 'name' por 'nombre'
+  is_completed: boolean;
+  duration: string;
+  materiales?: any[];
+  is_visible: boolean;
+  thumbnail_url?: string;
 }
 
 interface Module {
@@ -51,121 +36,297 @@ interface Module {
   lessons: Lesson[];
 }
 
-// --- MOCK DATA (Simulando respuesta estructurada de Supabase) ---
-const mockModules: Module[] = [
-  {
-    id: "mod-1",
-    title: "Módulo 1: Fundamentos de la Plataforma",
-    lessons: [
-      {
-        id: "les-1",
-        title: "Bienvenida e Introducción",
-        description: "En este video te daremos un recorrido general sobre qué es Upfunne Academy y cómo sacar el máximo provecho de tu plataforma para aumentar la productividad de tu equipo.",
-        video_path: "videos/test.mp4", // Esta será la ruta que viene de DB (academy_lessons)
-        is_completed: true,
-        duration: "04:15",
-        materiales: [
-          { nombre: "Guía de inicio rápido (PDF)", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" }
-        ]
-      },
-      {
-        id: "les-2",
-        title: "Configuración Inicial del Perfil",
-        description: "Aprende a ajustar tus preferencias personales y a subir tu avatar utilizando nuestro sistema de almacenamiento seguro.",
-        video_path: "videos/test2.mp4",
-        is_completed: false,
-        duration: "08:30",
-        materiales: []
-      }
-    ]
-  },
-  {
-    id: "mod-2",
-    title: "Módulo 2: Herramientas Avanzadas",
-    lessons: [
-      {
-        id: "les-3",
-        title: "Gestión de Múltiples Tenants",
-        description: "Descubre la arquitectura de nuestra plataforma SaaS multi-tenant y cómo gestionar varios espacios de trabajo de manera eficiente y segura.",
-        video_path: "videos/test3.mp4",
-        is_completed: false,
-        duration: "12:45",
-        materiales: [
-          { nombre: "Diagrama de Arquitectura (PNG)", url: "https://via.placeholder.com/800x600.png?text=Diagrama+de+Arquitectura" },
-          { nombre: "Checklist de configuración (PDF)", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" }
-        ]
-      }
-    ]
-  }
-];
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  thumbnail_url: string;
+  category: string;
+  is_premium: boolean;
+}
 
 // --- CONSTANTES GLOBALES ---
-const CLOUDFLARE_WORKER_URL = "https://rough-silence-cf74.arvilladigital12.workers.dev/?key=";
+const CATEGORY_COLORS: Record<string, string> = {
+  "General": "bg-slate-500",
+  "Inteligencia Artificial": "bg-purple-600",
+  "Automatización": "bg-blue-600",
+  "Marketing": "bg-pink-600",
+  "Ventas": "bg-emerald-600",
+  "Estrategia": "bg-amber-600",
+  "Premium": "bg-gradient-to-r from-indigo-600 to-purple-600"
+};
 
+const ACADEMY_CATEGORIES = ["General", "Inteligencia Artificial", "Automatización", "Marketing", "Ventas", "Estrategia"];
 export default function AcademyDashboard() {
   // --- ESTADOS ---
+  const [view, setView] = useState<'courses' | 'lessons'>('courses');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
+  const [showOnlyPremium, setShowOnlyPremium] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { isAdmin } = useAuth();
+  
+  // --- MODO EDICIÓN ---
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editVideoPath, setEditVideoPath] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const location = window.location;
+
+  // --- ESTADOS CREACIÓN CURSO ---
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'new-course') {
+      setIsCourseModalOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+  const [courseForm, setCourseForm] = useState({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const uploadThumbnail = async (file: File) => {
+    try {
+      setUploadProgress(10);
+      const filename = await uploadToAcademyR2(file, 'courses');
+      setUploadProgress(100);
+      setCourseForm(prev => ({ ...prev, thumbnail_url: filename }));
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Error al subir miniatura");
+    } finally {
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  };
+
+  const handleCreateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseForm.title || !courseForm.description) return alert("Completa los campos");
+    
+    setIsCreatingCourse(true);
+    try {
+      // Generar slug automáticamente
+      const slug = courseForm.title
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      const { data, error } = await supabase
+        .from('academy_courses')
+        .insert([{ ...courseForm, slug }])
+        .select();
+
+      if (error) throw error;
+      
+      setCourses(prev => [...prev, data[0]]);
+      setIsCourseModalOpen(false);
+      setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General' });
+    } catch (error) {
+      console.error(error);
+      console.error("Error creating course:", error);
+      alert(`Error al crear curso: ${error.message || 'Error desconocido'}`);
+    } finally {
+      setIsCreatingCourse(false);
+    }
+  };
+
+  const handleDeleteCourse = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("¿Estás seguro de borrar este curso? Se eliminarán todos sus módulos y lecciones.")) return;
+    
+    try {
+      const { error } = await supabase.from('academy_courses').delete().eq('id', id);
+      if (error) throw error;
+      setCourses(courses.filter(c => c.id !== id));
+      if (selectedCourse?.id === id) {
+        setView('courses');
+        setSelectedCourse(null);
+      }
+    } catch (error) {
+      alert("Error al borrar curso");
+    }
+  };
+
+  const handleDeleteLesson = async (id: string, moduleId: string) => {
+    if (!confirm("¿Borrar esta lección?")) return;
+    
+    try {
+      const { error } = await supabase.from('academy_lessons').delete().eq('id', id);
+      if (error) throw error;
+      
+      setModules(prev => prev.map(mod => {
+        if (mod.id === moduleId) {
+          return { ...mod, lessons: mod.lessons.filter(l => l.id !== id) };
+        }
+        return mod;
+      }));
+      
+      if (activeLesson?.id === id) setActiveLesson(null);
+    } catch (error) {
+      alert("Error al borrar lección");
+    }
+  };
+
+  const handleDeleteModule = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("¿Borrar este módulo y todas sus lecciones?")) return;
+    
+    try {
+      const { error } = await supabase.from('academy_modules').delete().eq('id', id);
+      if (error) throw error;
+      setModules(prev => prev.filter(m => m.id !== id));
+    } catch (error) {
+      alert("Error al borrar módulo");
+    }
+  };
+
+  const handleUpdateLesson = async () => {
+    if (!activeLesson) return;
+    setIsSaving(true);
+    
+    try {
+      const { error } = await supabase
+        .from('academy_lessons')
+        .update({
+          title: editTitle,
+          description: editDescription,
+          video_path: editVideoPath
+        })
+        .eq('id', activeLesson.id);
+
+      if (error) throw error;
+      
+      // Actualizar estado local
+      setModules(prev => prev.map(mod => ({
+        ...mod,
+        lessons: mod.lessons.map(l => l.id === activeLesson.id ? { 
+          ...l, 
+          title: editTitle, 
+          description: editDescription, 
+          video_path: editVideoPath,
+          video_url: editVideoPath ? academyMediaUrl(editVideoPath) : ''
+        } : l)
+      })));
+      
+      setActiveLesson(prev => ({ 
+        ...prev, 
+        title: editTitle, 
+        description: editDescription, 
+        video_path: editVideoPath,
+        video_url: editVideoPath ? academyMediaUrl(editVideoPath) : ''
+      }));
+      
+      setIsEditMode(false);
+      alert("Lección actualizada correctamente.");
+    } catch (error) {
+      alert("Error al actualizar lección");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeLesson) {
+      setEditTitle(activeLesson.title || '');
+      setEditDescription(activeLesson.description || '');
+      setEditVideoPath(activeLesson.video_path || '');
+    }
+  }, [activeLesson]);
 
   // --- INTEGRACIÓN SUPABASE ---
   useEffect(() => {
-    const fetchAcademyData = async () => {
+    const fetchData = async () => {
       try {
-        // Fetch módulos y lecciones (usando joins de Supabase)
-        // Sin límites y con ordenación para asegurar los datos más frescos
-        let query = supabase
-          .from('academy_modules')
-          .select(`
-            id, title,
-            academy_lessons ( id, title, description, video_path, order_index, materiales, is_visible )
-          `);
-
-        // Si no es admin, filtramos solo los módulos visibles
-        if (!isAdmin) {
-          query = query.eq('is_visible', true);
+        setIsLoading(true);
+        
+        // 1. Fetch Cursos
+        const { data: coursesData, error: coursesError } = await supabase
+          .from('academy_courses')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (!coursesError && coursesData) {
+          setCourses(coursesData);
         }
 
-        const { data, error } = await query
-          .order('order_index', { ascending: true })
-          .order('order_index', { referencedTable: 'academy_lessons', ascending: true });
-        
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          // Formateamos los datos para que coincidan con las interfaces locales
-          const formattedModules = (data || []).map((mod: any) => ({
-            id: mod.id,
-            title: mod.title,
-            lessons: (mod.academy_lessons || [])
-              .filter((lesson: any) => isAdmin || lesson.is_visible !== false) // Admins ven todo, estudiantes solo visibles
-              .map((lesson: any) => ({
-                id: lesson.id,
-                title: lesson.title,
-                description: lesson.description,
-                video_path: lesson.video_path,
+        // Si hay un curso seleccionado, cargamos sus lecciones
+        if (selectedCourse) {
+          let query = supabase
+            .from('academy_modules')
+            .select(`
+              id, title,
+              academy_lessons ( id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url )
+            `)
+            .eq('course_id', selectedCourse.id);
+
+          if (!isAdmin) {
+            // Nota: Aquí se asume que los módulos también tienen visibilidad si es necesario, 
+            // pero filtramos principalmente lecciones por ahora.
+          }
+
+          const { data, error } = await query
+            .order('order_index', { ascending: true })
+            .order('order_index', { referencedTable: 'academy_lessons', ascending: true });
+          
+          if (!error && data) {
+            // Fusionar módulos por Título para no perder lecciones de duplicados
+            const modulesMap = new Map();
+            
+            data.forEach((mod: any) => {
+              const existing = modulesMap.get(mod.title);
+              const lessons = (mod.academy_lessons || []).map((lesson: any) => ({
+                ...lesson,
                 is_completed: false,
                 duration: "Video",
-                materiales: lesson.materiales || []
-              }))
-          }));
-          
-          setModules(formattedModules);
-          if (formattedModules[0].lessons.length > 0) {
-            setActiveLesson(formattedModules[0].lessons[0]);
+                video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
+                thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
+              }));
+
+              if (existing) {
+                existing.lessons = [...existing.lessons, ...lessons];
+              } else {
+                modulesMap.set(mod.title, {
+                  id: mod.id,
+                  title: mod.title,
+                  lessons: lessons
+                });
+              }
+            });
+
+            const formattedModules = Array.from(modulesMap.values()).map(mod => ({
+              ...mod,
+              lessons: mod.lessons.filter((l: any) => isAdmin || l.is_visible !== false)
+                .map((lesson: any) => ({
+                    ...lesson,
+                    video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
+                    thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
+                  }))
+            }));
+            
+            setModules(formattedModules);
+            if (formattedModules[0]?.lessons.length > 0) {
+              setActiveLesson(formattedModules[0].lessons[0]);
+              setExpandedModules({ [formattedModules[0].id]: true });
+            }
           }
-          setExpandedModules({ [formattedModules[0].id]: true });
         }
       } catch (error) {
-        console.error("Error cargando la academia:", error);
+        console.error("Error cargando datos:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchAcademyData();
-  }, []);
+    fetchData();
+  }, [selectedCourse, isAdmin]);
 
   // --- HANDLERS ---
   const toggleModule = (moduleId: string) => {
@@ -180,11 +341,6 @@ export default function AcademyDashboard() {
   };
 
   const markAsCompleted = () => {
-    // Aquí iría el update a Supabase:
-    // const supabase = createClientComponentClient();
-    // await supabase.from('academy_lesson_progress').upsert({ lesson_id: activeLesson.id, user_id: mi_usuario_id, is_completed: true })
-
-    // Actualización optimista del UI local:
     setModules(prev => (prev || []).map(mod => ({
       ...mod,
       lessons: (mod.lessons || []).map(les =>
@@ -194,9 +350,6 @@ export default function AcademyDashboard() {
     if (activeLesson) setActiveLesson(prev => prev ? ({ ...prev, is_completed: true }) : null);
   };
 
-  // Generación dinámica de la URL del video a través del Edge Worker de Cloudflare
-  const activeVideoUrl = activeLesson ? `${CLOUDFLARE_WORKER_URL}${activeLesson.video_path}` : '';
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 font-sans">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -204,11 +357,23 @@ export default function AcademyDashboard() {
         {/* HEADER */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Upfunne Academy
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm md:text-base">
-              Domina el Panel de la Productividad con nuestros recursos y cursos premium.
+            <div className="flex items-center gap-3 mb-2">
+              {view === 'lessons' && (
+                <button 
+                  onClick={() => { setView('courses'); setSelectedCourse(null); setModules([]); setActiveLesson(null); }}
+                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+              )}
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {view === 'courses' ? 'Upfunne Academy' : selectedCourse?.title}
+              </h1>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
+              {view === 'courses' 
+                ? 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.' 
+                : selectedCourse?.description}
             </p>
           </div>
           {isAdmin && (
@@ -220,224 +385,492 @@ export default function AcademyDashboard() {
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                 Dashboard Principal
               </Link>
+              
               <Link 
                 to="/dashboard/academia/admin"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
               >
-                <Plus className="w-4 h-4" />
-                Subir Lección
+                <Save className="w-4 h-4" />
+                Panel Admin
               </Link>
+
+              <button 
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></div>
+                {isEditMode ? 'Modo Edición Activo' : 'Modo Edición'}
+              </button>
+
+              <button 
+                onClick={() => setIsCourseModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+              >
+                <Plus className="w-4 h-4" />
+                Añadir Curso
+              </button>
             </div>
           )}
         </div>
 
-        {/* LAYOUT PRINCIPAL: Sidebar + Contenido */}
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* FILTROS POR CATEGORÍA */}
+        {view === 'courses' && (
+          <div className="mb-10 flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar">
+            <button
+              onClick={() => { setSelectedCategory('Todas'); setShowOnlyPremium(false); }}
+              className={`px-6 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
+                ${(selectedCategory === 'Todas' && !showOnlyPremium)
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                  : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-800 hover:border-blue-400'
+                }`}
+            >
+              Todas
+            </button>
 
-          {/* SIDEBAR (MÓDULOS Y LECCIONES) */}
-          <div className="w-full lg:w-[380px] shrink-0 order-2 lg:order-1 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-auto lg:h-[calc(100vh-8rem)] lg:sticky lg:top-8">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-              <h2 className="font-semibold text-slate-900 dark:text-white flex items-center justify-between">
-                Contenido del curso
-                <span className="text-xs font-normal text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-full">
-                  {(modules || []).reduce((acc, m) => acc + (m.lessons || []).length, 0)} lecciones
-                </span>
-              </h2>
-            </div>
+            <button
+              onClick={() => { setShowOnlyPremium(true); setSelectedCategory('Todas'); }}
+              className={`px-6 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2
+                ${showOnlyPremium 
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-600/20' 
+                  : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800'
+                }`}
+            >
+              <span>💎</span> Cursos Premium
+            </button>
 
-            <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
-              {(modules || []).map((module) => {
-                const isExpanded = expandedModules[module.id];
-                const moduleLessons = module.lessons || [];
-                const moduleLessonsCompleted = moduleLessons.filter(l => l.is_completed).length;
-                const progress = Math.round((moduleLessonsCompleted / moduleLessons.length) * 100) || 0;
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-2 shrink-0" />
 
-                return (
-                  <div key={module.id} className="mb-2">
-                    {/* Module Header (Accordion Toggle) */}
-                    <button
-                      onClick={() => toggleModule(module.id)}
-                      className="w-full flex flex-col p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
+            {ACADEMY_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => { setSelectedCategory(cat); setShowOnlyPremium(false); }}
+                className={`px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
+                  ${(selectedCategory === cat && !showOnlyPremium)
+                    ? `${CATEGORY_COLORS[cat] || 'bg-blue-600'} text-white shadow-lg` 
+                    : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-800 hover:border-blue-400'
+                  }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* VISTA DE CURSOS */}
+        {view === 'courses' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {(courses.length > 0 
+              ? courses.filter(c => {
+                  if (showOnlyPremium) return c.is_premium;
+                  return selectedCategory === 'Todas' || c.category === selectedCategory;
+                })
+              : [
+              { id: '1', title: 'Curso de Automatización', description: 'Aprende a automatizar tus flujos con IA.', thumbnail_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800', category: 'Automatización', is_premium: true },
+              { id: '2', title: 'Marketing con IA', description: 'Estrategias avanzadas de marketing digital.', thumbnail_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800', category: 'Marketing', is_premium: false },
+              { id: '3', title: 'Inteligencia Artificial', description: 'Fundamentos y aplicaciones de la IA moderna.', thumbnail_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800', category: 'Inteligencia Artificial', is_premium: true }
+            ].filter(c => {
+              if (showOnlyPremium) return c.is_premium;
+              return selectedCategory === 'Todas' || c.category === selectedCategory;
+            })).map((course) => (
+              <div 
+                key={course.id}
+                onClick={() => { setSelectedCourse(course); setView('lessons'); }}
+                className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2"
+              >
+                <div className="aspect-[16/9] relative overflow-hidden">
+                  <img 
+                    src={course.thumbnail_url?.startsWith('http') ? course.thumbnail_url : academyMediaUrl(course.thumbnail_url)} 
+                    alt={course.title}
+                    onError={(e) => {
+                      // Fallback elegante
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
+                    }}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
+                  <div className="absolute top-4 left-4">
+                    <span className={`px-3 py-1 ${CATEGORY_COLORS[course.category] || 'bg-slate-600'} backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg`}>
+                      {course.category || 'General'}
+                    </span>
+                  </div>
+
+                  {isAdmin && (
+                    <button 
+                      onClick={(e) => handleDeleteCourse(course.id, e)}
+                      className="absolute top-4 right-4 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-all z-10"
+                      title="Borrar Curso"
                     >
-                      <div className="flex items-center justify-between w-full mb-2">
-                        <span className="font-medium text-slate-900 dark:text-white text-sm pr-4">
-                          {module.title}
-                        </span>
-                        <ChevronDownIcon
-                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 w-full">
-                        <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                            style={{ width: `${progress}%` }}
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-blue-500 transition-colors">{course.title}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-2">{course.description}</p>
+                  <div className="mt-6 flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">Mastery Level</span>
+                    <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-sm">
+                      Entrar <Plus className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* LAYOUT DE LECCIONES */}
+        {view === 'lessons' && (
+          <div className="flex flex-col lg:flex-row gap-8 items-start animate-in fade-in duration-500">
+
+            {/* SIDEBAR */}
+            <div className="w-full lg:w-[380px] shrink-0 order-2 lg:order-1 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-auto lg:h-[calc(100vh-8rem)] lg:sticky lg:top-8">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <h2 className="font-semibold text-slate-900 dark:text-white flex items-center justify-between">
+                  Contenido del curso
+                  <span className="text-xs font-normal text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-full">
+                    {(modules || []).reduce((acc, m) => acc + (m.lessons || []).length, 0)} lecciones
+                  </span>
+                </h2>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
+                {(modules || []).map((module) => {
+                  const isExpanded = expandedModules[module.id];
+                  const moduleLessons = module.lessons || [];
+                  const moduleLessonsCompleted = moduleLessons.filter(l => l.is_completed).length;
+                  const progress = Math.round((moduleLessonsCompleted / moduleLessons.length) * 100) || 0;
+
+                  return (
+                    <div key={module.id} className="mb-2">
+                      <button
+                        onClick={() => toggleModule(module.id)}
+                        className="w-full flex flex-col p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-medium text-slate-900 dark:text-white text-sm truncate">
+                              {module.title}
+                            </span>
+                            {isAdmin && (
+                              <button 
+                                onClick={(e) => handleDeleteModule(module.id, e)}
+                                className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                          <ChevronDownIcon
+                            className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
                           />
                         </div>
-                        <span className="text-[10px] font-medium text-slate-500 w-8 text-right">
-                          {progress}%
-                        </span>
-                      </div>
-                    </button>
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-slate-500 w-8 text-right">
+                            {progress}%
+                          </span>
+                        </div>
+                      </button>
 
-                    {/* Lessons List */}
-                    <div
-                      className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0'
-                        }`}
-                    >
-                      <div className="flex flex-col gap-1 px-2 pb-3">
-                        {(module.lessons || []).map((lesson, lIdx) => {
-                          const isActive = activeLesson?.id === lesson.id;
-                          return (
-                            <button
-                              key={lesson.id}
-                              onClick={() => handleLessonSelect(lesson)}
-                              className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-all duration-200
-                                ${isActive
-                                  ? 'bg-blue-50 dark:bg-blue-900/20 shadow-sm border border-blue-100 dark:border-blue-800/50'
-                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
-                                }`}
-                            >
-                              <div className="shrink-0 mt-0.5">
-                                {lesson.is_completed ? (
-                                  <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
-                                ) : isActive ? (
-                                  <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                    <PlayIcon className="w-3 h-3" />
-                                  </div>
-                                ) : (
-                                  <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                                      {lIdx + 1}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium line-clamp-2 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'
-                                  }`}>
-                                  {lesson.title}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  <span className="text-[11px] text-slate-500 dark:text-slate-500 font-medium">
-                                    {lesson.duration}
-                                  </span>
+                      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                        <div className="flex flex-col gap-1 px-2 pb-3">
+                          {(module.lessons || []).map((lesson, lIdx) => {
+                            const isActive = activeLesson?.id === lesson.id;
+                            return (
+                              <button
+                                key={lesson.id}
+                                onClick={() => handleLessonSelect(lesson)}
+                                className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-all duration-200
+                                  ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 shadow-sm border border-blue-100 dark:border-blue-800/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'}`}
+                              >
+                                <div className="shrink-0 mt-0.5">
+                                  {lesson.is_completed ? (
+                                    <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+                                  ) : isActive ? (
+                                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                      <PlayIcon className="w-3 h-3" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{lIdx + 1}</span>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            </button>
-                          );
-                        })}
+                                <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                                  <p className={`text-sm font-medium line-clamp-2 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                                    {lesson.title}
+                                  </p>
+                                  {isAdmin && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteLesson(lesson.id, module.id);
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ÁREA PRINCIPAL (VIDEO Y DETALLES) */}
-          <div className="flex-1 w-full order-1 lg:order-2 flex flex-col gap-6">
-
-            {!activeLesson ? (
-              <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center min-h-[500px]">
-                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-                  <PlayIcon className="w-10 h-10 text-slate-400" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                  {isLoading ? 'Sincronizando contenido...' : 'No hay lecciones publicadas'}
-                </h3>
-                <p className="text-slate-500 dark:text-slate-400 max-w-sm">
-                  {isLoading 
-                    ? 'Estamos conectando con Upfunne Academy para traerte lo último.' 
-                    : 'Aún no se han añadido lecciones a este módulo.'}
-                </p>
+                  );
+                })}
               </div>
-            ) : (
-              <>
-                {/* Reproductor de Video */}
-                <div className="w-full bg-black rounded-2xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-800 aspect-video relative group flex items-center justify-center">
-                  <video
-                    key={activeLesson.id}
-                    controls
-                    controlsList="nodownload"
-                    className="w-full h-full object-contain"
-                  >
-                    <source src={`${CLOUDFLARE_WORKER_URL}${activeLesson.video_path}`} type="video/mp4" />
-                    Tu navegador no soporta video.
-                  </video>
+            </div>
+
+            {/* ÁREA DE CONTENIDO */}
+            <div className="flex-1 w-full order-1 lg:order-2 flex flex-col gap-6">
+              {!activeLesson ? (
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center min-h-[500px]">
+                  <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 text-slate-400">
+                    <PlayIcon className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                    {isLoading ? 'Sincronizando...' : 'Selecciona una lección'}
+                  </h3>
                 </div>
-
-                {/* Detalles de la lección */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 lg:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-
-                    {/* Textos y descripciones */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {activeLesson.is_completed && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
-                            <CheckCircleIcon className="w-3.5 h-3.5" /> Completada
-                          </span>
+              ) : (
+                <>
+                  <div className="w-full bg-black rounded-2xl overflow-hidden shadow-md aspect-video relative flex items-center justify-center">
+                    <video key={activeLesson.id} controls controlsList="nodownload" className="w-full h-full object-contain">
+                      <source src={activeLesson.video_url || academyMediaUrl(activeLesson.video_path)} type="video/mp4" />
+                    </video>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 lg:p-8 shadow-sm border border-slate-200 dark:border-slate-800 relative">
+                    {isEditMode ? (
+                      <div className="space-y-4 animate-in fade-in duration-300">
+                        <div>
+                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Título de la Lección</label>
+                          <input 
+                            type="text" 
+                            value={editTitle} 
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xl font-bold focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Descripción (HTML permitido)</label>
+                          <textarea 
+                            value={editDescription} 
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            rows={6}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                          <button 
+                            onClick={() => setIsEditMode(false)}
+                            className="px-6 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            onClick={handleUpdateLesson}
+                            disabled={isSaving}
+                            className="px-8 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all flex items-center gap-2"
+                          >
+                            {isSaving ? 'Guardando...' : (
+                              <>
+                                <Save className="w-4 h-4" />
+                                Guardar Cambios
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">{activeLesson.title}</h2>
+                        <div 
+                          className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line"
+                          dangerouslySetInnerHTML={{ __html: activeLesson.description || '' }}
+                        />
+                      </>
+                    )}
+                    
+                    {isAdmin && (
+                      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-2xl text-[11px] font-mono">
+                        <p className="font-bold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-widest text-center border-b border-blue-100 dark:border-blue-800/50 pb-2">📦 Datos en Base de Datos (Admin)</p>
+                        <div className="grid grid-cols-1 gap-2 opacity-80 py-2">
+                          <p><strong>ID Lección:</strong> {activeLesson.id}</p>
+                          <p><strong>Ruta Video (video_path):</strong> 
+                            {isEditMode ? (
+                              <input 
+                                type="text" 
+                                value={editVideoPath} 
+                                onChange={(e) => setEditVideoPath(e.target.value)}
+                                className="w-full bg-white dark:bg-slate-900 border border-amber-300 rounded px-2 py-1 mt-1 font-mono text-[10px] focus:ring-1 focus:ring-amber-500 outline-none"
+                              />
+                            ) : (
+                              <span className={activeLesson.video_path ? 'text-green-600' : 'text-red-600 font-bold'}>{activeLesson.video_path || 'VACÍO'}</span>
+                            )}
+                          </p>
+                          <p><strong>Portada (thumbnail_url):</strong> <span className={activeLesson.thumbnail_url ? 'text-green-600' : 'text-red-600 font-bold'}>{activeLesson.thumbnail_url || 'VACÍO'}</span></p>
+                          <p className="pt-2 border-t border-blue-100 dark:border-blue-800/50 mt-1"><strong>URL Final Video:</strong> <br/>
+                            <a href={activeLesson.video_url} target="_blank" className="text-blue-600 underline break-all">{activeLesson.video_url || 'N/A'}</a>
+                          </p>
+                        </div>
+                        {!activeLesson.video_path && (
+                          <p className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-center font-bold animate-pulse">
+                            ⚠️ Error: Esta lección no tiene un archivo de video vinculado.
+                          </p>
                         )}
                       </div>
-                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
-                        {activeLesson.title}
-                      </h2>
-                      <div 
-                        className="text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl text-sm md:text-base whitespace-pre-line [&>a]:text-blue-600 [&>a]:dark:text-blue-400 [&>a:hover]:underline [&>ul]:list-disc [&>ul]:ml-5 [&>ol]:list-decimal [&>ol]:ml-5 [&>strong]:text-slate-900 [&>strong]:dark:text-white"
-                        dangerouslySetInnerHTML={{ __html: activeLesson.description || '' }}
-                      />
-                    </div>
+                    )}
 
-                    {/* Acciones principales */}
-                    <div className="shrink-0 flex flex-col gap-3 md:w-56">
-                      <button
-                        onClick={markAsCompleted}
-                        disabled={activeLesson.is_completed}
-                        className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2
-                          ${activeLesson.is_completed
-                            ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
-                          }`}
-                      >
-                        {activeLesson.is_completed ? 'Lección Completada' : 'Marcar como completada'}
-                      </button>
-                    </div>
-
+                    {(activeLesson.materiales && activeLesson.materiales.length > 0) && (
+                      <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase mb-4">Materiales de apoyo</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {activeLesson.materiales.map((material: any, idx: number) => (
+                            <a key={idx} href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-blue-50/50 transition-colors">
+                              <DownloadIcon className="w-4 h-4 text-slate-400" />
+                              <span className="text-sm font-medium truncate">{material.nombre}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
-                  {/* Recursos de Apoyo */}
-                  {(activeLesson.materiales || []).length > 0 && (
-                    <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-4">
-                        Materiales de apoyo
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {(activeLesson.materiales || []).map((material: any, idx: number) => (
-                          <a
-                            key={idx}
-                            href={material.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group"
-                          >
-                            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              <DownloadIcon className="w-4 h-4" />
-                            </div>
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
-                              {material.nombre}
-                            </span>
-                          </a>
-                        ))}
+      {/* MODAL CREACIÓN CURSO */}
+      {isCourseModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300 custom-scrollbar">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-xl font-bold">Crear Nuevo Curso</h2>
+              <button onClick={() => setIsCourseModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateCourse} className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">Título del Curso</label>
+                <input 
+                  type="text" 
+                  value={courseForm.title} 
+                  onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                  placeholder="Ej: Master en Automatización"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">Descripción</label>
+                <textarea 
+                  value={courseForm.description} 
+                  onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                  rows={3}
+                  placeholder="Explica de qué trata este curso..."
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-slate-500">Categoría</label>
+                  <select 
+                    value={courseForm.category} 
+                    onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all cursor-pointer"
+                  >
+                    {ACADEMY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-slate-500">Tipo de Acceso</label>
+                  <button 
+                    type="button"
+                    onClick={() => setCourseForm({ ...courseForm, is_premium: !courseForm.is_premium })}
+                    className={`w-full px-4 py-3 rounded-2xl border transition-all flex items-center justify-between
+                      ${courseForm.is_premium 
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-800 dark:text-indigo-300' 
+                        : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}
+                  >
+                    <span className="text-sm font-semibold">{courseForm.is_premium ? '💎 Premium' : 'Gratis / General'}</span>
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${courseForm.is_premium ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${courseForm.is_premium ? 'right-1' : 'left-1'}`} />
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">Imagen de Portada (Thumbnail)</label>
+                <div className="relative group cursor-pointer">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => e.target.files?.[0] && uploadThumbnail(e.target.files[0])}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                  />
+                  <div className={`p-8 border-2 border-dashed rounded-3xl text-center transition-all ${courseForm.thumbnail_url ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
+                    {courseForm.thumbnail_url ? (
+                      <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
+                        <img src={academyMediaUrl(courseForm.thumbnail_url)} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ImageIcon className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-400">
+                          <ImageIcon className="w-6 h-6" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500">Click para subir imagen</p>
+                      </div>
+                    )}
+                  </div>
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 rounded-3xl z-20">
+                      <div className="text-center">
+                        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        <p className="text-[10px] font-bold text-blue-600">{uploadProgress}%</p>
                       </div>
                     </div>
                   )}
                 </div>
-              </>
-            )}
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setIsCourseModalOpen(false)}
+                  className="flex-1 py-3 px-6 rounded-2xl border border-slate-200 dark:border-slate-700 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isCreatingCourse || !courseForm.title}
+                  className="flex-2 py-3 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                >
+                  {isCreatingCourse ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                  {isCreatingCourse ? 'Creando...' : 'Crear Curso'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

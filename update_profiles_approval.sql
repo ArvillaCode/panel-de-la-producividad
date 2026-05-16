@@ -8,7 +8,7 @@ ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
 -- Si el usuario es el administrador principal, lo aprobamos automáticamente
 UPDATE profiles 
 SET status = 'active', is_approved = TRUE 
-WHERE role = 'admin' OR email = 'admin@admin.com';
+WHERE role = 'admin';
 
 -- 3. TRIGGER PARA CREACIÓN DE PERFILES DESDE AUTH.USERS
 -- Este trigger se asegura de que cuando un usuario se registra, se cree su perfil en estado PENDIENTE

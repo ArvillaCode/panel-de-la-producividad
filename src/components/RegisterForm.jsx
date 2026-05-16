@@ -33,7 +33,7 @@ const RegisterForm = ({ onSuccess, onCancel }) => {
     if (!formData.email) newErrors.email = 'El email es requerido';
     else if (!emailRegex.test(formData.email)) newErrors.email = 'Email inválido';
     if (!formData.password) newErrors.password = 'La contraseña es requerida';
-    else if (formData.password.length < 6) newErrors.password = 'Mínimo 6 caracteres';
+    else if (formData.password.length < 8) newErrors.password = 'Mínimo 8 caracteres';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'No coinciden';
     
     setErrors(newErrors);

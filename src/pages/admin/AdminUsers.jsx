@@ -68,6 +68,8 @@ const AdminUsers = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirm: '' });
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -225,6 +227,48 @@ const AdminUsers = () => {
     setActionLoading(false);
   };
 
+  const handleEditUser = (u) => {
+    setSelectedUser(u);
+    setFormData({
+      name: u.name || '',
+      email: u.email || '',
+      password: '',
+      confirmPassword: '',
+      role: u.role || 'user',
+      avatar: u.avatar_url || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDeleteUser = (u) => {
+    setSelectedUser(u);
+    setShowDeleteModal(true);
+  };
+
+  const handleResetPassword = (u) => {
+    setSelectedUser(u);
+    setResetPasswordData({ password: '', confirm: '' });
+    setShowResetModal(true);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!selectedUser) return;
+    if (resetPasswordData.password !== resetPasswordData.confirm) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+    setActionLoading(true);
+    const result = await resetUserPassword(selectedUser.id, resetPasswordData.password);
+    if (result.success) {
+      toast.success('Contraseña actualizada');
+      setShowResetModal(false);
+      setResetPasswordData({ password: '', confirm: '' });
+    } else {
+      toast.error(result.error || 'No se pudo resetear la contraseña');
+    }
+    setActionLoading(false);
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -242,7 +286,9 @@ const AdminUsers = () => {
     setShowCreateModal(false);
     setShowEditModal(false);
     setShowDeleteModal(false);
+    setShowResetModal(false);
     setShowNotifyModal(false);
+    setResetPasswordData({ password: '', confirm: '' });
     resetForm();
   };
 
@@ -507,6 +553,9 @@ const AdminUsers = () => {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleResetPassword(u)} title="Resetear contraseña" className="p-2.5 glass-card border-white/5 text-amber-400 hover:bg-amber-500 hover:text-deep-dark transition-all rounded-xl">
+                                            <RotateCcw className="w-4 h-4" />
+                                        </button>
                                         <button onClick={() => handleEditUser(u)} className="p-2.5 glass-card border-white/5 text-neon-teal hover:bg-neon-teal hover:text-deep-dark transition-all rounded-xl">
                                             <Edit className="w-4 h-4" />
                                         </button>
@@ -634,6 +683,39 @@ const AdminUsers = () => {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+      )}
+
+      {/* Modal Reset contraseña */}
+      {showResetModal && selectedUser && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
+            <div className="relative glass-card p-10 w-full max-w-md border-white/10 shadow-2xl animate-in zoom-in-95">
+                <h2 className="text-2xl font-black text-white uppercase italic mb-2">Nueva contraseña</h2>
+                <p className="text-gray-500 text-sm mb-6">Usuario: <span className="text-white font-bold">{selectedUser.email}</span></p>
+                <div className="space-y-4">
+                    <input
+                      type="password"
+                      placeholder="Nueva contraseña"
+                      value={resetPasswordData.password}
+                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, password: e.target.value })}
+                      className="premium-input w-full"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Confirmar contraseña"
+                      value={resetPasswordData.confirm}
+                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirm: e.target.value })}
+                      className="premium-input w-full"
+                    />
+                </div>
+                <div className="flex gap-4 mt-8">
+                    <button onClick={closeModals} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>
+                    <button onClick={confirmResetPassword} disabled={actionLoading} className="flex-1 py-4 bg-amber-500 text-deep-dark rounded-2xl font-black uppercase text-xs tracking-widest">
+                      {actionLoading ? 'PROCESANDO...' : 'ACTUALIZAR'}
+                    </button>
+                </div>
             </div>
         </div>
       )}

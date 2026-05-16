@@ -22,7 +22,8 @@ const AdminLogin = () => {
   const {
     login,
     logout,
-    user,
+    profile,
+    isAdmin,
     isAuthenticated,
     loading: authLoading
   } = useAuth();
@@ -51,14 +52,16 @@ const AdminLogin = () => {
       window.history.replaceState({}, document.title, location.pathname);
     }
 
-    if (isAuthenticated && user) {
-      if (user.role === 'admin' || user.email === 'admin@admin.com') {
+    if (isAuthenticated && !authLoading && profile) {
+      if (isAdmin) {
         navigate('/admin/dashboard', { replace: true });
+      } else if (!profile.is_approved) {
+        navigate('/dashboard/espera-aprobacion', { replace: true });
       } else {
         navigate('/', { replace: true });
       }
     }
-  }, [isAuthenticated, user, navigate, location.search]);
+  }, [isAuthenticated, isAdmin, profile, authLoading, navigate, location.search]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -107,15 +110,7 @@ const AdminLogin = () => {
       }
 
       setSuccess('Inicio de sesión exitoso');
-
-      const targetPath =
-        formData.email === 'admin@admin.com'
-          ? '/admin/dashboard'
-          : '/';
-
-      console.log('[DEBUG] Redirigiendo a:', targetPath);
-
-      navigate(targetPath, { replace: true });
+      // La redirección la hace el useEffect cuando profile/isAdmin estén sincronizados
 
     } catch (err) {
       console.error('[DEBUG] Error en login form:', err);

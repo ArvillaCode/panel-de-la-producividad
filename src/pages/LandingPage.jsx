@@ -1,334 +1,597 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  Shield, 
-  ChevronRight, 
-  Zap, 
-  Target, 
-  Star,
-  CheckCircle2,
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import {
   ArrowRight,
-  Brain,
-  Sparkles,
   Award,
-  Plus,
-  Minus,
-  HelpCircle,
-  Timer,
-  LayoutDashboard,
+  Brain,
+  ChevronRight,
   Cpu,
-  MessageSquare
+  HelpCircle,
+  LayoutDashboard,
+  Menu,
+  Minus,
+  Plus,
+  Sparkles,
+  X
 } from 'lucide-react';
 import { BRANDING } from '../constants/branding';
 
-// Componente para animaciones estilo Apple (Reveal on Scroll)
+const NAV_LINKS = [
+  { id: 'solucion', label: 'Solución' },
+  { id: 'elegirnos', label: 'Por Qué Nosotros' },
+  { id: 'faq', label: 'FAQ' },
+  { id: 'pricing', label: 'Inversión' }
+];
+
+const LOGOS = [
+  { name: 'OpenAI', icon: '🤖' },
+  { name: 'Anthropic', icon: '🧠' },
+  { name: 'Google AI', icon: '🌐' },
+  { name: 'Meta', icon: '∞' },
+  { name: 'Mistral', icon: '🌪️' },
+  { name: 'Stripe', icon: '💳' },
+  { name: 'AWS', icon: '☁️' },
+  { name: 'NVIDIA', icon: '📟' }
+];
+
+const SOLUTION_CARDS = [
+  { icon: Brain, title: 'IA Unificada', desc: 'Los modelos líderes del mercado, optimizados para tu flujo de trabajo diario.' },
+  { icon: LayoutDashboard, title: 'Panel Maestro', desc: 'Diseñado para ejecutivos y fundadores que no tienen tiempo que perder.' },
+  { icon: Cpu, title: 'Agentes Expertos', desc: 'Más de 70 agentes pre-entrenados para ventas, copy, estrategia y automatización.' }
+];
+
+const WHY_ITEMS = [
+  { q: '¿Por qué seguir pagando 10 IAs?', a: 'Es ineficiente y costoso. Upfunnel te da el poder de los modelos más potentes del mundo en un solo lugar por una fracción del costo.' },
+  { q: '¿Realmente seré más productivo?', a: 'Al eliminar la fricción de decidir qué herramienta usar, tu velocidad de ejecución se multiplica.' },
+  { q: '¿Es una inversión inteligente?', a: '$50 al año es un atajo accesible. El costo de no tener un sistema unificado suele ser mucho mayor.' }
+];
+
+const FAQ_ITEMS = [
+  { question: '¿Por qué solo cuesta $50 al año?', answer: 'Nuestra misión es democratizar el acceso a la IA de élite. Queremos que el presupuesto no sea una barrera para escalar tu negocio.' },
+  { question: '¿Necesito conocimientos técnicos?', answer: 'Ninguno. El panel está diseñado para que empieces a producir resultados en segundos, sin configuraciones complejas.' },
+  { question: '¿Qué tipos de agentes incluye?', answer: 'Marketing, ventas, estrategia, finanzas y más. Cubrimos los pilares de un negocio moderno.' },
+  { question: '¿Tengo que instalar o descargar algo?', answer: 'No. Ingresas desde el navegador y empiezas de inmediato, sin fricciones técnicas.' }
+];
+
+const focusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0E1A2B]';
+
+const getAppLoginUrl = (intent = '') => {
+  if (typeof window === 'undefined') return '/login';
+  const host = window.location.hostname;
+  const base = host.includes('localhost') ? '/login' : 'https://app.upfunnel.click/login';
+  return intent ? `${base}?intent=${intent}` : base;
+};
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  return reduced;
+}
+
+function useActiveSection(sectionIds) {
+  const [active, setActive] = useState(sectionIds[0]);
+  useEffect(() => {
+    const elements = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+    if (!elements.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]?.target?.id) setActive(visible[0].target.id);
+      },
+      { rootMargin: '-40% 0px -50% 0px', threshold: [0, 0.25, 0.5] }
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [sectionIds]);
+
+  return active;
+}
+
 const Reveal = ({ children, delay = 0 }) => {
-  const [isVisible, setIsVisible] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+  const [isVisible, setIsVisible] = useState(reducedMotion);
   const ref = useRef(null);
 
   useEffect(() => {
+    if (reducedMotion) {
+      setIsVisible(true);
+      return undefined;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
+        if (entry.isIntersecting) setIsVisible(true);
       },
       { threshold: 0.1 }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, []);
+  }, [reducedMotion]);
 
   return (
     <div
       ref={ref}
-      className={`transition-all duration-1000 ease-out transform ${
-        isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'
-      }`}
-      style={{ transitionDelay: `${delay}ms` }}
+      className={
+        reducedMotion
+          ? ''
+          : `transition-[opacity,transform] duration-700 ease-out ${
+              isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-[0.98]'
+            }`
+      }
+      style={reducedMotion ? undefined : { transitionDelay: `${delay}ms` }}
     >
       {children}
     </div>
   );
 };
 
-const FAQItem = ({ question, answer }) => {
+const FAQItem = ({ id, question, answer }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const panelId = `faq-panel-${id}`;
+  const triggerId = `faq-trigger-${id}`;
+
+  const toggle = useCallback(() => setIsOpen((prev) => !prev), []);
+
   return (
     <div className="border-b border-white/5 py-6">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between text-left group"
+      <h3 className="m-0">
+        <button
+          type="button"
+          id={triggerId}
+          aria-expanded={isOpen}
+          aria-controls={panelId}
+          onClick={toggle}
+          className={`w-full flex items-center justify-between gap-4 text-left group touch-manipulation ${focusRing} rounded-lg -mx-2 px-2 py-1`}
+        >
+          <span className="text-lg font-bold text-slate-300 group-hover:text-neon-teal transition-colors uppercase italic tracking-tight text-pretty">
+            {question}
+          </span>
+          {isOpen ? (
+            <Minus className="w-5 h-5 shrink-0 text-neon-teal" aria-hidden="true" />
+          ) : (
+            <Plus className="w-5 h-5 shrink-0 text-slate-500 group-hover:text-neon-teal transition-colors" aria-hidden="true" />
+          )}
+        </button>
+      </h3>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={triggerId}
+        hidden={!isOpen}
+        className={isOpen ? 'mt-4' : ''}
       >
-        <span className="text-lg font-bold text-slate-300 group-hover:neon-text transition-colors uppercase italic tracking-tight">{question}</span>
-        {isOpen ? <Minus className="w-5 h-5 text-neon-teal" /> : <Plus className="w-5 h-5 text-slate-500 group-hover:text-neon-teal transition-all" />}
-      </button>
-      <div className={`overflow-hidden transition-all duration-500 ${isOpen ? 'max-h-96 mt-4 opacity-100' : 'max-h-0 opacity-0'}`}>
-        <p className="text-slate-400 font-medium leading-relaxed">{answer}</p>
+        <p className="text-slate-400 font-medium leading-relaxed text-pretty">{answer}</p>
       </div>
     </div>
   );
 };
 
-const LandingPage = () => {
-  const handleAction = () => {
-    alert("Gracias por tu interés, voy a comunicarte con uno de nuestros asesores.");
-  };
+const LandingHeader = ({ activeSection, onNavigate, mobileOpen, setMobileOpen }) => {
+  const appLogin = getAppLoginUrl('demo');
 
-  const logos = [
-    { name: "OpenAI", icon: "🤖" },
-    { name: "Anthropic", icon: "🧠" },
-    { name: "Google AI", icon: "🌐" },
-    { name: "Meta", icon: "∞" },
-    { name: "Mistral", icon: "🌪️" },
-    { name: "Stripe", icon: "💳" },
-    { name: "AWS", icon: "☁️" },
-    { name: "NVIDIA", icon: "📟" }
-  ];
+  const navLinkClass = (id) =>
+    `text-[10px] font-black uppercase tracking-[0.25em] transition-colors rounded-md px-2 py-1 ${focusRing} ${
+      activeSection === id ? 'text-neon-teal' : 'text-slate-400 hover:text-white'
+    }`;
 
   return (
-    <div className="min-h-screen bg-deep-dark text-white selection:bg-neon-teal/30 overflow-x-hidden font-sans spatial-grid">
-      {/* Premium Background: Grid + Radial Glows */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
+    <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0E1A2B]/85 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0E1A2B]/75 pt-[env(safe-area-inset-top)]">
+      <nav
+        className="flex items-center justify-between gap-4 px-4 sm:px-8 py-4 max-w-7xl mx-auto"
+        aria-label="Principal"
+      >
+        <a
+          href="#contenido-principal"
+          className={`flex items-center min-w-0 ${focusRing} rounded-xl`}
+          aria-label={`${BRANDING.name} — inicio`}
+          translate="no"
+        >
+          <img
+            src={BRANDING.logo}
+            alt=""
+            width={48}
+            height={48}
+            aria-hidden="true"
+            className="h-10 md:h-11 w-auto object-contain brightness-0 invert"
+            fetchPriority="high"
+          />
+          <span className="ml-3 text-xl md:text-2xl font-black tracking-tighter italic text-white truncate">
+            {BRANDING.name}
+          </span>
+        </a>
+
+        <div className="hidden lg:flex items-center gap-2">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.id}
+              href={`#${link.id}`}
+              className={navLinkClass(link.id)}
+              aria-current={activeSection === link.id ? 'true' : undefined}
+              onClick={() => onNavigate(link.id)}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <a
+            href={appLogin}
+            className={`hidden sm:inline-flex px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors ${focusRing}`}
+          >
+            Iniciar Sesión
+          </a>
+          <a
+            href={appLogin}
+            className={`px-5 py-2.5 bg-neon-teal/10 border border-neon-teal/20 text-neon-teal rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neon-teal hover:text-deep-dark transition-colors ${focusRing}`}
+          >
+            Reservar Demo
+          </a>
+          <button
+            type="button"
+            className={`lg:hidden p-2.5 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-colors touch-manipulation ${focusRing}`}
+            aria-expanded={mobileOpen}
+            aria-controls="landing-mobile-menu"
+            aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+          </button>
+        </div>
+      </nav>
+
+      {mobileOpen && (
+        <div
+          id="landing-mobile-menu"
+          className="lg:hidden border-t border-white/5 bg-[#0E1A2B]/95 px-4 pb-6 pt-2 overscroll-contain"
+        >
+          <ul className="flex flex-col gap-1">
+            {NAV_LINKS.map((link) => (
+              <li key={link.id}>
+                <a
+                  href={`#${link.id}`}
+                  className={`block py-3 text-sm font-bold uppercase tracking-wider ${focusRing} rounded-lg px-2 ${
+                    activeSection === link.id ? 'text-neon-teal' : 'text-slate-300'
+                  }`}
+                  aria-current={activeSection === link.id ? 'true' : undefined}
+                  onClick={() => {
+                    onNavigate(link.id);
+                    setMobileOpen(false);
+                  }}
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+            <li className="pt-3 mt-2 border-t border-white/10">
+              <a
+                href={appLogin}
+                className={`flex items-center justify-between py-3 text-sm font-black uppercase tracking-wider text-neon-teal ${focusRing}`}
+              >
+                Iniciar Sesión
+                <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              </a>
+            </li>
+          </ul>
+        </div>
+      )}
+    </header>
+  );
+};
+
+const LandingPage = () => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+  const sectionIds = NAV_LINKS.map((l) => l.id);
+  const activeSection = useActiveSection(sectionIds);
+  const appLogin = getAppLoginUrl();
+  const appSignup = getAppLoginUrl('signup');
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  };
+
+  useEffect(() => {
+    document.documentElement.style.colorScheme = 'dark';
+    document.documentElement.classList.add('dark');
+    return () => {
+      document.documentElement.style.colorScheme = '';
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMobileOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen]);
+
+  return (
+    <div className="min-h-screen bg-deep-dark text-white selection:bg-neon-teal/30 overflow-x-hidden font-sans spatial-grid landing-page">
+      <a
+        href="#contenido-principal"
+        className={`sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-neon-teal focus:text-deep-dark focus:rounded-lg focus:font-bold ${focusRing}`}
+      >
+        Saltar al contenido principal
+      </a>
+
+      <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-neon-teal/5 blur-[120px] rounded-full opacity-30" />
       </div>
 
-      {/* Navigation Header */}
-      <nav className="relative z-50 flex items-center justify-between px-8 py-8 max-w-7xl mx-auto backdrop-blur-xl border-b border-white/5 bg-white/5">
-        <div className="flex items-center">
-          <img 
-            src={BRANDING.logo} 
-            alt={BRANDING.name} 
-            className="h-10 md:h-12 w-auto object-contain dark:brightness-0 dark:invert"
-          />
-          <span className="ml-3 text-2xl font-black tracking-tighter italic text-white neon-glow">
-            {BRANDING.name.toUpperCase()}
-          </span>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-10">
-          <a href="#solucion" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">Solución</a>
-          <a href="#elegirnos" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">Por qué nosotros</a>
-          <a href="#pricing" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">Inversión</a>
-          <a href="#faq" className="text-[10px] font-black text-slate-400 hover:neon-text transition-colors uppercase tracking-[0.3em]">FAQ</a>
-        </div>
+      <LandingHeader
+        activeSection={activeSection}
+        onNavigate={scrollToSection}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
 
-        <button onClick={handleAction} className="px-8 py-3 bg-neon-teal/10 border border-neon-teal/20 text-neon-teal rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neon-teal hover:text-deep-dark transition-all neon-glow">
-          Reservar Demo
-        </button>
-      </nav>
+      <main id="contenido-principal" className="relative z-10">
+        {/* Hero */}
+        <section className="pt-16 pb-24 md:pt-24 md:pb-32 px-4 sm:px-6 max-w-7xl mx-auto text-center scroll-mt-24">
+          <Reveal>
+            <p className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-neon-teal/5 border border-neon-teal/10 mb-8">
+              <Sparkles className="w-4 h-4 text-neon-teal" aria-hidden="true" />
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-neon-teal/90">
+                Ecosistema IA de alto nivel
+              </span>
+            </p>
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-40 pb-32 px-6 max-w-7xl mx-auto text-center">
-        <Reveal>
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-neon-teal/5 border border-neon-teal/10 mb-10 neon-glow">
-            <Sparkles className="w-4 h-4 text-neon-teal" />
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-neon-teal/80">Ecosistema IA de Alto Nivel</span>
-          </div>
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black mb-8 tracking-tighter leading-[0.95] max-w-5xl mx-auto text-balance">
+              <span className="block text-slate-500 italic font-medium text-2xl sm:text-3xl md:text-4xl mb-4 tracking-normal">
+                Tu tiempo es el activo más valioso.
+              </span>
+              <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/50 uppercase">
+                Haz que el <span className="neon-text">tiempo</span> trabaje para ti.
+              </span>
+            </h1>
 
-          <h1 className="text-6xl md:text-8xl font-black mb-10 tracking-tighter leading-[0.9] max-w-5xl mx-auto">
-            <span className="block text-slate-500 italic font-medium text-3xl md:text-5xl mb-6 tracking-normal">Tu tiempo es el activo más caro.</span>
-            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 uppercase">
-              Haz que el <span className="neon-text">tiempo</span> trabaje para ti.
-            </span>
-          </h1>
+            <p className="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed font-medium text-pretty">
+              Centraliza más de 70 agentes especializados en un solo panel. Menos fricción, más ejecución.
+            </p>
 
-          <p className="text-xl md:text-2xl text-slate-400 max-w-3xl mx-auto mb-16 leading-relaxed font-medium">
-            Tú y yo sabemos que el ruido de la IA te está robando energía. <span className="text-white">Si no tomas el control ahora</span>, el tiempo seguirá escapándose. Upfunnel es tu atajo maestro.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <button
-              onClick={handleAction}
-              className="group relative flex items-center gap-6 px-12 py-6 bg-neon-teal text-deep-dark rounded-2xl shadow-[0_0_50px_-5px_rgba(0,229,255,0.4)] hover:scale-105 active:scale-95 transition-all duration-500"
-            >
-              <span className="relative font-black tracking-widest uppercase text-sm italic">Quiero mi tiempo de vuelta</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-            </button>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* Infinite Logo Scroll */}
-      <div className="relative z-10 py-16 border-y border-white/5 overflow-hidden bg-white/2">
-        <div className="flex whitespace-nowrap animate-infinite-scroll">
-          {[...logos, ...logos, ...logos].map((logo, i) => (
-            <div key={i} className="flex items-center gap-6 px-16 opacity-30 hover:opacity-100 hover:neon-text transition-all cursor-default">
-              <span className="text-3xl">{logo.icon}</span>
-              <span className="text-lg font-black tracking-tighter uppercase italic">{logo.name}</span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 max-w-md sm:max-w-none mx-auto">
+              <a
+                href={appSignup}
+                className={`group inline-flex items-center justify-center gap-3 px-10 py-5 bg-neon-teal text-deep-dark rounded-2xl font-black tracking-widest uppercase text-sm italic shadow-[0_0_40px_-8px_rgba(0,229,255,0.45)] hover:brightness-110 active:scale-[0.98] transition-[transform,filter] touch-manipulation ${focusRing}`}
+              >
+                Empezar ahora
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
+              </a>
+              <a
+                href="#pricing"
+                className={`inline-flex items-center justify-center gap-2 px-8 py-5 rounded-2xl border border-white/15 text-white font-black uppercase text-xs tracking-widest hover:bg-white/5 transition-colors touch-manipulation ${focusRing}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToSection('pricing');
+                }}
+              >
+                Ver inversión
+              </a>
             </div>
-          ))}
-        </div>
-      </div>
+          </Reveal>
+        </section>
 
-      {/* Solution Section */}
-      <section id="solucion" className="relative z-10 py-40 px-6 max-w-7xl mx-auto">
-        <Reveal>
-          <div className="text-center mb-24">
-            <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tight mb-8 leading-none">La Solución: <span className="neon-text">Un Solo Cerebro</span></h2>
-            <p className="text-slate-400 max-w-3xl mx-auto text-lg font-medium leading-relaxed">Olvídate de tener 20 pestañas abiertas. Hemos unificado el poder de más de 70 agentes especializados en una interfaz diseñada para la ejecución pura y dura.</p>
+        {/* Logos */}
+        <section className="py-12 border-y border-white/5 overflow-hidden bg-white/[0.02]" aria-label="Tecnologías compatibles">
+          <div className={`flex whitespace-nowrap ${reducedMotion ? '' : 'landing-logo-marquee'}`}>
+            {[...LOGOS, ...LOGOS].map((logo, i) => (
+              <div
+                key={`${logo.name}-${i}`}
+                className="flex items-center gap-4 px-10 sm:px-14 opacity-40"
+                aria-hidden={i >= LOGOS.length}
+              >
+                <span className="text-2xl" aria-hidden="true">
+                  {logo.icon}
+                </span>
+                <span className="text-base font-black tracking-tighter uppercase italic" translate="no">
+                  {logo.name}
+                </span>
+              </div>
+            ))}
           </div>
-        </Reveal>
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          {[
-            { icon: <Brain />, title: "IA Unificada", desc: "Los modelos líderes del mercado, optimizados para tu flujo de trabajo diario." },
-            { icon: <LayoutDashboard />, title: "Panel Maestro", desc: "Diseñado para ejecutivos y fundadores que no tienen tiempo que perder." },
-            { icon: <Cpu />, title: "Agentes Expertos", desc: "Más de 70 Agentes pre-entrenados para ventas, copy, estrategia y automatización." }
-          ].map((item, i) => (
-            <Reveal key={i} delay={i * 200}>
-              <div className="p-10 rounded-[3rem] glass-card glass-card-hover border-white/5 h-full group flex flex-col items-center text-center">
-                <div className="w-20 h-20 rounded-3xl bg-neon-teal/10 flex items-center justify-center mb-8 text-neon-teal neon-glow group-hover:scale-110 transition-transform">
-                  {React.cloneElement(item.icon, { size: 36 })}
+        {/* Solución */}
+        <section id="solucion" className="py-24 md:py-32 px-4 sm:px-6 max-w-7xl mx-auto scroll-mt-24">
+          <Reveal>
+            <header className="text-center mb-16 md:mb-20">
+              <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight mb-6 text-balance">
+                La solución: <span className="neon-text">un solo cerebro</span>
+              </h2>
+              <p className="text-slate-400 max-w-3xl mx-auto text-lg font-medium leading-relaxed text-pretty">
+                Olvida las 20 pestañas abiertas. Más de 70 agentes especializados en una interfaz hecha para ejecutar.
+              </p>
+            </header>
+          </Reveal>
+
+          <ul className="grid grid-cols-1 md:grid-cols-3 gap-8 list-none p-0 m-0">
+            {SOLUTION_CARDS.map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.title}>
+                  <Reveal delay={i * 120}>
+                    <article className="p-8 md:p-10 rounded-[2rem] glass-card glass-card-hover border-white/5 h-full flex flex-col items-center text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-neon-teal/10 flex items-center justify-center mb-6 text-neon-teal">
+                        <Icon size={32} aria-hidden="true" />
+                      </div>
+                      <h3 className="text-xl font-black uppercase italic mb-4">{item.title}</h3>
+                      <p className="text-slate-400 font-medium leading-relaxed">{item.desc}</p>
+                    </article>
+                  </Reveal>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {/* Por qué */}
+        <section id="elegirnos" className="py-24 md:py-32 px-4 sm:px-6 bg-white/[0.02] scroll-mt-24">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+            <Reveal>
+              <div className="relative aspect-square max-w-md mx-auto lg:max-w-lg">
+                <div className="absolute inset-0 bg-neon-teal/20 blur-[100px] rounded-full motion-safe:animate-pulse" aria-hidden="true" />
+                <div className="relative h-full w-full rounded-[3rem] border border-white/10 bg-black/60 backdrop-blur-3xl flex flex-col items-center justify-center p-10 md:p-14 text-center">
+                  <div className="w-20 h-20 bg-neon-teal text-deep-dark rounded-2xl flex items-center justify-center mb-8">
+                    <Award className="w-10 h-10" aria-hidden="true" />
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-black uppercase italic leading-tight mb-4 text-balance">
+                    ¿Por qué Upfunnel?
+                  </h2>
+                  <p className="text-lg text-slate-300 font-medium italic leading-relaxed text-pretty">
+                    No damos más herramientas: damos el resultado que prometen.
+                  </p>
                 </div>
-                <h3 className="text-2xl font-black uppercase italic mb-6">{item.title}</h3>
-                <p className="text-slate-400 font-medium leading-relaxed text-lg">{item.desc}</p>
               </div>
             </Reveal>
-          ))}
-        </div>
-      </section>
 
-      {/* Why Us Section */}
-      <section id="elegirnos" className="relative z-10 py-40 px-6 bg-white/[0.02]">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+            <ol className="space-y-12 list-none p-0 m-0">
+              {WHY_ITEMS.map((item, i) => (
+                <li key={item.q}>
+                  <Reveal delay={i * 100}>
+                    <div className="flex gap-6">
+                      <span
+                        className="shrink-0 w-10 h-10 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal font-black text-sm tabular-nums"
+                        aria-hidden="true"
+                      >
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div>
+                        <h3 className="text-xl md:text-2xl font-black uppercase italic mb-2 tracking-tight text-pretty">
+                          {item.q}
+                        </h3>
+                        <p className="text-slate-400 font-medium leading-relaxed">{item.a}</p>
+                      </div>
+                    </div>
+                  </Reveal>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="py-24 md:py-32 px-4 sm:px-6 max-w-3xl mx-auto scroll-mt-24">
           <Reveal>
-            <div className="relative aspect-square max-w-lg mx-auto">
-              <div className="absolute inset-0 bg-neon-teal/20 blur-[120px] rounded-full animate-pulse" />
-              <div className="relative h-full w-full rounded-[5rem] border border-white/10 bg-black/60 backdrop-blur-3xl flex flex-col items-center justify-center p-16 text-center shadow-2xl">
-                <div className="w-24 h-24 bg-neon-teal text-deep-dark rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl shadow-neon-teal/40">
-                  <Award className="w-12 h-12" />
+            <header className="text-center mb-12 md:mb-16">
+              <HelpCircle className="w-12 h-12 text-neon-teal mx-auto mb-6" aria-hidden="true" />
+              <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight text-balance">
+                Preguntas frecuentes
+              </h2>
+            </header>
+            <div className="glass-card border-white/5 rounded-[2rem] md:rounded-[3rem] p-6 md:p-12">
+              {FAQ_ITEMS.map((item, i) => (
+                <FAQItem key={item.question} id={i} question={item.question} answer={item.answer} />
+              ))}
+            </div>
+          </Reveal>
+        </section>
+
+        {/* Pricing */}
+        <section id="pricing" className="py-24 md:py-32 px-4 sm:px-6 scroll-mt-24">
+          <Reveal>
+            <div className="max-w-4xl mx-auto p-10 md:p-16 rounded-[2.5rem] md:rounded-[4rem] bg-gradient-to-br from-deep-dark via-deep-dark to-neon-teal/15 border border-white/10 text-center relative overflow-hidden">
+              <div className="absolute inset-0 opacity-30 pointer-events-none" aria-hidden="true">
+                <div className="w-full h-full bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:20px_20px]" />
+              </div>
+              <div className="relative z-10">
+                <h2 className="text-3xl md:text-6xl font-black mb-8 tracking-tighter leading-tight uppercase italic text-balance">
+                  No dejes pasar <br className="hidden sm:block" />
+                  un año más <span className="neon-text">igual</span>.
+                </h2>
+                <p className="mb-8">
+                  <span className="text-5xl md:text-6xl font-black tracking-tighter neon-text tabular-nums">$50</span>
+                  <span className="text-sm font-bold uppercase tracking-widest ml-3 text-slate-400">USD / año</span>
+                </p>
+                <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto font-medium text-pretty">
+                  Acceso anual al panel completo. Oferta de lanzamiento por tiempo limitado.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <a
+                    href={appSignup}
+                    className={`inline-flex items-center justify-center gap-3 px-12 py-5 bg-neon-teal text-deep-dark rounded-2xl font-black tracking-widest uppercase text-sm italic hover:brightness-110 active:scale-[0.98] transition-[transform,filter] touch-manipulation ${focusRing}`}
+                  >
+                    Obtener acceso
+                    <ArrowRight className="w-5 h-5" aria-hidden="true" />
+                  </a>
+                  <a
+                    href={getAppLoginUrl('demo')}
+                    className={`inline-flex items-center justify-center px-8 py-5 rounded-2xl border border-white/20 text-white font-black uppercase text-xs tracking-widest hover:bg-white/5 transition-colors touch-manipulation ${focusRing}`}
+                  >
+                    Reservar demo
+                  </a>
                 </div>
-                <h3 className="text-4xl font-black uppercase italic leading-none mb-6">¿Por qué Upfunnel?</h3>
-                <p className="text-xl text-slate-300 font-medium italic leading-relaxed">"No estamos aquí para darte más herramientas, estamos aquí para darte el resultado que ellas prometen."</p>
               </div>
             </div>
           </Reveal>
+        </section>
+      </main>
 
-          <div className="space-y-16">
-            {[
-              { q: "¿Por qué seguir pagando 10 IAs?", a: "Es ineficiente y costoso. Upfunnel te da el poder de los modelos más potentes del mundo en un solo lugar por una fracción del costo." },
-              { q: "¿Realmente seré más productivo?", a: "Absolutamente. Al eliminar la fricción mental de decidir qué herramienta usar, tu velocidad de ejecución se multiplica por diez." },
-              { q: "¿Es una inversión inteligente?", a: "$50 al año es el mayor atajo que puedes comprar hoy. El costo de oportunidad de no tenerlo es simplemente incalculable." }
-            ].map((item, i) => (
-              <Reveal key={i} delay={i * 200}>
-                <div className="flex gap-8">
-                  <div className="shrink-0 w-10 h-10 rounded-2xl bg-neon-teal/10 flex items-center justify-center text-neon-teal font-black text-sm italic neon-glow">0{i+1}</div>
-                  <div>
-                    <h4 className="text-2xl font-black uppercase italic mb-3 tracking-tight">{item.q}</h4>
-                    <p className="text-lg text-slate-400 font-medium leading-relaxed">{item.a}</p>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+      <footer className="relative z-10 pt-20 pb-10 px-4 sm:px-6 border-t border-white/5 bg-black/20 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10 mb-16">
+          <a href="#" className={`flex items-center ${focusRing} rounded-xl`} translate="no">
+            <img
+              src={BRANDING.logo}
+              alt=""
+              width={56}
+              height={56}
+              loading="lazy"
+              className="h-12 md:h-14 w-auto object-contain brightness-0 invert"
+            />
+            <span className="sr-only">{BRANDING.name}</span>
+          </a>
 
-      {/* FAQ Section */}
-      <section id="faq" className="relative z-10 py-40 px-6 max-w-5xl mx-auto">
-        <Reveal>
-          <div className="text-center mb-24">
-            <HelpCircle className="w-16 h-16 text-neon-teal mx-auto mb-8 neon-glow" />
-            <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tight">Preguntas Frecuentes</h2>
-          </div>
-          <div className="glass-card border-white/5 rounded-[4rem] p-10 md:p-16">
-            <FAQItem 
-              question="¿Por qué solo cuesta $50 al año?" 
-              answer="Nuestra misión es democratizar el acceso a la IA de élite. Queremos que el presupuesto no sea una barrera para que tu negocio escale al siguiente nivel."
-            />
-            <FAQItem 
-              question="¿Necesito conocimientos técnicos?" 
-              answer="Ninguno. El panel está diseñado con simplicidad quirúrgica para que cualquier persona pueda empezar a producir resultados en segundos."
-            />
-            <FAQItem 
-              question="¿Qué tipos de agentes incluye?" 
-              answer="Desde expertos en marketing y ventas, hasta analistas financieros y generadores de código. Cubrimos todos los pilares de un negocio moderno."
-            />
-            <FAQItem 
-              question="¿Tengo que instalar, configurar o descargar algo?" 
-              answer="No, absolutamente nada. Nuestro panel es 100% 'Ready to Use' (listo para usar). Ingresas desde tu navegador y empiezas a producir de inmediato sin fricciones tecnológicas."
-            />
-          </div>
-        </Reveal>
-      </section>
-
-      {/* Pricing CTA */}
-      <section id="pricing" className="relative z-10 py-40 px-6">
-        <Reveal>
-          <div className="max-w-5xl mx-auto p-16 md:p-24 rounded-[5rem] bg-gradient-to-br from-deep-dark via-deep-dark to-neon-teal/20 border border-white/10 text-center relative overflow-hidden shadow-2xl">
-             <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:20px_20px]" />
-             <div className="relative z-10">
-                <h2 className="text-5xl md:text-8xl font-black mb-12 tracking-tighter leading-tight uppercase italic">
-                   No dejes pasar <br /> un año más <span className="neon-text">igual</span>.
-                </h2>
-                <div className="inline-block px-12 py-6 glass-card !bg-white/10 border-white/20 mb-12 shadow-2xl">
-                   <span className="text-6xl font-black tracking-tighter neon-text">$50</span>
-                   <span className="text-sm font-bold uppercase tracking-widest ml-4 opacity-60">USD / Año</span>
-                </div>
-                <p className="text-slate-400 text-xl mb-12 max-w-2xl mx-auto font-medium">
-                   Es menos de lo que cuesta un café a la semana. Pero el valor de recuperar tu tiempo es infinito. <span className="block mt-6 text-white font-bold italic underline decoration-neon-teal/30">Esta oferta de lanzamiento es por tiempo limitado.</span>
-                </p>
-                <button
-                  onClick={handleAction}
-                  className="flex items-center gap-4 px-16 py-7 bg-neon-teal text-deep-dark rounded-[2rem] font-black tracking-widest uppercase text-sm hover:scale-105 active:scale-95 transition-all shadow-2xl mx-auto italic neon-glow"
-                >
-                  Sí, quiero mi libertad ahora
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-             </div>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* Footer */}
-      <footer className="relative z-10 pt-32 pb-16 px-6 border-t border-white/5 bg-black/20">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 mb-24">
-          <div className="flex items-center">
-            <img 
-              src={BRANDING.logo} 
-              alt="Upfunnel Logo" 
-              className="h-14 md:h-20 w-auto object-contain dark:invert brightness-110"
-            />
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-12 text-[10px] font-black uppercase tracking-[0.5em] text-slate-500">
-            <a href="/politicas" className="hover:neon-text transition-colors">Políticas</a>
-            <a href="/privacidad" className="hover:neon-text transition-colors">Privacidad</a>
-            <a href="/soporte" className="hover:neon-text transition-colors">Soporte</a>
-          </div>
+          <nav aria-label="Legal y soporte">
+            <ul className="flex flex-wrap justify-center gap-8 sm:gap-12 list-none p-0 m-0">
+              {[
+                { to: '/politicas', label: 'Políticas' },
+                { to: '/privacidad', label: 'Privacidad' },
+                { to: '/soporte', label: 'Soporte' }
+              ].map((item) => (
+                <li key={item.to}>
+                  <Link
+                    to={item.to}
+                    className={`text-[10px] font-black uppercase tracking-[0.35em] text-slate-500 hover:text-neon-teal transition-colors ${focusRing}`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
 
-        <div className="max-w-7xl mx-auto text-center border-t border-white/5 pt-12">
-           <p className="text-[11px] font-bold text-slate-700 uppercase tracking-[0.4em]">
-              <a 
-                href="/login"
-                onClick={(e) => {
-                  if (!window.location.hostname.includes('localhost') && !window.location.hostname.includes('app.')) {
-                    e.preventDefault();
-                    window.location.href = 'https://app.upfunnel.click/login';
-                  }
-                }}
-                className="neon-text opacity-50 cursor-default outline-none" 
-              >
-                upfunnel
-              </a> || Ecosistema de Productividad 2026.
-           </p>
+        <div className="max-w-7xl mx-auto text-center border-t border-white/5 pt-8">
+          <p className="text-[11px] font-bold text-slate-600 uppercase tracking-[0.3em]">
+            <span translate="no">{BRANDING.name}</span>
+            <span className="mx-2 opacity-40" aria-hidden="true">
+              ·
+            </span>
+            Ecosistema de productividad {new Date().getFullYear()}
+          </p>
+          <p className="mt-4">
+            <a href={appLogin} className={`text-[10px] font-black uppercase tracking-widest text-neon-teal/70 hover:text-neon-teal transition-colors ${focusRing}`}>
+              Acceso al panel
+            </a>
+          </p>
         </div>
       </footer>
-
-      {/* Global Scroll Animation Styles */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes infinite-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        .animate-infinite-scroll {
-          display: flex;
-          width: max-content;
-          animation: infinite-scroll 60s linear infinite;
-        }
-      `}} />
     </div>
   );
 };

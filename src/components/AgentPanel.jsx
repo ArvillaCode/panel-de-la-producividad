@@ -60,7 +60,6 @@ const AgentPanel = () => {
     loading: authLoading,
     isAuthenticated,
     isAdmin,
-    addNotification,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     updateUser,

@@ -14,6 +14,8 @@ build
 .DS_Store
 .env
 .env.local
+mcp-supabase-custom/.env
+supabase/.temp/
 .env.development.local
 .env.test.local
 .env.production.local

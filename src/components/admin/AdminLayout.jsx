@@ -16,7 +16,8 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
-  GraduationCap
+  GraduationCap,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -98,10 +99,17 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       description: 'Log de actividad'
     },
     {
+      id: 'banners',
+      name: 'Banners',
+      icon: ImageIcon,
+      path: '/admin/banners',
+      description: 'Publicidad global'
+    },
+    {
       id: 'academia',
       name: 'Academia',
       icon: GraduationCap,
-      path: '/dashboard/academia',
+      path: '/dashboard/academia/admin',
       description: 'Gestión educativa'
     }
   ];
@@ -119,7 +127,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
   return (
     <div className="min-h-[100dvh] h-[100dvh] bg-deep-dark flex overflow-hidden spatial-grid">
       {/* Sidebar - Premium Glass */}
-      <div className={`fixed inset-y-0 left-0 z-50 glass-card !rounded-none border-y-0 border-l-0 shadow-2xl transform transition-all duration-300 ease-in-out flex flex-col h-[100dvh] ${
+      <div className={`fixed inset-y-0 left-0 z-[70] glass-card !rounded-none border-y-0 border-l-0 shadow-2xl transform transition-all duration-300 ease-in-out flex flex-col h-[100dvh] ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0 lg:fixed lg:inset-y-0 border-r border-white/10 ${isCollapsed ? 'w-20' : 'w-72'}`}>
         
