@@ -6,10 +6,14 @@ const PWAInstallPrompt = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Detectar si la app ya está instalada (modo standalone)
+    // Detectar si la app ya está instalada (modo standalone o guardado en localStorage)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isAlreadyInstalled = localStorage.getItem('pwa_installed') === 'true';
     
-    if (isStandalone) {
+    if (isStandalone || isAlreadyInstalled) {
+      if (isStandalone && !isAlreadyInstalled) {
+        localStorage.setItem('pwa_installed', 'true');
+      }
       return; // No mostrar si ya es una app instalada
     }
 
@@ -25,10 +29,18 @@ const PWAInstallPrompt = () => {
       return () => clearTimeout(timer);
     };
 
+    const handleAppInstalled = () => {
+      console.log('La aplicación fue instalada exitosamente');
+      localStorage.setItem('pwa_installed', 'true');
+      setIsVisible(false);
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -43,6 +55,7 @@ const PWAInstallPrompt = () => {
     
     if (outcome === 'accepted') {
       console.log('Usuario aceptó la instalación');
+      localStorage.setItem('pwa_installed', 'true');
     }
 
     setDeferredPrompt(null);

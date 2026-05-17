@@ -2,39 +2,56 @@ import React, { useState, useEffect } from 'react';
 import { X, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import { useLocation } from 'react-router-dom';
 
 const GlobalBanner = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isAdmin, profile } = useAuth();
   const [banner, setBanner] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   const [hasShown, setHasShown] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
-    // Solo si está autenticado y no se ha mostrado en esta sesión
-    if (isAuthenticated && !hasShown) {
-      fetchActiveBanner();
+    // Si no está autenticado, es admin o está en rutas de administración, no mostrar
+    if (!isAuthenticated || isAdmin || profile?.role === 'admin' || location.pathname.startsWith('/admin')) {
+      return;
     }
-  }, [isAuthenticated, hasShown]);
 
-  const fetchActiveBanner = async () => {
-    const { data, error } = await supabase
-      .from('banners')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    let timer;
 
-    if (data && !error) {
-      setBanner(data);
-      // Timer de 3 segundos
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-        setHasShown(true);
-      }, 3000);
-      return () => clearTimeout(timer);
+    const getBanner = async () => {
+      const { data, error } = await supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data && !error) {
+        const bannerShownKey = `banner_shown_${data.id}`;
+        if (localStorage.getItem(bannerShownKey) === 'true') {
+          return; // Ya se mostró en este dispositivo
+        }
+
+        setBanner(data);
+        // Timer de 3 segundos para mostrar
+        timer = setTimeout(() => {
+          setIsVisible(true);
+          setHasShown(true);
+          localStorage.setItem(bannerShownKey, 'true');
+        }, 3000);
+      }
+    };
+
+    if (!hasShown) {
+      getBanner();
     }
-  };
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isAuthenticated, hasShown, isAdmin, profile, location.pathname]);
 
   const handleClose = () => {
     setIsVisible(false);
