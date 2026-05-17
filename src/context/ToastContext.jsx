@@ -18,8 +18,18 @@ export const ToastProvider = ({ children }) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const toast = useCallback((message, type = 'success') => {
+    addToast(message, type);
+  }, [addToast]);
+
+  // Attach helper methods to support toast.success(), toast.error(), etc.
+  toast.success = useCallback((message) => addToast(message, 'success'), [addToast]);
+  toast.error = useCallback((message) => addToast(message, 'error'), [addToast]);
+  toast.warning = useCallback((message) => addToast(message, 'warning'), [addToast]);
+  toast.info = useCallback((message) => addToast(message, 'info'), [addToast]);
+
   return (
-    <ToastContext.Provider value={{ toast: addToast }}>
+    <ToastContext.Provider value={{ toast }}>
       {children}
       <Toaster toasts={toasts} removeToast={removeToast} />
     </ToastContext.Provider>
