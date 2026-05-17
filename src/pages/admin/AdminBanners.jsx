@@ -74,7 +74,8 @@ const AdminBanners = () => {
       setFormData({ ...formData, image_url: publicUrl });
       toast.success('Imagen cargada correctamente');
     } catch (err) {
-      toast.error('Error al subir imagen');
+      console.error('Detailed Supabase Storage Error:', err);
+      toast.error('Error al subir: ' + (err.message || 'Error desconocido de storage'));
     } finally {
       setIsUploading(false);
     }
