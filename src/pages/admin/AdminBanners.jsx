@@ -92,7 +92,8 @@ const AdminBanners = () => {
       .insert([formData]);
 
     if (error) {
-      toast.error('Error al guardar banner');
+      console.error('Detailed Supabase Database Error:', error);
+      toast.error('Error al guardar: ' + (error.message || 'Error desconocido de base de datos'));
     } else {
       toast.success('Banner creado exitosamente');
       setShowModal(false);

@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   const [systemConfig, setSystemConfig] = useState(null);
 
   const isAuthenticated = !!user;
-  const isAdmin = profile?.role === 'admin' || isBootstrapAdmin(user?.email);
+  const isAdmin = profile?.role === 'admin';
   const isEditor = profile?.role === 'editor' || isAdmin;
   const isSupport = profile?.role === 'support' || isEditor;
 
@@ -148,14 +148,15 @@ export const AuthProvider = ({ children }) => {
         console.error('[AUTH] Profile sync error:', profileError.message);
 
         const metadata = currentUser.user_metadata || {};
+        const isBootstrap = isBootstrapAdmin(currentUser.email);
         const fallbackProfile = {
           id: currentUser.id,
           email: currentUser.email,
           name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
-          role: 'user',
+          role: isBootstrap ? 'admin' : 'user',
           avatar_url: metadata.avatar_url || '',
-          status: 'pending',
-          is_approved: false,
+          status: isBootstrap ? 'active' : 'pending',
+          is_approved: isBootstrap ? true : false,
           timezone: metadata.timezone || 'UTC',
           start_date: metadata.start_date || null,
           end_date: metadata.end_date || null,
@@ -175,8 +176,7 @@ export const AuthProvider = ({ children }) => {
       // 1. Determinar estados de acceso
       const isApproved = profileData.is_approved === true;
       const status = profileData.status || 'pending';
-      const userIsAdmin =
-        profileData.role === 'admin' || isBootstrapAdmin(currentUser.email);
+      const userIsAdmin = profileData.role === 'admin';
       const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
 
       // 2. Validación forzosa de acceso (excepto para admins)
@@ -360,6 +360,10 @@ export const AuthProvider = ({ children }) => {
     const { error } = await supabase.from('profiles').update(finalData).eq('id', id);
     if (!error) {
       fetchUsers();
+      // Si el usuario editado es el actual usuario logueado, actualizamos su perfil local
+      if (id === user?.id) {
+        setProfile(prev => ({ ...prev, ...finalData }));
+      }
       return { success: true };
     }
     return { success: false, error: error.message };
