@@ -137,25 +137,9 @@ const AdminConfig = () => {
     siteDescription: 'Sistema de gestión administrativa',
     adminEmail: 'admin@sistema.com',
     timezone: 'America/Mexico_City',
-    language: 'es',
-    sessionTimeout: 30,
-    maxLoginAttempts: 3,
     passwordMinLength: 8,
     requireStrongPassword: true,
-    enableTwoFactor: false,
-    emailNotifications: true,
-    systemAlerts: true,
-    userRegistrationNotify: true,
-    backupFrequency: 'daily',
-    retentionDays: 30,
-    autoBackup: true,
-    defaultTheme: 'dark',
-    allowUserThemeChange: true,
-    maintenanceMode: false,
-    debugMode: false,
-    logLevel: 'info',
-    aiAssistantEnabled: true
-    ,
+    aiAssistantEnabled: true,
     showAcademia: true
   });
 
@@ -184,19 +168,17 @@ const AdminConfig = () => {
       }
       if (data) {
         const mapped = {
-          siteName: data.site_name, siteDescription: data.site_description, adminEmail: data.admin_email,
-          timezone: data.timezone, language: data.language, sessionTimeout: data.session_timeout,
-          maxLoginAttempts: data.max_login_attempts, passwordMinLength: data.password_min_length,
-          requireStrongPassword: data.require_strong_password, enableTwoFactor: data.enable_two_factor,
-          emailNotifications: data.email_notifications, systemAlerts: data.system_alerts,
-          userRegistrationNotify: data.user_registration_notify, backupFrequency: data.backup_frequency,
-          retentionDays: data.retention_days, autoBackup: data.auto_backup, defaultTheme: data.default_theme,
-          allowUserThemeChange: data.allow_user_theme_change, maintenanceMode: data.maintenance_mode,
-          debugMode: data.debug_mode, logLevel: data.log_level,
-          aiAssistantEnabled: data.ai_assistant_enabled !== false // Default to true
-          , showAcademia: data.show_academia !== false
+          siteName: data.site_name,
+          siteDescription: data.site_description,
+          adminEmail: data.admin_email,
+          timezone: data.timezone,
+          passwordMinLength: data.password_min_length,
+          requireStrongPassword: data.require_strong_password,
+          aiAssistantEnabled: data.ai_assistant_enabled !== false,
+          showAcademia: data.show_academia !== false
         };
-        setConfig(mapped); setOriginalConfig(mapped);
+        setConfig(mapped);
+        setOriginalConfig(mapped);
       }
     } catch (err) { setError('Error de conexión'); } finally { setLoading(false); }
   };
@@ -213,23 +195,8 @@ const AdminConfig = () => {
         site_description: config.siteDescription,
         admin_email: config.adminEmail,
         timezone: config.timezone,
-        language: config.language,
-        session_timeout: config.sessionTimeout,
-        max_login_attempts: config.maxLoginAttempts,
         password_min_length: config.passwordMinLength,
         require_strong_password: config.requireStrongPassword,
-        enable_two_factor: config.enableTwoFactor,
-        email_notifications: config.emailNotifications,
-        system_alerts: config.systemAlerts,
-        user_registration_notify: config.userRegistrationNotify,
-        backup_frequency: config.backupFrequency,
-        retention_days: config.retentionDays,
-        auto_backup: config.autoBackup,
-        default_theme: config.defaultTheme,
-        allow_user_theme_change: config.allowUserThemeChange,
-        maintenance_mode: config.maintenanceMode,
-        debug_mode: config.debugMode,
-        log_level: config.logLevel,
         ai_assistant_enabled: config.aiAssistantEnabled,
         show_academia: config.showAcademia,
         updated_at: new Date().toISOString()
@@ -295,39 +262,12 @@ const AdminConfig = () => {
             <TimezoneSelect value={config.timezone} onChange={(val) => handleConfigChange('timezone', val)} />
           </ConfigSection>
 
-          <ConfigSection title="Seguridad" icon={Shield}>
-            <InputField label="Sesión (min)" type="number" value={config.sessionTimeout} onChange={(val) => handleConfigChange('sessionTimeout', parseInt(val, 10))} />
-            <InputField label="Intentos Login" type="number" value={config.maxLoginAttempts} onChange={(val) => handleConfigChange('maxLoginAttempts', parseInt(val, 10))} />
-            <ToggleField label="Contraseña Fuerte" value={config.requireStrongPassword} onChange={(val) => handleConfigChange('requireStrongPassword', val)} />
-            <ToggleField label="2FA" value={config.enableTwoFactor} onChange={(val) => handleConfigChange('enableTwoFactor', val)} />
-          </ConfigSection>
-
-          <ConfigSection title="Notificaciones" icon={Bell}>
-            <ToggleField label="Email" value={config.emailNotifications} onChange={(val) => handleConfigChange('emailNotifications', val)} />
-            <ToggleField label="Alertas" value={config.systemAlerts} onChange={(val) => handleConfigChange('systemAlerts', val)} />
-          </ConfigSection>
-
-          <ConfigSection title="Apariencia" icon={Palette}>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Alternar entre tema claro y oscuro</p>
-              <button onClick={toggleTheme} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-bold flex items-center transition-colors">
-                <Palette className="w-4 h-4 mr-2" />
-                Cambiar Tema
-              </button>
-            </div>
-          </ConfigSection>
-
-          <ConfigSection title="Servidor" icon={Server}>
-            <ToggleField label="Mantenimiento" value={config.maintenanceMode} onChange={(val) => handleConfigChange('maintenanceMode', val)} />
-            <ToggleField label="Debug" value={config.debugMode} onChange={(val) => handleConfigChange('debugMode', val)} />
-          </ConfigSection>
-
-          <ConfigSection title="Base de Datos" icon={Database}>
-            <SelectField label="Respaldo" value={config.backupFrequency} onChange={(val) => handleConfigChange('backupFrequency', val)} options={[{value: 'daily', label: 'Diario'}, {value: 'weekly', label: 'Semanal'}]} />
-            <InputField label="Retención (días)" type="number" value={config.retentionDays} onChange={(val) => handleConfigChange('retentionDays', parseInt(val, 10))} />
+          <ConfigSection title="Seguridad de Acceso" icon={Shield}>
+            <InputField label="Mínimo de caracteres" type="number" min={6} max={20} value={config.passwordMinLength} onChange={(val) => handleConfigChange('passwordMinLength', parseInt(val, 10))} />
+            <ToggleField label="Exigir Contraseña Fuerte" value={config.requireStrongPassword} onChange={(val) => handleConfigChange('requireStrongPassword', val)} description="Exige letras mayúsculas, minúsculas, números y caracteres especiales al cambiar contraseñas." />
           </ConfigSection>
           
-          <ConfigSection title="Inteligencia Artificial" icon={Bot}>
+          <ConfigSection title="Inteligencia Artificial y Módulos" icon={Bot}>
             <ToggleField 
               label="Asistente Gemini" 
               value={config.aiAssistantEnabled} 

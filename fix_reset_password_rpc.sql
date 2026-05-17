@@ -1,9 +1,11 @@
 -- Ejecutar en Supabase SQL Editor (Fase seguridad: solo admins pueden resetear contraseñas)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE OR REPLACE FUNCTION public.reset_user_password(target_user_id UUID, new_password TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = public, auth, extensions
 AS $$
 BEGIN
   IF auth.uid() IS NULL THEN
@@ -22,7 +24,7 @@ BEGIN
   END IF;
 
   UPDATE auth.users
-  SET encrypted_password = crypt(new_password, gen_salt('bf'))
+  SET encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf'))
   WHERE id = target_user_id;
 END;
 $$;
