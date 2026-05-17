@@ -552,7 +552,7 @@ const AdminUsers = () => {
                                     {new Date(u.created_at).toLocaleDateString()}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center justify-end gap-2 transition-opacity">
                                         <button onClick={() => handleResetPassword(u)} title="Resetear contraseña" className="p-2.5 glass-card border-white/5 text-amber-400 hover:bg-amber-500 hover:text-deep-dark transition-all rounded-xl">
                                             <RotateCcw className="w-4 h-4" />
                                         </button>

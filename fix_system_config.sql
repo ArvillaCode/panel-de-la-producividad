@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.system_config (
     maintenance_mode BOOLEAN DEFAULT FALSE,
     debug_mode BOOLEAN DEFAULT FALSE,
     log_level TEXT DEFAULT 'info',
+    show_academia BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT only_one_row CHECK (id = 1)

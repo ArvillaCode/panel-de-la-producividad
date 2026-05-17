@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS system_config (
     maintenance_mode BOOLEAN DEFAULT FALSE,
     debug_mode BOOLEAN DEFAULT FALSE,
     log_level TEXT DEFAULT 'info',
+    show_academia BOOLEAN DEFAULT TRUE,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT one_row_only CHECK (id = 1)
 );

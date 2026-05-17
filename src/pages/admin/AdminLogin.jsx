@@ -268,7 +268,7 @@ const AdminLogin = () => {
               disabled={loading}
               className="w-full relative group overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
               <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)]">
                 {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Acceder al Sistema'}
               </div>

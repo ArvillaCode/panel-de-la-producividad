@@ -105,12 +105,22 @@ export const AuthProvider = ({ children }) => {
         .eq('id', 1)
         .maybeSingle();
 
-      if (!error && data) {
-        setSystemConfig({
-          maxLoginAttempts: data.max_login_attempts,
-          passwordMinLength: data.password_min_length,
-          requireStrongPassword: data.require_strong_password
-        });
+      if (!error) {
+        if (data) {
+          setSystemConfig({
+            maxLoginAttempts: data.max_login_attempts,
+            passwordMinLength: data.password_min_length,
+            requireStrongPassword: data.require_strong_password,
+            showAcademia: data.show_academia !== false
+          });
+        } else {
+          setSystemConfig({
+            maxLoginAttempts: 5,
+            passwordMinLength: 8,
+            requireStrongPassword: true,
+            showAcademia: true
+          });
+        }
       }
     } catch (err) {
       console.error('[AUTH] Fetch system config error:', err);
@@ -136,8 +146,29 @@ export const AuthProvider = ({ children }) => {
 
       if (profileError) {
         console.error('[AUTH] Profile sync error:', profileError.message);
-        // Si no hay perfil, creamos uno básico temporal pero lo mantenemos como limitado
-        setProfile({ id: currentUser.id, email: currentUser.email, role: 'user', status: 'pending', is_approved: false });
+
+        const metadata = currentUser.user_metadata || {};
+        const fallbackProfile = {
+          id: currentUser.id,
+          email: currentUser.email,
+          name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
+          role: 'user',
+          avatar_url: metadata.avatar_url || '',
+          status: 'pending',
+          is_approved: false,
+          timezone: metadata.timezone || 'UTC',
+          start_date: metadata.start_date || null,
+          end_date: metadata.end_date || null,
+          created_at: new Date().toISOString()
+        };
+
+        // Si no hay perfil registrado, lo creamos para que el usuario aparezca correctamente en el admin y pueda ser aprobado.
+        const { error: createError } = await supabase.from('profiles').insert(fallbackProfile);
+        if (createError) {
+          console.error('[AUTH] Fallback profile creation failed:', createError.message);
+        }
+
+        setProfile(fallbackProfile);
         return;
       }
 
@@ -534,6 +565,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     isAdmin,
     notifications,
+    systemConfig,
     login,
     logout,
     register,

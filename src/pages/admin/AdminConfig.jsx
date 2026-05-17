@@ -155,6 +155,8 @@ const AdminConfig = () => {
     debugMode: false,
     logLevel: 'info',
     aiAssistantEnabled: true
+    ,
+    showAcademia: true
   });
 
   const [originalConfig, setOriginalConfig] = useState({});
@@ -192,6 +194,7 @@ const AdminConfig = () => {
           allowUserThemeChange: data.allow_user_theme_change, maintenanceMode: data.maintenance_mode,
           debugMode: data.debug_mode, logLevel: data.log_level,
           aiAssistantEnabled: data.ai_assistant_enabled !== false // Default to true
+          , showAcademia: data.show_academia !== false
         };
         setConfig(mapped); setOriginalConfig(mapped);
       }
@@ -228,6 +231,7 @@ const AdminConfig = () => {
         debug_mode: config.debugMode,
         log_level: config.logLevel,
         ai_assistant_enabled: config.aiAssistantEnabled,
+        show_academia: config.showAcademia,
         updated_at: new Date().toISOString()
       };
 
@@ -330,6 +334,14 @@ const AdminConfig = () => {
               onChange={(val) => handleConfigChange('aiAssistantEnabled', val)}
               description="Activa o desactiva el asistente de IA (Matchmaker) en el panel de usuarios."
             />
+            <div className="mt-4">
+              <ToggleField
+                label="Mostrar Academia"
+                value={config.showAcademia}
+                onChange={(val) => handleConfigChange('showAcademia', val)}
+                description="Muestra u oculta la opción 'Academia' para todos los usuarios en el panel."
+              />
+            </div>
           </ConfigSection>
         </div>
       </div>

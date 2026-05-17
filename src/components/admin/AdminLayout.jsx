@@ -24,7 +24,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { BRANDING } from '../../constants/branding';
 
 const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
-  const { logout, user, profile, loading, notifications } = useAuth();
+  const { logout, user, profile, loading, notifications, systemConfig } = useAuth();
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -184,7 +184,12 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => {
+          {menuItems.filter(item => {
+            if (item.id === 'academia') {
+              return systemConfig?.showAcademia !== false;
+            }
+            return true;
+          }).map((item) => {
             const Icon = item.icon;
             const isActive = actualCurrentPage === item.id;
             
