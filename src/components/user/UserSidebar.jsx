@@ -34,13 +34,13 @@ const UserSidebar = ({
   setIsCollapsed,
   onCloseMobile
 }) => {
-  const { user, profile, logout, notifications, markAllNotificationsAsRead, systemConfig } = useAuth();
+  const { user, profile, logout, notifications, markAllNotificationsAsRead, systemConfig, isAdmin } = useAuth();
   const unreadCount = notifications.filter(n => !n.read).length;
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const showAcademia = systemConfig?.showAcademia !== false;
+  const showAcademia = systemConfig?.showAcademia !== false || isAdmin || profile?.role === 'admin';
 
   // Dependencia local de fallback para evitar pantallas negras y crashes en build
   const currentActiveTab = activeTab !== undefined && activeTab !== null ? activeTab : (location.pathname === '/' ? 'Todos' : '');

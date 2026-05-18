@@ -12,7 +12,8 @@ import {
   X,
   Image as ImageIcon,
   Save,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
@@ -57,6 +58,38 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const ACADEMY_CATEGORIES = ["General", "Inteligencia Artificial", "Automatización", "Marketing", "Ventas", "Estrategia"];
+
+// --- HELPER PARA DETECTAR Y OBTENER URL DE INCRUSTACIÓN (GOOGLE DRIVE, YOUTUBE, VIMEO) ---
+function getEmbedUrl(url: string) {
+  if (!url) return null;
+  
+  // Google Drive
+  if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/file/d/${match[1]}/preview`;
+    }
+  }
+  
+  // YouTube
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    const match = url.match(/[?&]v=([a-zA-Z0-9_-]+)/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/) || url.match(/\/embed\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://www.youtube.com/embed/${match[1]}?rel=0`;
+    }
+  }
+
+  // Vimeo
+  if (url.includes('vimeo.com')) {
+    const match = url.match(/vimeo\.com\/([0-9]+)/) || url.match(/player\.vimeo\.com\/video\/([0-9]+)/);
+    if (match && match[1]) {
+      return `https://player.vimeo.com/video/${match[1]}`;
+    }
+  }
+
+  return null;
+}
+
 export default function AcademyDashboard() {
   // --- ESTADOS ---
   const [view, setView] = useState<'courses' | 'lessons'>('courses');
@@ -68,7 +101,7 @@ export default function AcademyDashboard() {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile, systemConfig, loading } = useAuth();
   
   // --- MODO EDICIÓN ---
   const [isEditMode, setIsEditMode] = useState(false);
@@ -349,6 +382,38 @@ export default function AcademyDashboard() {
     })));
     if (activeLesson) setActiveLesson(prev => prev ? ({ ...prev, is_completed: true }) : null);
   };
+
+  const isAcademiaEnabled = systemConfig?.showAcademia !== false || isAdmin || profile?.role === 'admin';
+
+  if (!loading && !isAcademiaEnabled) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 flex items-center justify-center p-4">
+        <div className="glass-card border border-white/10 p-10 rounded-3xl max-w-md w-full text-center shadow-2xl relative overflow-hidden backdrop-blur-xl bg-white/5">
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+          
+          <div className="mx-auto w-16 h-16 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
+            <Lock className="w-8 h-8 text-blue-500" />
+          </div>
+          
+          <h2 className="text-2xl font-black tracking-tight mb-3 uppercase italic">
+            Módulo Desactivado
+          </h2>
+          
+          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
+            La academia se encuentra actualmente en mantenimiento o actualización de contenidos por parte de la administración. Vuelve a intentarlo más tarde.
+          </p>
+          
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center w-full px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl hover:from-blue-700 hover:to-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-blue-500/20"
+          >
+            Volver al Inicio
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 font-sans">
@@ -643,9 +708,28 @@ export default function AcademyDashboard() {
               ) : (
                 <>
                   <div className="w-full bg-black rounded-2xl overflow-hidden shadow-md aspect-video relative flex items-center justify-center">
-                    <video key={activeLesson.id} controls controlsList="nodownload" className="w-full h-full object-contain">
-                      <source src={activeLesson.video_url || academyMediaUrl(activeLesson.video_path)} type="video/mp4" />
-                    </video>
+                    {(() => {
+                      const finalUrl = activeLesson.video_url || academyMediaUrl(activeLesson.video_path);
+                      const embedUrl = getEmbedUrl(finalUrl);
+                      
+                      if (embedUrl) {
+                        return (
+                          <iframe 
+                            key={activeLesson.id}
+                            src={embedUrl} 
+                            className="w-full h-full border-0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                          />
+                        );
+                      }
+                      
+                      return (
+                        <video key={activeLesson.id} controls controlsList="nodownload" className="w-full h-full object-contain">
+                          <source src={finalUrl} type="video/mp4" />
+                        </video>
+                      );
+                    })()}
                   </div>
                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 lg:p-8 shadow-sm border border-slate-200 dark:border-slate-800 relative">
                     {isEditMode ? (
@@ -657,6 +741,16 @@ export default function AcademyDashboard() {
                             value={editTitle} 
                             onChange={(e) => setEditTitle(e.target.value)}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xl font-bold focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Enlace del Video o Ruta (Google Drive, YouTube o R2)</label>
+                          <input 
+                            type="text" 
+                            value={editVideoPath} 
+                            onChange={(e) => setEditVideoPath(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                            placeholder="Ej: https://drive.google.com/... o academy/videos/video.mp4"
                           />
                         </div>
                         <div>
@@ -697,36 +791,6 @@ export default function AcademyDashboard() {
                           dangerouslySetInnerHTML={{ __html: activeLesson.description || '' }}
                         />
                       </>
-                    )}
-                    
-                    {isAdmin && (
-                      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-2xl text-[11px] font-mono">
-                        <p className="font-bold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-widest text-center border-b border-blue-100 dark:border-blue-800/50 pb-2">📦 Datos en Base de Datos (Admin)</p>
-                        <div className="grid grid-cols-1 gap-2 opacity-80 py-2">
-                          <p><strong>ID Lección:</strong> {activeLesson.id}</p>
-                          <p><strong>Ruta Video (video_path):</strong> 
-                            {isEditMode ? (
-                              <input 
-                                type="text" 
-                                value={editVideoPath} 
-                                onChange={(e) => setEditVideoPath(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-amber-300 rounded px-2 py-1 mt-1 font-mono text-[10px] focus:ring-1 focus:ring-amber-500 outline-none"
-                              />
-                            ) : (
-                              <span className={activeLesson.video_path ? 'text-green-600' : 'text-red-600 font-bold'}>{activeLesson.video_path || 'VACÍO'}</span>
-                            )}
-                          </p>
-                          <p><strong>Portada (thumbnail_url):</strong> <span className={activeLesson.thumbnail_url ? 'text-green-600' : 'text-red-600 font-bold'}>{activeLesson.thumbnail_url || 'VACÍO'}</span></p>
-                          <p className="pt-2 border-t border-blue-100 dark:border-blue-800/50 mt-1"><strong>URL Final Video:</strong> <br/>
-                            <a href={activeLesson.video_url} target="_blank" className="text-blue-600 underline break-all">{activeLesson.video_url || 'N/A'}</a>
-                          </p>
-                        </div>
-                        {!activeLesson.video_path && (
-                          <p className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-center font-bold animate-pulse">
-                            ⚠️ Error: Esta lección no tiene un archivo de video vinculado.
-                          </p>
-                        )}
-                      </div>
                     )}
 
                     {(activeLesson.materiales && activeLesson.materiales.length > 0) && (

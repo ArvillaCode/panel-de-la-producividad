@@ -33,3 +33,12 @@ supabase/.temp/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Media and Large Files
+videos-clases/
+*.mp4
+*.zip
+*.mov
+*.avi
+dist/
+build/

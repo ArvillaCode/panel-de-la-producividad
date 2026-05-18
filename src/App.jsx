@@ -21,7 +21,6 @@ import Support from './pages/Support';
 import WaitingApproval from './pages/WaitingApproval';
 import AdminBanners from './pages/admin/AdminBanners';
 import GlobalBanner from './components/user/GlobalBanner';
-import PWAInstallPrompt from './components/user/PWAInstallPrompt';
 import AcademiaPage from './app/dashboard/academia/page';
 import LessonCreator from './app/dashboard/academia/admin/page';
 import './App.css';
@@ -43,6 +42,12 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
         <div className="premium-spinner"></div>
       </div>
     );
+  }
+
+  // Bypass global incondicional para la sección de Gestión de Usuarios si es un administrador autenticado
+  const isUserManagement = window.location.pathname === '/admin/users';
+  if (isUserManagement && isAuthenticated && isAdmin) {
+    return children;
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -86,7 +91,6 @@ function App() {
               <>
                 <ReleaseAutoNotification />
                 <GlobalBanner />
-                <PWAInstallPrompt />
               </>
             )}
 

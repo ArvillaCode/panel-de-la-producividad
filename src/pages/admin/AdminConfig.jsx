@@ -279,7 +279,7 @@ const AdminConfig = () => {
                 label="Mostrar Academia"
                 value={config.showAcademia}
                 onChange={(val) => handleConfigChange('showAcademia', val)}
-                description="Muestra u oculta la opción 'Academia' para todos los usuarios en el panel."
+                description="Muestra u oculta la opción 'Academia' para los usuarios normales. Los administradores seguirán teniendo acceso total en segundo plano."
               />
             </div>
           </ConfigSection>

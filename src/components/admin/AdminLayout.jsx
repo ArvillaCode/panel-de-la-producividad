@@ -185,8 +185,12 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
           {menuItems.filter(item => {
+            // La sección de Gestión de Usuarios es una excepción global y debe ser incondicionalmente visible y operativa
+            if (item.id === 'users') {
+              return true;
+            }
             if (item.id === 'academia') {
-              return systemConfig?.showAcademia !== false;
+              return true; // El admin siempre ve la opción de Academia en el panel administrativo
             }
             return true;
           }).map((item) => {

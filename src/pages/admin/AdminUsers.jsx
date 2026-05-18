@@ -94,6 +94,16 @@ const AdminUsers = () => {
   // Acciones Masivas
   const [selectedRows, setSelectedRows] = useState([]);
 
+  const headerCheckboxRef = React.useRef(null);
+  const isAllSelected = currentUsers.length > 0 && currentUsers.every(u => selectedRows.includes(u.id));
+  const isSomeButNotAllSelected = selectedRows.length > 0 && !isAllSelected;
+
+  React.useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = isSomeButNotAllSelected;
+    }
+  }, [isSomeButNotAllSelected]);
+
   useEffect(() => {
     fetchUsers();
     const handleKeyDown = (e) => {
@@ -222,7 +232,8 @@ const AdminUsers = () => {
       toast.success('Usuario eliminado');
       setShowDeleteModal(false);
     } else {
-      setError(result.error);
+      toast.error(result.error || 'Error al eliminar usuario');
+      setShowDeleteModal(false);
     }
     setActionLoading(false);
   };
@@ -312,48 +323,103 @@ const AdminUsers = () => {
   };
   
   const handleBulkApprove = async () => {
+    if (selectedRows.length === 0) return;
     setActionLoading(true);
     try {
-      for (const userId of selectedRows) {
-        await updateUserById(userId, { status: 'active', is_approved: true });
+      const results = await Promise.all(
+        selectedRows.map(userId => updateUserById(userId, { status: 'active', is_approved: true }))
+      );
+      const successes = results.filter(r => r && r.success).length;
+      if (successes > 0) {
+        toast.success(`${successes} usuarios activados exitosamente`);
       }
-      toast.success(`${selectedRows.length} usuarios activados`);
+      if (successes < selectedRows.length) {
+        const failures = selectedRows.length - successes;
+        toast.error(`Error al activar ${failures} usuarios`);
+      }
       setSelectedRows([]);
       fetchUsers();
     } catch (err) {
       toast.error('Error en activación masiva');
+      setSelectedRows([]);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleBulkExpel = async () => {
+    if (selectedRows.length === 0) return;
+
+    // Protección estricta del último administrador
+    const totalAdmins = users.filter(u => u.role === 'admin');
+    const selectedAdmins = selectedRows.filter(id => {
+      const u = users.find(user => user.id === id);
+      return u && u.role === 'admin';
+    });
+
+    if (selectedAdmins.length >= totalAdmins.length) {
+      toast.error('Operación denegada: No puedes expulsar o desactivar a todos los administradores. Debe quedar al menos un administrador activo en el sistema.');
+      setSelectedRows([]);
+      return;
+    }
+
     setActionLoading(true);
     try {
-      for (const userId of selectedRows) {
-        await expelUser(userId);
+      const results = await Promise.all(
+        selectedRows.map(userId => expelUser(userId))
+      );
+      const successes = results.filter(r => r && r.success).length;
+      if (successes > 0) {
+        toast.success(`${successes} usuarios expulsados exitosamente`);
       }
-      toast.success(`${selectedRows.length} usuarios expulsados`);
+      if (successes < selectedRows.length) {
+        const failures = selectedRows.length - successes;
+        toast.error(`Error al expulsar ${failures} usuarios`);
+      }
       setSelectedRows([]);
       fetchUsers();
     } catch (err) {
       toast.error('Error en expulsión masiva');
+      setSelectedRows([]);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+
+    // Protección estricta del último administrador
+    const totalAdmins = users.filter(u => u.role === 'admin');
+    const selectedAdmins = selectedRows.filter(id => {
+      const u = users.find(user => user.id === id);
+      return u && u.role === 'admin';
+    });
+
+    if (selectedAdmins.length >= totalAdmins.length) {
+      toast.error('Operación denegada: No puedes eliminar a todos los administradores. Debe quedar al menos un administrador activo en el sistema.');
+      setSelectedRows([]);
+      return;
+    }
+
     setActionLoading(true);
     try {
-      for (const userId of selectedRows) {
-        await deleteUserById(userId);
+      const results = await Promise.all(
+        selectedRows.map(userId => deleteUserById(userId))
+      );
+      const successes = results.filter(r => r && r.success).length;
+      if (successes > 0) {
+        toast.success(`${successes} usuarios eliminados exitosamente`);
       }
-      toast.success(`${selectedRows.length} usuarios eliminados`);
+      if (successes < selectedRows.length) {
+        const failures = selectedRows.length - successes;
+        toast.error(`Error al eliminar ${failures} usuarios`);
+      }
       setSelectedRows([]);
       fetchUsers();
     } catch (err) {
       toast.error('Error en eliminación masiva');
+      setSelectedRows([]);
     } finally {
       setActionLoading(false);
     }
@@ -504,7 +570,13 @@ const AdminUsers = () => {
                     <thead>
                         <tr className="bg-white/5 border-b border-white/10">
                             <th className="px-6 py-4">
-                                <input type="checkbox" onChange={handleSelectAll} className="w-5 h-5 rounded border-white/10 bg-white/5 text-neon-teal" />
+                                <input 
+                                  type="checkbox" 
+                                  ref={headerCheckboxRef}
+                                  checked={isAllSelected}
+                                  onChange={handleSelectAll} 
+                                  className="w-5 h-5 rounded border-white/10 bg-white/5 text-neon-teal focus:ring-0 focus:ring-offset-0" 
+                                />
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Identidad</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Privilegios</th>
