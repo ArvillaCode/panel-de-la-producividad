@@ -497,7 +497,7 @@ export default function AcademyDashboard() {
             </p>
           </div>
           {isAdmin && (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Link 
                 to="/dashboard"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
@@ -760,7 +760,7 @@ export default function AcademyDashboard() {
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
             </div>
 

@@ -257,7 +257,7 @@ export default function LessonCreator() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Creador de Contenido</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-1">Sube cursos y lecciones nuevas a Upfunne Academy.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button 
               onClick={() => navigate('/dashboard/academia?action=new-course')}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
