@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase.js';
 import { useAuth } from '../../../hooks/useAuth.jsx';
-import { 
-  PlayIcon, 
-  CheckCircleIcon, 
-  ChevronDownIcon, 
+import {
+  PlayIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
   DownloadIcon,
   Plus,
   X,
@@ -62,7 +62,7 @@ const ACADEMY_CATEGORIES = ["General", "Inteligencia Artificial", "Automatizaci�
 // --- HELPER PARA DETECTAR Y OBTENER URL DE INCRUSTACIÓN (GOOGLE DRIVE, YOUTUBE, VIMEO) ---
 function getEmbedUrl(url: string) {
   if (!url) return null;
-  
+
   // Google Drive
   if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
     const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -70,7 +70,7 @@ function getEmbedUrl(url: string) {
       return `https://drive.google.com/file/d/${match[1]}/preview`;
     }
   }
-  
+
   // YouTube
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
     const match = url.match(/[?&]v=([a-zA-Z0-9_-]+)/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/) || url.match(/\/embed\/([a-zA-Z0-9_-]+)/);
@@ -106,7 +106,7 @@ export default function AcademyDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { isAdmin, profile, systemConfig, loading } = useAuth();
   const [videoError, setVideoError] = useState(false);
-  
+
   // --- MODO EDICIÓN ---
   const [isEditMode, setIsEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -147,7 +147,7 @@ export default function AcademyDashboard() {
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseForm.title || !courseForm.description) return alert("Completa los campos");
-    
+
     setIsCreatingCourse(true);
     try {
       // Generar slug automáticamente
@@ -164,7 +164,7 @@ export default function AcademyDashboard() {
         .select();
 
       if (error) throw error;
-      
+
       setCourses(prev => [...prev, data[0]]);
       setIsCourseModalOpen(false);
       setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General' });
@@ -180,7 +180,7 @@ export default function AcademyDashboard() {
   const handleDeleteCourse = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("¿Estás seguro de borrar este curso? Se eliminarán todos sus módulos y lecciones.")) return;
-    
+
     try {
       const { error } = await supabase.from('academy_courses').delete().eq('id', id);
       if (error) throw error;
@@ -196,18 +196,18 @@ export default function AcademyDashboard() {
 
   const handleDeleteLesson = async (id: string, moduleId: string) => {
     if (!confirm("¿Borrar esta lección?")) return;
-    
+
     try {
       const { error } = await supabase.from('academy_lessons').delete().eq('id', id);
       if (error) throw error;
-      
+
       setModules(prev => prev.map(mod => {
         if (mod.id === moduleId) {
           return { ...mod, lessons: mod.lessons.filter(l => l.id !== id) };
         }
         return mod;
       }));
-      
+
       if (activeLesson?.id === id) setActiveLesson(null);
     } catch (error) {
       alert("Error al borrar lección");
@@ -217,7 +217,7 @@ export default function AcademyDashboard() {
   const handleDeleteModule = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("¿Borrar este módulo y todas sus lecciones?")) return;
-    
+
     try {
       const { error } = await supabase.from('academy_modules').delete().eq('id', id);
       if (error) throw error;
@@ -230,7 +230,7 @@ export default function AcademyDashboard() {
   const handleUpdateLesson = async () => {
     if (!activeLesson) return;
     setIsSaving(true);
-    
+
     try {
       const { error } = await supabase
         .from('academy_lessons')
@@ -243,31 +243,31 @@ export default function AcademyDashboard() {
         .eq('id', activeLesson.id);
 
       if (error) throw error;
-      
+
       // Actualizar estado local
       setModules(prev => prev.map(mod => ({
         ...mod,
-        lessons: mod.lessons.map(l => l.id === activeLesson.id ? { 
-          ...l, 
-          title: editTitle, 
-          description: editDescription, 
+        lessons: mod.lessons.map(l => l.id === activeLesson.id ? {
+          ...l,
+          title: editTitle,
+          description: editDescription,
           video_path: editVideoPath,
           video_url: editVideoPath ? academyMediaUrl(editVideoPath) : '',
           thumbnail_url: editThumbnailUrl,
           thumb_url: editThumbnailUrl ? academyMediaUrl(editThumbnailUrl) : ''
         } : l)
       })));
-      
-      setActiveLesson(prev => ({ 
-        ...prev, 
-        title: editTitle, 
-        description: editDescription, 
+
+      setActiveLesson(prev => ({
+        ...prev,
+        title: editTitle,
+        description: editDescription,
         video_path: editVideoPath,
         video_url: editVideoPath ? academyMediaUrl(editVideoPath) : '',
         thumbnail_url: editThumbnailUrl,
         thumb_url: editThumbnailUrl ? academyMediaUrl(editThumbnailUrl) : ''
       }));
-      
+
       setIsEditMode(false);
       alert("Lección actualizada correctamente.");
     } catch (error) {
@@ -297,7 +297,7 @@ export default function AcademyDashboard() {
           .from('academy_courses')
           .select('*')
           .order('created_at', { ascending: false });
-        
+
         if (!coursesError && coursesData) {
           setCourses(coursesData);
         }
@@ -348,10 +348,10 @@ export default function AcademyDashboard() {
         const { data, error } = await query
           .order('order_index', { ascending: true })
           .order('order_index', { referencedTable: 'academy_lessons', ascending: true });
-        
+
         if (!error && data) {
           const modulesMap = new Map();
-          
+
           data.forEach((mod: any) => {
             const existing = modulesMap.get(mod.title);
             const lessons = (mod.academy_lessons || []).map((lesson: any) => ({
@@ -377,14 +377,14 @@ export default function AcademyDashboard() {
             ...mod,
             lessons: mod.lessons.filter((l: any) => isAdmin || l.is_visible !== false)
               .map((lesson: any) => ({
-                  ...lesson,
-                  video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
-                  thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
-                }))
+                ...lesson,
+                video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
+                thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
+              }))
           }));
-          
+
           setModules(formattedModules);
-          
+
           // Auto-seleccionar lección desde la URL
           const params = new URLSearchParams(location.search);
           const lessonIdFromUrl = params.get('lesson');
@@ -452,19 +452,19 @@ export default function AcademyDashboard() {
         <div className="glass-card border border-white/10 p-10 rounded-3xl max-w-md w-full text-center shadow-2xl relative overflow-hidden backdrop-blur-xl bg-white/5">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
           <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
-          
+
           <div className="mx-auto w-16 h-16 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
             <Lock className="w-8 h-8 text-blue-500" />
           </div>
-          
+
           <h2 className="text-2xl font-black tracking-tight mb-3 uppercase italic">
             Módulo Desactivado
           </h2>
-          
+
           <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
             La academia se encuentra actualmente en mantenimiento o actualización de contenidos por parte de la administración. Vuelve a intentarlo más tarde.
           </p>
-          
+
           <Link
             to="/"
             className="inline-flex items-center justify-center w-full px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl hover:from-blue-700 hover:to-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-blue-500/20"
@@ -485,13 +485,13 @@ export default function AcademyDashboard() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               {view === 'lessons' && (
-                <button 
-                  onClick={() => { 
+                <button
+                  onClick={() => {
                     navigate('/dashboard/academia');
                   }}
                   className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                 </button>
               )}
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -499,22 +499,22 @@ export default function AcademyDashboard() {
               </h1>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
-              {view === 'courses' 
-                ? 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.' 
+              {view === 'courses'
+                ? 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.'
                 : (selectedCourse?.description || 'Cargando detalles del curso...')}
             </p>
           </div>
           {isAdmin && (
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Link 
+              <Link
                 to="/dashboard"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                 Dashboard Principal
               </Link>
-              
-              <Link 
+
+              <Link
                 to="/dashboard/academia/admin"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
               >
@@ -522,7 +522,7 @@ export default function AcademyDashboard() {
                 Creador de Contenido
               </Link>
 
-              <button 
+              <button
                 onClick={() => setIsEditMode(!isEditMode)}
                 className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
               >
@@ -530,7 +530,7 @@ export default function AcademyDashboard() {
                 {isEditMode ? 'Modo Edición Activo' : 'Modo Edición'}
               </button>
 
-              <button 
+              <button
                 onClick={() => setIsCourseModalOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
               >
@@ -548,7 +548,7 @@ export default function AcademyDashboard() {
               onClick={() => { setSelectedCategory('Todas'); setShowOnlyPremium(false); }}
               className={`px-6 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
                 ${(selectedCategory === 'Todas' && !showOnlyPremium)
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                   : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-800 hover:border-blue-400'
                 }`}
             >
@@ -558,8 +558,8 @@ export default function AcademyDashboard() {
             <button
               onClick={() => { setShowOnlyPremium(true); setSelectedCategory('Todas'); }}
               className={`px-6 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2
-                ${showOnlyPremium 
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-600/20' 
+                ${showOnlyPremium
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-600/20'
                   : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800'
                 }`}
             >
@@ -574,7 +574,7 @@ export default function AcademyDashboard() {
                 onClick={() => { setSelectedCategory(cat); setShowOnlyPremium(false); }}
                 className={`px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
                   ${(selectedCategory === cat && !showOnlyPremium)
-                    ? `${CATEGORY_COLORS[cat] || 'bg-blue-600'} text-white shadow-lg` 
+                    ? `${CATEGORY_COLORS[cat] || 'bg-blue-600'} text-white shadow-lg`
                     : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-800 hover:border-blue-400'
                   }`}
               >
@@ -587,65 +587,65 @@ export default function AcademyDashboard() {
         {/* VISTA DE CURSOS */}
         {view === 'courses' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {(courses.length > 0 
+            {(courses.length > 0
               ? courses.filter(c => {
-                  if (showOnlyPremium) return c.is_premium;
-                  return selectedCategory === 'Todas' || c.category === selectedCategory;
-                })
+                if (showOnlyPremium) return c.is_premium;
+                return selectedCategory === 'Todas' || c.category === selectedCategory;
+              })
               : [
-              { id: '1', title: 'Curso de Automatización', description: 'Aprende a automatizar tus flujos con IA.', thumbnail_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800', category: 'Automatización', is_premium: true },
-              { id: '2', title: 'Marketing con IA', description: 'Estrategias avanzadas de marketing digital.', thumbnail_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800', category: 'Marketing', is_premium: false },
-              { id: '3', title: 'Inteligencia Artificial', description: 'Fundamentos y aplicaciones de la IA moderna.', thumbnail_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800', category: 'Inteligencia Artificial', is_premium: true }
-            ].filter(c => {
-              if (showOnlyPremium) return c.is_premium;
-              return selectedCategory === 'Todas' || c.category === selectedCategory;
-            })).map((course) => (
-              <div 
-                key={course.id}
-                onClick={() => { 
-                  navigate(`/dashboard/academia?course=${course.id}`);
-                }}
-                className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2"
-              >
-                <div className="aspect-[16/9] relative overflow-hidden">
-                  <img 
-                    src={course.thumbnail_url?.startsWith('http') ? course.thumbnail_url : academyMediaUrl(course.thumbnail_url)} 
-                    alt={course.title}
-                    onError={(e) => {
-                      // Fallback elegante
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
-                    }}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
-                  <div className="absolute top-4 left-4">
-                    <span className={`px-3 py-1 ${CATEGORY_COLORS[course.category] || 'bg-slate-600'} backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg`}>
-                      {course.category || 'General'}
-                    </span>
-                  </div>
+                { id: '1', title: 'Curso de Automatización', description: 'Aprende a automatizar tus flujos con IA.', thumbnail_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800', category: 'Automatización', is_premium: true },
+                { id: '2', title: 'Marketing con IA', description: 'Estrategias avanzadas de marketing digital.', thumbnail_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800', category: 'Marketing', is_premium: false },
+                { id: '3', title: 'Inteligencia Artificial', description: 'Fundamentos y aplicaciones de la IA moderna.', thumbnail_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800', category: 'Inteligencia Artificial', is_premium: true }
+              ].filter(c => {
+                if (showOnlyPremium) return c.is_premium;
+                return selectedCategory === 'Todas' || c.category === selectedCategory;
+              })).map((course) => (
+                <div
+                  key={course.id}
+                  onClick={() => {
+                    navigate(`/dashboard/academia?course=${course.id}`);
+                  }}
+                  className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2"
+                >
+                  <div className="aspect-[16/9] relative overflow-hidden">
+                    <img
+                      src={course.thumbnail_url?.startsWith('http') ? course.thumbnail_url : academyMediaUrl(course.thumbnail_url)}
+                      alt={course.title}
+                      onError={(e) => {
+                        // Fallback elegante
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
+                      }}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
+                    <div className="absolute top-4 left-4">
+                      <span className={`px-3 py-1 ${CATEGORY_COLORS[course.category] || 'bg-slate-600'} backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg`}>
+                        {course.category || 'General'}
+                      </span>
+                    </div>
 
-                  {isAdmin && isEditMode && (
-                    <button 
-                      onClick={(e) => handleDeleteCourse(course.id, e)}
-                      className="absolute top-4 right-4 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-all z-10"
-                      title="Borrar Curso"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-blue-500 transition-colors">{course.title}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-2">{course.description}</p>
-                  <div className="mt-6 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">Mastery Level</span>
-                    <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-sm">
-                      Entrar <Plus className="w-4 h-4" />
+                    {isAdmin && isEditMode && (
+                      <button
+                        onClick={(e) => handleDeleteCourse(course.id, e)}
+                        className="absolute top-4 right-4 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-all z-10"
+                        title="Borrar Curso"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-blue-500 transition-colors">{course.title}</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-2">{course.description}</p>
+                    <div className="mt-6 flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">Mastery Level</span>
+                      <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-sm">
+                        Entrar <Plus className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
 
@@ -690,85 +690,85 @@ export default function AcademyDashboard() {
                           onClick={() => toggleModule(module.id)}
                           className="w-full flex flex-col p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
                         >
-                        <div className="flex items-center justify-between w-full mb-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-medium text-slate-900 dark:text-white text-sm truncate">
-                              {module.title}
-                            </span>
-                            {isAdmin && isEditMode && (
-                              <button 
-                                onClick={(e) => handleDeleteModule(module.id, e)}
-                                className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                          <ChevronDownIcon
-                            className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 w-full">
-                          <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                              style={{ width: `${progress}%` }}
+                          <div className="flex items-center justify-between w-full mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-medium text-slate-900 dark:text-white text-sm truncate">
+                                {module.title}
+                              </span>
+                              {isAdmin && isEditMode && (
+                                <button
+                                  onClick={(e) => handleDeleteModule(module.id, e)}
+                                  className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <ChevronDownIcon
+                              className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
                             />
                           </div>
-                          <span className="text-[10px] font-medium text-slate-500 w-8 text-right">
-                            {progress}%
-                          </span>
-                        </div>
-                      </button>
+                          <div className="flex items-center gap-2 w-full">
+                            <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-medium text-slate-500 w-8 text-right">
+                              {progress}%
+                            </span>
+                          </div>
+                        </button>
 
-                      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-                        <div className="flex flex-col gap-1 px-2 pb-3">
-                          {(module.lessons || []).map((lesson, lIdx) => {
-                            const isActive = activeLesson?.id === lesson.id;
-                            return (
-                              <button
-                                key={lesson.id}
-                                onClick={() => handleLessonSelect(lesson)}
-                                className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-all duration-200
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                          <div className="flex flex-col gap-1 px-2 pb-3">
+                            {(module.lessons || []).map((lesson, lIdx) => {
+                              const isActive = activeLesson?.id === lesson.id;
+                              return (
+                                <button
+                                  key={lesson.id}
+                                  onClick={() => handleLessonSelect(lesson)}
+                                  className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-all duration-200
                                   ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 shadow-sm border border-blue-100 dark:border-blue-800/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'}`}
-                              >
-                                <div className="shrink-0 mt-0.5">
-                                  {lesson.is_completed ? (
-                                    <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
-                                  ) : isActive ? (
-                                    <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                      <PlayIcon className="w-3 h-3" />
-                                    </div>
-                                  ) : (
-                                    <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{lIdx + 1}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                                  <p className={`text-sm font-medium line-clamp-2 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>
-                                    {lesson.title}
-                                  </p>
-                                  {isAdmin && isEditMode && (
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteLesson(lesson.id, module.id);
-                                      }}
-                                      className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
+                                >
+                                  <div className="shrink-0 mt-0.5">
+                                    {lesson.is_completed ? (
+                                      <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+                                    ) : isActive ? (
+                                      <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                        <PlayIcon className="w-3 h-3" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                                        <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{lIdx + 1}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                                    <p className={`text-sm font-medium line-clamp-2 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                                      {lesson.title}
+                                    </p>
+                                    {isAdmin && isEditMode && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteLesson(lesson.id, module.id);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                }))}
+                    );
+                  }))}
               </div>
             </div>
 
@@ -798,19 +798,19 @@ export default function AcademyDashboard() {
                     {(() => {
                       const finalUrl = activeLesson.video_url || academyMediaUrl(activeLesson.video_path);
                       const embedUrl = getEmbedUrl(finalUrl);
-                      
+
                       if (embedUrl) {
                         return (
-                          <iframe 
+                          <iframe
                             key={activeLesson.id}
-                            src={embedUrl} 
-                            className="w-full h-full border-0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            src={embedUrl}
+                            className="w-full h-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                           />
                         );
                       }
-                      
+
                       if (videoError) {
                         return (
                           <div className="flex flex-col items-center justify-center p-8 bg-slate-900/90 rounded-2xl w-full h-full text-center">
@@ -822,15 +822,15 @@ export default function AcademyDashboard() {
                           </div>
                         );
                       }
-                      
+
                       return (
-                        <video 
-                          key={activeLesson.id} 
+                        <video
+                          key={activeLesson.id}
                           src={finalUrl}
-                          preload="none"
+                          preload="metadata"
                           poster={activeLesson.thumb_url || (activeLesson.thumbnail_url ? (activeLesson.thumbnail_url.startsWith('http') ? activeLesson.thumbnail_url : academyMediaUrl(activeLesson.thumbnail_url)) : '')}
-                          controls 
-                          controlsList="nodownload" 
+                          controls
+                          controlsList="nodownload"
                           className="w-full h-full object-contain"
                           onError={() => setVideoError(true)}
                           onTimeUpdate={(e) => {
@@ -854,18 +854,18 @@ export default function AcademyDashboard() {
                       <div className="space-y-4 animate-in fade-in duration-300">
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Título de la Lección</label>
-                          <input 
-                            type="text" 
-                            value={editTitle} 
+                          <input
+                            type="text"
+                            value={editTitle}
                             onChange={(e) => setEditTitle(e.target.value)}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xl font-bold focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                           />
                         </div>
-                         <div>
+                        <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Enlace del Video o Ruta (Google Drive, YouTube o R2)</label>
-                          <input 
-                            type="text" 
-                            value={editVideoPath} 
+                          <input
+                            type="text"
+                            value={editVideoPath}
                             onChange={(e) => setEditVideoPath(e.target.value)}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                             placeholder="Ej: https://drive.google.com/... o academy/videos/video.mp4"
@@ -874,16 +874,16 @@ export default function AcademyDashboard() {
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Ruta o URL de la Miniatura</label>
                           <div className="flex gap-2">
-                            <input 
-                              type="text" 
-                              value={editThumbnailUrl} 
+                            <input
+                              type="text"
+                              value={editThumbnailUrl}
                               onChange={(e) => setEditThumbnailUrl(e.target.value)}
                               className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                               placeholder="Ej: academy/thumbnails/miniatura.jpg o URL externa"
                             />
-                            <input 
-                              type="file" 
-                              accept="image/*" 
+                            <input
+                              type="file"
+                              accept="image/*"
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
@@ -896,12 +896,12 @@ export default function AcademyDashboard() {
                                 } finally {
                                   setIsUploadingEditThumb(false);
                                 }
-                              }} 
-                              className="hidden" 
-                              id="edit-thumb-input" 
+                              }}
+                              className="hidden"
+                              id="edit-thumb-input"
                             />
-                            <label 
-                              htmlFor="edit-thumb-input" 
+                            <label
+                              htmlFor="edit-thumb-input"
                               className="px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-250 flex items-center justify-center transition-all"
                             >
                               {isUploadingEditThumb ? 'Subiendo...' : 'Subir'}
@@ -910,21 +910,21 @@ export default function AcademyDashboard() {
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Descripción (HTML permitido)</label>
-                          <textarea 
-                            value={editDescription} 
+                          <textarea
+                            value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
                             rows={6}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                           />
                         </div>
                         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                          <button 
+                          <button
                             onClick={() => setIsEditMode(false)}
                             className="px-6 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
                           >
                             Cancelar
                           </button>
-                          <button 
+                          <button
                             onClick={handleUpdateLesson}
                             disabled={isSaving}
                             className="px-8 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all flex items-center gap-2"
@@ -941,7 +941,7 @@ export default function AcademyDashboard() {
                     ) : (
                       <>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">{activeLesson.title}</h2>
-                        <div 
+                        <div
                           className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line"
                           dangerouslySetInnerHTML={{ __html: activeLesson.description || '' }}
                         />
@@ -979,13 +979,13 @@ export default function AcademyDashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleCreateCourse} className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Título del Curso</label>
-                <input 
-                  type="text" 
-                  value={courseForm.title} 
+                <input
+                  type="text"
+                  value={courseForm.title}
                   onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
                   placeholder="Ej: Master en Automatización"
                   className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
@@ -994,8 +994,8 @@ export default function AcademyDashboard() {
 
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Descripción</label>
-                <textarea 
-                  value={courseForm.description} 
+                <textarea
+                  value={courseForm.description}
                   onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
                   rows={3}
                   placeholder="Explica de qué trata este curso..."
@@ -1006,8 +1006,8 @@ export default function AcademyDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium mb-2 text-slate-500">Categoría</label>
-                  <select 
-                    value={courseForm.category} 
+                  <select
+                    value={courseForm.category}
                     onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
                     className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all cursor-pointer"
                   >
@@ -1016,12 +1016,12 @@ export default function AcademyDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-slate-500">Tipo de Acceso</label>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setCourseForm({ ...courseForm, is_premium: !courseForm.is_premium })}
                     className={`w-full px-4 py-3 rounded-2xl border transition-all flex items-center justify-between
-                      ${courseForm.is_premium 
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-800 dark:text-indigo-300' 
+                      ${courseForm.is_premium
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-800 dark:text-indigo-300'
                         : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}
                   >
                     <span className="text-sm font-semibold">{courseForm.is_premium ? '💎 Premium' : 'Gratis / General'}</span>
@@ -1035,11 +1035,11 @@ export default function AcademyDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Imagen de Portada (Thumbnail)</label>
                 <div className="relative group cursor-pointer">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    accept="image/*"
                     onChange={(e) => e.target.files?.[0] && uploadThumbnail(e.target.files[0])}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
                   <div className={`p-8 border-2 border-dashed rounded-3xl text-center transition-all ${courseForm.thumbnail_url ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
                     {courseForm.thumbnail_url ? (
@@ -1070,15 +1070,15 @@ export default function AcademyDashboard() {
               </div>
 
               <div className="pt-4 flex gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsCourseModalOpen(false)}
                   className="flex-1 py-3 px-6 rounded-2xl border border-slate-200 dark:border-slate-700 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isCreatingCourse || !courseForm.title}
                   className="flex-2 py-3 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
                 >
