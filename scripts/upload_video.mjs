@@ -50,7 +50,7 @@ async function subirVideo() {
     console.log(`🔑 Clave de almacenamiento R2: ${uniqueKey}`);
     
     const params = {
-        Bucket: "upfunne-academy",
+        Bucket: "upfunnel-academy",
         Key: uniqueKey,
         Body: fs.createReadStream(rutaLocal),
         ContentType: "video/mp4",

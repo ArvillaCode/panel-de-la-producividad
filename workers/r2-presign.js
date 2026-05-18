@@ -109,7 +109,7 @@ export default {
       secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     });
 
-    const bucket = env.R2_BUCKET_NAME || 'upfunne-academy';
+    const bucket = env.R2_BUCKET_NAME || 'upfunnel-academy';
     const accountId = env.R2_ACCOUNT_ID;
     const url = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${key}`;
 

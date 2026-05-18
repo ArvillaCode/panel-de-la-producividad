@@ -92,7 +92,13 @@ function getEmbedUrl(url: string) {
 
 export default function AcademyDashboard() {
   // --- ESTADOS ---
-  const [view, setView] = useState<'courses' | 'lessons'>('courses');
+  const [view, setView] = useState<'courses' | 'lessons'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('course') ? 'lessons' : 'courses';
+    }
+    return 'courses';
+  });
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [showOnlyPremium, setShowOnlyPremium] = useState(false);
@@ -474,13 +480,13 @@ export default function AcademyDashboard() {
                 </button>
               )}
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {view === 'courses' ? 'Upfunne Academy' : selectedCourse?.title}
+                {view === 'courses' ? 'Upfunne Academy' : (selectedCourse?.title || 'Cargando curso...')}
               </h1>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
               {view === 'courses' 
                 ? 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.' 
-                : selectedCourse?.description}
+                : (selectedCourse?.description || 'Cargando detalles del curso...')}
             </p>
           </div>
           {isAdmin && (
@@ -645,19 +651,32 @@ export default function AcademyDashboard() {
                 </h2>
               </div>
 
-              <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
-                {(modules || []).map((module) => {
-                  const isExpanded = expandedModules[module.id];
-                  const moduleLessons = module.lessons || [];
-                  const moduleLessonsCompleted = moduleLessons.filter(l => l.is_completed).length;
-                  const progress = Math.round((moduleLessonsCompleted / moduleLessons.length) * 100) || 0;
+              <div className="overflow-y-auto flex-1 p-4 custom-scrollbar">
+                {isLoading ? (
+                  <div className="space-y-4 animate-pulse">
+                    <div className="space-y-2">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/3"></div>
+                      <div className="h-12 bg-slate-100 dark:bg-slate-800/40 rounded-xl"></div>
+                    </div>
+                    <div className="space-y-2 pt-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4"></div>
+                      <div className="h-12 bg-slate-100 dark:bg-slate-800/40 rounded-xl"></div>
+                      <div className="h-12 bg-slate-100 dark:bg-slate-800/40 rounded-xl"></div>
+                    </div>
+                  </div>
+                ) : (
+                  (modules || []).map((module) => {
+                    const isExpanded = expandedModules[module.id];
+                    const moduleLessons = module.lessons || [];
+                    const moduleLessonsCompleted = moduleLessons.filter(l => l.is_completed).length;
+                    const progress = Math.round((moduleLessonsCompleted / moduleLessons.length) * 100) || 0;
 
-                  return (
-                    <div key={module.id} className="mb-2">
-                      <button
-                        onClick={() => toggleModule(module.id)}
-                        className="w-full flex flex-col p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
-                      >
+                    return (
+                      <div key={module.id} className="mb-2">
+                        <button
+                          onClick={() => toggleModule(module.id)}
+                          className="w-full flex flex-col p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
+                        >
                         <div className="flex items-center justify-between w-full mb-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-medium text-slate-900 dark:text-white text-sm truncate">
@@ -742,13 +761,22 @@ export default function AcademyDashboard() {
 
             {/* ÁREA DE CONTENIDO */}
             <div className="flex-1 w-full order-1 lg:order-2 flex flex-col gap-6">
-              {!activeLesson ? (
+              {isLoading ? (
+                <div className="space-y-6 animate-pulse">
+                  <div className="w-full bg-slate-200 dark:bg-slate-850 rounded-3xl aspect-video"></div>
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
+                    <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/3"></div>
+                    <div className="h-4 bg-slate-100 dark:bg-slate-800/50 rounded w-full"></div>
+                    <div className="h-4 bg-slate-100 dark:bg-slate-800/50 rounded w-5/6"></div>
+                  </div>
+                </div>
+              ) : !activeLesson ? (
                 <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center min-h-[500px]">
                   <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 text-slate-400">
                     <PlayIcon className="w-10 h-10" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                    {isLoading ? 'Sincronizando...' : 'Selecciona una lección'}
+                    Selecciona una lección
                   </h3>
                 </div>
               ) : (
@@ -771,7 +799,24 @@ export default function AcademyDashboard() {
                       }
                       
                       return (
-                        <video key={activeLesson.id} controls controlsList="nodownload" className="w-full h-full object-contain">
+                        <video 
+                          key={activeLesson.id} 
+                          controls 
+                          controlsList="nodownload" 
+                          className="w-full h-full object-contain"
+                          onTimeUpdate={(e) => {
+                            const video = e.currentTarget;
+                            // Guardar el segundo actual en localStorage
+                            localStorage.setItem(`lesson-time-${activeLesson.id}`, String(video.currentTime));
+                          }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.currentTarget;
+                            const savedTime = localStorage.getItem(`lesson-time-${activeLesson.id}`);
+                            if (savedTime) {
+                              video.currentTime = parseFloat(savedTime);
+                            }
+                          }}
+                        >
                           <source src={finalUrl} type="video/mp4" />
                         </video>
                       );
