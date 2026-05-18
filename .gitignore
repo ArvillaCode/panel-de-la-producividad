@@ -42,3 +42,6 @@ videos-clases/
 *.avi
 dist/
 build/
+
+.vercel
+.env*.local

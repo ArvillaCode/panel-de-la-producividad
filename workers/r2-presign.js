@@ -1,5 +1,5 @@
 /**
- * Cloudflare Worker: genera URLs firmadas para subir a R2.
+ * Cloudflare Worker: genera URLs firmadas para subir a R2 con CORS robusto.
  * Despliega con: wrangler deploy (configura secretos en el dashboard)
  *
  * Secretos requeridos en Cloudflare:
@@ -12,6 +12,13 @@
  */
 
 import { AwsClient } from 'aws4fetch';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
+};
 
 async function assertAdmin(request, env) {
   const auth = request.headers.get('Authorization');
@@ -56,35 +63,45 @@ async function assertAdmin(request, env) {
 
 export default {
   async fetch(request, env) {
+    // Manejar peticiones Preflight (OPTIONS)
     if (request.method === 'OPTIONS') {
       return new Response(null, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
+        status: 204,
+        headers: corsHeaders,
       });
     }
 
     if (request.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+      return new Response('Method not allowed', { 
+        status: 405,
+        headers: corsHeaders
+      });
     }
 
     const authResult = await assertAdmin(request, env);
     if (!authResult.ok) {
-      return new Response(authResult.message, { status: authResult.status });
+      return new Response(authResult.message, { 
+        status: authResult.status,
+        headers: corsHeaders
+      });
     }
 
     let body;
     try {
       body = await request.json();
     } catch {
-      return new Response('JSON inválido', { status: 400 });
+      return new Response('JSON inválido', { 
+        status: 400,
+        headers: corsHeaders
+      });
     }
 
     const { key, contentType } = body;
     if (!key || typeof key !== 'string' || !key.startsWith('academy/')) {
-      return new Response('Clave inválida', { status: 400 });
+      return new Response('Clave inválida', { 
+        status: 400,
+        headers: corsHeaders
+      });
     }
 
     const aws = new AwsClient({
@@ -92,23 +109,31 @@ export default {
       secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     });
 
-    const bucket = env.R2_BUCKET_NAME || 'upfunnel-academy';
+    const bucket = env.R2_BUCKET_NAME || 'upfunne-academy';
     const accountId = env.R2_ACCOUNT_ID;
     const url = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${key}`;
 
-    const signed = await aws.sign(
-      new Request(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType || 'application/octet-stream' },
-      }),
-      { aws: { signQuery: true, expires: 3600 } }
-    );
+    try {
+      const signed = await aws.sign(
+        new Request(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': contentType || 'application/octet-stream' },
+        }),
+        { aws: { signQuery: true, expires: 3600 } }
+      );
 
-    return new Response(JSON.stringify({ uploadUrl: signed.url, key }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+      return new Response(JSON.stringify({ uploadUrl: signed.url, key }), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (err) {
+      return new Response(`Error al firmar URL: ${err.message}`, {
+        status: 500,
+        headers: corsHeaders
+      });
+    }
   },
 };

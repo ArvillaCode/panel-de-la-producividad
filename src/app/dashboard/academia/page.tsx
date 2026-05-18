@@ -75,7 +75,7 @@ function getEmbedUrl(url: string) {
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
     const match = url.match(/[?&]v=([a-zA-Z0-9_-]+)/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/) || url.match(/\/embed\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      return `https://www.youtube.com/embed/${match[1]}?rel=0`;
+      return `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`;
     }
   }
 
@@ -289,6 +289,19 @@ export default function AcademyDashboard() {
         
         if (!coursesError && coursesData) {
           setCourses(coursesData);
+          
+          // --- AUTO-SELECCIONAR CURSO DESDE URL EN EL PRIMER LOAD ---
+          const params = new URLSearchParams(window.location.search);
+          const courseIdFromUrl = params.get('course');
+          if (courseIdFromUrl && !selectedCourse) {
+            const matchedCourse = coursesData.find(c => String(c.id) === courseIdFromUrl);
+            if (matchedCourse) {
+              setSelectedCourse(matchedCourse);
+              setView('lessons');
+              setIsLoading(false);
+              return; // Detener para que el cambio de selectedCourse dispare el siguiente useEffect de carga
+            }
+          }
         }
 
         // Si hay un curso seleccionado, cargamos sus lecciones
@@ -302,8 +315,7 @@ export default function AcademyDashboard() {
             .eq('course_id', selectedCourse.id);
 
           if (!isAdmin) {
-            // Nota: Aquí se asume que los módulos también tienen visibilidad si es necesario, 
-            // pero filtramos principalmente lecciones por ahora.
+            // Filtros adicionales si aplica
           }
 
           const { data, error } = await query
@@ -346,7 +358,28 @@ export default function AcademyDashboard() {
             }));
             
             setModules(formattedModules);
-            if (formattedModules[0]?.lessons.length > 0) {
+            
+            // --- AUTO-SELECCIONAR LECCIÓN DESDE URL ---
+            const params = new URLSearchParams(window.location.search);
+            const lessonIdFromUrl = params.get('lesson');
+            let foundLesson = null;
+            let foundModuleId = null;
+
+            if (lessonIdFromUrl) {
+              for (const mod of formattedModules) {
+                const matchedLes = mod.lessons.find(l => String(l.id) === lessonIdFromUrl);
+                if (matchedLes) {
+                  foundLesson = matchedLes;
+                  foundModuleId = mod.id;
+                  break;
+                }
+              }
+            }
+
+            if (foundLesson) {
+              setActiveLesson(foundLesson);
+              setExpandedModules({ [foundModuleId!]: true });
+            } else if (formattedModules[0]?.lessons.length > 0) {
               setActiveLesson(formattedModules[0].lessons[0]);
               setExpandedModules({ [formattedModules[0].id]: true });
             }
@@ -371,6 +404,9 @@ export default function AcademyDashboard() {
 
   const handleLessonSelect = (lesson: Lesson) => {
     setActiveLesson(lesson);
+    const params = new URLSearchParams(window.location.search);
+    params.set('lesson', lesson.id);
+    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
   };
 
   const markAsCompleted = () => {
@@ -425,7 +461,13 @@ export default function AcademyDashboard() {
             <div className="flex items-center gap-3 mb-2">
               {view === 'lessons' && (
                 <button 
-                  onClick={() => { setView('courses'); setSelectedCourse(null); setModules([]); setActiveLesson(null); }}
+                  onClick={() => { 
+                    setView('courses'); 
+                    setSelectedCourse(null); 
+                    setModules([]); 
+                    setActiveLesson(null); 
+                    window.history.pushState({}, '', window.location.pathname);
+                  }}
                   className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -456,7 +498,7 @@ export default function AcademyDashboard() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
               >
                 <Save className="w-4 h-4" />
-                Panel Admin
+                Creador de Contenido
               </Link>
 
               <button 
@@ -539,7 +581,11 @@ export default function AcademyDashboard() {
             })).map((course) => (
               <div 
                 key={course.id}
-                onClick={() => { setSelectedCourse(course); setView('lessons'); }}
+                onClick={() => { 
+                  setSelectedCourse(course); 
+                  setView('lessons'); 
+                  window.history.pushState({}, '', `${window.location.pathname}?course=${course.id}`);
+                }}
                 className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2"
               >
                 <div className="aspect-[16/9] relative overflow-hidden">
@@ -559,7 +605,7 @@ export default function AcademyDashboard() {
                     </span>
                   </div>
 
-                  {isAdmin && (
+                  {isAdmin && isEditMode && (
                     <button 
                       onClick={(e) => handleDeleteCourse(course.id, e)}
                       className="absolute top-4 right-4 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-all z-10"
@@ -617,7 +663,7 @@ export default function AcademyDashboard() {
                             <span className="font-medium text-slate-900 dark:text-white text-sm truncate">
                               {module.title}
                             </span>
-                            {isAdmin && (
+                            {isAdmin && isEditMode && (
                               <button 
                                 onClick={(e) => handleDeleteModule(module.id, e)}
                                 className="p-1 text-slate-400 hover:text-red-500 transition-colors"
@@ -671,7 +717,7 @@ export default function AcademyDashboard() {
                                   <p className={`text-sm font-medium line-clamp-2 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>
                                     {lesson.title}
                                   </p>
-                                  {isAdmin && (
+                                  {isAdmin && isEditMode && (
                                     <button 
                                       onClick={(e) => {
                                         e.stopPropagation();
