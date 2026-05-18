@@ -112,6 +112,8 @@ export default function AcademyDashboard() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editVideoPath, setEditVideoPath] = useState('');
+  const [editThumbnailUrl, setEditThumbnailUrl] = useState('');
+  const [isUploadingEditThumb, setIsUploadingEditThumb] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // --- ESTADOS CREACIÓN CURSO ---
@@ -235,7 +237,8 @@ export default function AcademyDashboard() {
         .update({
           title: editTitle,
           description: editDescription,
-          video_path: editVideoPath
+          video_path: editVideoPath,
+          thumbnail_url: editThumbnailUrl
         })
         .eq('id', activeLesson.id);
 
@@ -249,7 +252,9 @@ export default function AcademyDashboard() {
           title: editTitle, 
           description: editDescription, 
           video_path: editVideoPath,
-          video_url: editVideoPath ? academyMediaUrl(editVideoPath) : ''
+          video_url: editVideoPath ? academyMediaUrl(editVideoPath) : '',
+          thumbnail_url: editThumbnailUrl,
+          thumb_url: editThumbnailUrl ? academyMediaUrl(editThumbnailUrl) : ''
         } : l)
       })));
       
@@ -258,7 +263,9 @@ export default function AcademyDashboard() {
         title: editTitle, 
         description: editDescription, 
         video_path: editVideoPath,
-        video_url: editVideoPath ? academyMediaUrl(editVideoPath) : ''
+        video_url: editVideoPath ? academyMediaUrl(editVideoPath) : '',
+        thumbnail_url: editThumbnailUrl,
+        thumb_url: editThumbnailUrl ? academyMediaUrl(editThumbnailUrl) : ''
       }));
       
       setIsEditMode(false);
@@ -275,6 +282,7 @@ export default function AcademyDashboard() {
       setEditTitle(activeLesson.title || '');
       setEditDescription(activeLesson.description || '');
       setEditVideoPath(activeLesson.video_path || '');
+      setEditThumbnailUrl(activeLesson.thumbnail_url || '');
       setVideoError(false);
     }
   }, [activeLesson]);
@@ -819,6 +827,8 @@ export default function AcademyDashboard() {
                         <video 
                           key={activeLesson.id} 
                           src={finalUrl}
+                          preload="none"
+                          poster={activeLesson.thumb_url || (activeLesson.thumbnail_url ? (activeLesson.thumbnail_url.startsWith('http') ? activeLesson.thumbnail_url : academyMediaUrl(activeLesson.thumbnail_url)) : '')}
                           controls 
                           controlsList="nodownload" 
                           className="w-full h-full object-contain"
@@ -851,7 +861,7 @@ export default function AcademyDashboard() {
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xl font-bold focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                           />
                         </div>
-                        <div>
+                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Enlace del Video o Ruta (Google Drive, YouTube o R2)</label>
                           <input 
                             type="text" 
@@ -860,6 +870,43 @@ export default function AcademyDashboard() {
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                             placeholder="Ej: https://drive.google.com/... o academy/videos/video.mp4"
                           />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Ruta o URL de la Miniatura</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={editThumbnailUrl} 
+                              onChange={(e) => setEditThumbnailUrl(e.target.value)}
+                              className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                              placeholder="Ej: academy/thumbnails/miniatura.jpg o URL externa"
+                            />
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsUploadingEditThumb(true);
+                                try {
+                                  const filename = await uploadToAcademyR2(file, 'thumbnails');
+                                  setEditThumbnailUrl(filename);
+                                } catch (error) {
+                                  alert(error instanceof Error ? error.message : "Error al subir miniatura");
+                                } finally {
+                                  setIsUploadingEditThumb(false);
+                                }
+                              }} 
+                              className="hidden" 
+                              id="edit-thumb-input" 
+                            />
+                            <label 
+                              htmlFor="edit-thumb-input" 
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-250 flex items-center justify-center transition-all"
+                            >
+                              {isUploadingEditThumb ? 'Subiendo...' : 'Subir'}
+                            </label>
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Descripción (HTML permitido)</label>
