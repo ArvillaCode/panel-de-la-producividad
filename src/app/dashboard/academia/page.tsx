@@ -15,7 +15,7 @@ import {
   Trash2,
   Lock
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
 
 // --- INTERFACES ---
@@ -91,14 +91,11 @@ function getEmbedUrl(url: string) {
 }
 
 export default function AcademyDashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // --- ESTADOS ---
-  const [view, setView] = useState<'courses' | 'lessons'>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('course') ? 'lessons' : 'courses';
-    }
-    return 'courses';
-  });
+  const [view, setView] = useState<'courses' | 'lessons'>('courses');
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [showOnlyPremium, setShowOnlyPremium] = useState(false);
@@ -108,6 +105,7 @@ export default function AcademyDashboard() {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { isAdmin, profile, systemConfig, loading } = useAuth();
+  const [videoError, setVideoError] = useState(false);
   
   // --- MODO EDICIÓN ---
   const [isEditMode, setIsEditMode] = useState(false);
@@ -115,7 +113,6 @@ export default function AcademyDashboard() {
   const [editDescription, setEditDescription] = useState('');
   const [editVideoPath, setEditVideoPath] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const location = window.location;
 
   // --- ESTADOS CREACIÓN CURSO ---
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -278,16 +275,16 @@ export default function AcademyDashboard() {
       setEditTitle(activeLesson.title || '');
       setEditDescription(activeLesson.description || '');
       setEditVideoPath(activeLesson.video_path || '');
+      setVideoError(false);
     }
   }, [activeLesson]);
 
   // --- INTEGRACIÓN SUPABASE ---
+  // 1. Cargar cursos al montar el componente (y cuando cambie el rol de admin)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCoursesData = async () => {
       try {
         setIsLoading(true);
-        
-        // 1. Fetch Cursos
         const { data: coursesData, error: coursesError } = await supabase
           .from('academy_courses')
           .select('*')
@@ -295,109 +292,123 @@ export default function AcademyDashboard() {
         
         if (!coursesError && coursesData) {
           setCourses(coursesData);
-          
-          // --- AUTO-SELECCIONAR CURSO DESDE URL EN EL PRIMER LOAD ---
-          const params = new URLSearchParams(window.location.search);
-          const courseIdFromUrl = params.get('course');
-          if (courseIdFromUrl && !selectedCourse) {
-            const matchedCourse = coursesData.find(c => String(c.id) === courseIdFromUrl);
-            if (matchedCourse) {
-              setSelectedCourse(matchedCourse);
-              setView('lessons');
-              setIsLoading(false);
-              return; // Detener para que el cambio de selectedCourse dispare el siguiente useEffect de carga
-            }
-          }
-        }
-
-        // Si hay un curso seleccionado, cargamos sus lecciones
-        if (selectedCourse) {
-          let query = supabase
-            .from('academy_modules')
-            .select(`
-              id, title,
-              academy_lessons ( id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url )
-            `)
-            .eq('course_id', selectedCourse.id);
-
-          if (!isAdmin) {
-            // Filtros adicionales si aplica
-          }
-
-          const { data, error } = await query
-            .order('order_index', { ascending: true })
-            .order('order_index', { referencedTable: 'academy_lessons', ascending: true });
-          
-          if (!error && data) {
-            // Fusionar módulos por Título para no perder lecciones de duplicados
-            const modulesMap = new Map();
-            
-            data.forEach((mod: any) => {
-              const existing = modulesMap.get(mod.title);
-              const lessons = (mod.academy_lessons || []).map((lesson: any) => ({
-                ...lesson,
-                is_completed: false,
-                duration: "Video",
-                video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
-                thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
-              }));
-
-              if (existing) {
-                existing.lessons = [...existing.lessons, ...lessons];
-              } else {
-                modulesMap.set(mod.title, {
-                  id: mod.id,
-                  title: mod.title,
-                  lessons: lessons
-                });
-              }
-            });
-
-            const formattedModules = Array.from(modulesMap.values()).map(mod => ({
-              ...mod,
-              lessons: mod.lessons.filter((l: any) => isAdmin || l.is_visible !== false)
-                .map((lesson: any) => ({
-                    ...lesson,
-                    video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
-                    thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
-                  }))
-            }));
-            
-            setModules(formattedModules);
-            
-            // --- AUTO-SELECCIONAR LECCIÓN DESDE URL ---
-            const params = new URLSearchParams(window.location.search);
-            const lessonIdFromUrl = params.get('lesson');
-            let foundLesson = null;
-            let foundModuleId = null;
-
-            if (lessonIdFromUrl) {
-              for (const mod of formattedModules) {
-                const matchedLes = mod.lessons.find(l => String(l.id) === lessonIdFromUrl);
-                if (matchedLes) {
-                  foundLesson = matchedLes;
-                  foundModuleId = mod.id;
-                  break;
-                }
-              }
-            }
-
-            if (foundLesson) {
-              setActiveLesson(foundLesson);
-              setExpandedModules({ [foundModuleId!]: true });
-            } else if (formattedModules[0]?.lessons.length > 0) {
-              setActiveLesson(formattedModules[0].lessons[0]);
-              setExpandedModules({ [formattedModules[0].id]: true });
-            }
-          }
         }
       } catch (error) {
-        console.error("Error cargando datos:", error);
+        console.error("Error loading courses:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
+    fetchCoursesData();
+  }, [isAdmin]);
+
+  // 2. Sincronizar el estado de la vista con la URL reactivamente
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const courseIdFromUrl = params.get('course');
+
+    if (!courseIdFromUrl) {
+      setView('courses');
+      setSelectedCourse(null);
+      setModules([]);
+      setActiveLesson(null);
+    } else {
+      setView('lessons');
+      if (courses.length > 0) {
+        const matchedCourse = courses.find(c => String(c.id) === courseIdFromUrl);
+        if (matchedCourse && (!selectedCourse || selectedCourse.id !== matchedCourse.id)) {
+          setSelectedCourse(matchedCourse);
+        }
+      }
+    }
+  }, [location.search, courses]);
+
+  // 3. Cargar módulos y lecciones cuando el curso seleccionado esté activo
+  useEffect(() => {
+    const fetchLessonsData = async () => {
+      if (!selectedCourse) return;
+      try {
+        setIsLoading(true);
+        let query = supabase
+          .from('academy_modules')
+          .select(`
+            id, title,
+            academy_lessons ( id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url )
+          `)
+          .eq('course_id', selectedCourse.id);
+
+        const { data, error } = await query
+          .order('order_index', { ascending: true })
+          .order('order_index', { referencedTable: 'academy_lessons', ascending: true });
+        
+        if (!error && data) {
+          const modulesMap = new Map();
+          
+          data.forEach((mod: any) => {
+            const existing = modulesMap.get(mod.title);
+            const lessons = (mod.academy_lessons || []).map((lesson: any) => ({
+              ...lesson,
+              is_completed: false,
+              duration: "Video",
+              video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
+              thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
+            }));
+
+            if (existing) {
+              existing.lessons = [...existing.lessons, ...lessons];
+            } else {
+              modulesMap.set(mod.title, {
+                id: mod.id,
+                title: mod.title,
+                lessons: lessons
+              });
+            }
+          });
+
+          const formattedModules = Array.from(modulesMap.values()).map(mod => ({
+            ...mod,
+            lessons: mod.lessons.filter((l: any) => isAdmin || l.is_visible !== false)
+              .map((lesson: any) => ({
+                  ...lesson,
+                  video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
+                  thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
+                }))
+          }));
+          
+          setModules(formattedModules);
+          
+          // Auto-seleccionar lección desde la URL
+          const params = new URLSearchParams(location.search);
+          const lessonIdFromUrl = params.get('lesson');
+          let foundLesson = null;
+          let foundModuleId = null;
+
+          if (lessonIdFromUrl) {
+            for (const mod of formattedModules) {
+              const matchedLes = mod.lessons.find(l => String(l.id) === lessonIdFromUrl);
+              if (matchedLes) {
+                foundLesson = matchedLes;
+                foundModuleId = mod.id;
+                break;
+              }
+            }
+          }
+
+          if (foundLesson) {
+            setActiveLesson(foundLesson);
+            setExpandedModules({ [foundModuleId!]: true });
+          } else if (formattedModules[0]?.lessons.length > 0) {
+            setActiveLesson(formattedModules[0].lessons[0]);
+            setExpandedModules({ [formattedModules[0].id]: true });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading lessons:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLessonsData();
   }, [selectedCourse, isAdmin]);
 
   // --- HANDLERS ---
@@ -410,9 +421,9 @@ export default function AcademyDashboard() {
 
   const handleLessonSelect = (lesson: Lesson) => {
     setActiveLesson(lesson);
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     params.set('lesson', lesson.id);
-    window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+    navigate(`/dashboard/academia?${params.toString()}`);
   };
 
   const markAsCompleted = () => {
@@ -468,11 +479,7 @@ export default function AcademyDashboard() {
               {view === 'lessons' && (
                 <button 
                   onClick={() => { 
-                    setView('courses'); 
-                    setSelectedCourse(null); 
-                    setModules([]); 
-                    setActiveLesson(null); 
-                    window.history.pushState({}, '', window.location.pathname);
+                    navigate('/dashboard/academia');
                   }}
                   className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
                 >
@@ -588,9 +595,7 @@ export default function AcademyDashboard() {
               <div 
                 key={course.id}
                 onClick={() => { 
-                  setSelectedCourse(course); 
-                  setView('lessons'); 
-                  window.history.pushState({}, '', `${window.location.pathname}?course=${course.id}`);
+                  navigate(`/dashboard/academia?course=${course.id}`);
                 }}
                 className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2"
               >
@@ -798,12 +803,26 @@ export default function AcademyDashboard() {
                         );
                       }
                       
+                      if (videoError) {
+                        return (
+                          <div className="flex flex-col items-center justify-center p-8 bg-slate-900/90 rounded-2xl w-full h-full text-center">
+                            <span className="text-3xl mb-3">⚠️</span>
+                            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Video no encontrado</h4>
+                            <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                              El archivo multimedia aún no se ha subido o no existe en el balde de Cloudflare. Edita la lección para vincular el archivo correcto.
+                            </p>
+                          </div>
+                        );
+                      }
+                      
                       return (
                         <video 
                           key={activeLesson.id} 
+                          src={finalUrl}
                           controls 
                           controlsList="nodownload" 
                           className="w-full h-full object-contain"
+                          onError={() => setVideoError(true)}
                           onTimeUpdate={(e) => {
                             const video = e.currentTarget;
                             // Guardar el segundo actual en localStorage
@@ -816,9 +835,7 @@ export default function AcademyDashboard() {
                               video.currentTime = parseFloat(savedTime);
                             }
                           }}
-                        >
-                          <source src={finalUrl} type="video/mp4" />
-                        </video>
+                        />
                       );
                     })()}
                   </div>
