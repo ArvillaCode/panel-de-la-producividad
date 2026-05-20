@@ -437,7 +437,16 @@ export const AuthProvider = ({ children }) => {
   }, [user, fetchNotifications]);
 
   const loginWithOtp = async (email) => {
-    const { data, error } = await supabase.auth.signInWithOtp({ email });
+    // Detectar dinámicamente el origen para la redirección
+    const redirectTo = window.location.origin + '/login';
+    console.log(`[AUTH] Solicitando OTP. Redirección configurada a: ${redirectTo}`);
+
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectTo
+      }
+    });
     return { success: !error, error: error?.message };
   };
 

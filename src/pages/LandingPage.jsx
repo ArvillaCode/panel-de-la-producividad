@@ -475,12 +475,12 @@ const LandingHeader = ({ activeSection, onNavigate, mobileOpen, setMobileOpen })
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <a
-            href="https://app.upfunnel.click/login"
+          <Link
+            to="/login"
             className={`hidden sm:inline-flex px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors ${focusRing}`}
           >
             Iniciar Sesión
-          </a>
+          </Link>
           <a
             href={STRIPE_URL}
             target="_blank"
@@ -526,13 +526,13 @@ const LandingHeader = ({ activeSection, onNavigate, mobileOpen, setMobileOpen })
               </li>
             ))}
             <li className="pt-3 mt-2 border-t border-white/10 flex flex-col gap-3">
-              <a
-                href="https://app.upfunnel.click/login"
+              <Link
+                to="/login"
                 className={`flex items-center justify-between py-3 text-sm font-black uppercase tracking-wider text-slate-300 ${focusRing}`}
               >
                 Iniciar Sesión
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
-              </a>
+              </Link>
               <a
                 href={STRIPE_URL}
                 target="_blank"
