@@ -170,13 +170,14 @@ const AgentGuide = () => {
         // Falla silenciosamente y usa una lista vacía
       }
 
-      // 2. Validación estricta de API Key (Priorizar dbApiKey sobre clave estática .env)
-      const rawApiKey = dbApiKey || import.meta.env.VITE_OPENROUTER_API_KEY || '';
+      // 2. Validación estricta de API Key (Priorizar dbApiKey si es válida y comienza con "sk-or-", de lo contrario usar .env)
+      const isDbKeyValid = typeof dbApiKey === 'string' && dbApiKey.trim().startsWith('sk-or-');
+      const rawApiKey = isDbKeyValid ? dbApiKey : (import.meta.env.VITE_OPENROUTER_API_KEY || '');
       const apiKey = typeof rawApiKey === 'string' ? rawApiKey.trim() : '';
 
       console.log(`[GUIDE-AI] Validando API Key resolved (primeros 8 chars): ${apiKey.substring(0, 8)}...`);
 
-      if (!apiKey || apiKey === 'undefined' || apiKey.toLowerCase() === 'undefined' || apiKey.length < 10) {
+      if (!apiKey || apiKey === 'undefined' || apiKey.toLowerCase() === 'undefined' || apiKey.length < 10 || !apiKey.startsWith('sk-or-')) {
         console.error('[GUIDE-AI] Error: La API Key de OpenRouter está vacía, no se ha cargado o es inválida.');
         setMessages(prev => [...prev, { role: 'model', content: 'Fallo de Configuración: La clave API de OpenRouter está vacía o no es válida. Por favor, configúrala introduciendo tu token "sk-or-..." en el panel de Configuración Matchmaker en el sidebar.' }]);
         setLoading(false);
