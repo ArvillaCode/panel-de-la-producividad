@@ -58,6 +58,18 @@ const AdminUsers = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Guard de carga defensivo
+  if (authLoading) {
+    return (
+      <AdminLayout currentPage="users">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-full border-4 border-neon-teal/20 border-t-neon-teal animate-spin mb-4"></div>
+          <p className="text-gray-500 font-bold text-xs uppercase tracking-widest animate-pulse">Sincronizando base de datos...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   // Estados para notificaciones
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState('all'); 
@@ -95,14 +107,6 @@ const AdminUsers = () => {
   const [selectedRows, setSelectedRows] = useState([]);
 
   const headerCheckboxRef = React.useRef(null);
-  const isAllSelected = currentUsers.length > 0 && currentUsers.every(u => selectedRows.includes(u.id));
-  const isSomeButNotAllSelected = selectedRows.length > 0 && !isAllSelected;
-
-  React.useEffect(() => {
-    if (headerCheckboxRef.current) {
-      headerCheckboxRef.current.indeterminate = isSomeButNotAllSelected;
-    }
-  }, [isSomeButNotAllSelected]);
 
   useEffect(() => {
     fetchUsers();
@@ -120,7 +124,9 @@ const AdminUsers = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fetchUsers, location.search, navigate]);
 
-  const filteredUsers = users.filter(user => {
+  // Filtrado y ordenamiento defensivos contra valores nulos o indefinidos
+  const filteredUsers = (users || []).filter(user => {
+    if (!user) return false;
     let matchesSearch = true;
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -132,22 +138,35 @@ const AdminUsers = () => {
     if (filterRole !== 'all') {
       if (filterRole === 'recent') {
         const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        matchesRole = new Date(user.created_at) > dayAgo;
+        matchesRole = user.created_at && new Date(user.created_at) > dayAgo;
       } else {
         matchesRole = user.role === filterRole;
       }
     }
     return matchesSearch && matchesRole;
-  }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }).sort((a, b) => {
+    const dateA = a?.created_at ? new Date(a.created_at) : new Date(0);
+    const dateB = b?.created_at ? new Date(b.created_at) : new Date(0);
+    return dateB - dateA;
+  });
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterRole, users.length]);
+  }, [searchTerm, filterRole, users?.length]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const currentUsers = (filteredUsers || []).slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil((filteredUsers || []).length / itemsPerPage);
+
+  const isAllSelected = currentUsers.length > 0 && currentUsers.every(u => selectedRows.includes(u.id));
+  const isSomeButNotAllSelected = selectedRows.length > 0 && !isAllSelected;
+
+  React.useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = isSomeButNotAllSelected;
+    }
+  }, [isSomeButNotAllSelected]);
 
   const handleSelectAll = () => {
     const selectableIds = currentUsers.map(u => u.id);

@@ -158,12 +158,17 @@ const AgentPanel = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return; // Esperar a que se resuelva la autenticación e isAdmin
+
     const fetchAgents = async () => {
       setLoadingAgents(true);
-      const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .order('id', { ascending: false }); // Mostrar los más nuevos primero
+      
+      let query = supabase.from('agents').select('*');
+      if (!isAdmin) {
+        query = query.eq('admin_only', false);
+      }
+      
+      const { data, error } = await query.order('id', { ascending: false }); // Mostrar los más nuevos primero
 
       if (error) {
         console.error('Error fetching agents from Supabase:', error.message);
@@ -175,7 +180,7 @@ const AgentPanel = () => {
     };
 
     fetchAgents();
-  }, []);
+  }, [isAdmin, authLoading]);
 
   const tabs = categories;
 
@@ -185,12 +190,17 @@ const AgentPanel = () => {
   const filteredAndSortedAgents = useMemo(() => {
     let filtered;
     if (activeTab === 'Favoritos') {
-      filtered = getFavoriteAgents(agents).filter(agent => agent.visible !== false);
+      filtered = getFavoriteAgents(agents).filter(agent => {
+        const isVisible = agent.visible !== false;
+        const isAccessible = !agent.admin_only || isAdmin;
+        return isVisible && isAccessible;
+      });
     } else {
       filtered = agents.filter(agent => {
         const isVisible = agent.visible !== false;
+        const isAccessible = !agent.admin_only || isAdmin;
         const matchesCategory = activeTab === 'Todos' || agent.category === activeTab;
-        return isVisible && matchesCategory;
+        return isVisible && isAccessible && matchesCategory;
       });
     }
 
@@ -211,7 +221,7 @@ const AgentPanel = () => {
         default: return 0;
       }
     });
-  }, [agents, searchTerm, activeTab, sortBy, getFavoriteAgents]);
+  }, [agents, searchTerm, activeTab, sortBy, getFavoriteAgents, isAdmin]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;

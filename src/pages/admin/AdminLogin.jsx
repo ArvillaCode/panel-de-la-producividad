@@ -25,6 +25,7 @@ const AdminLogin = () => {
     profile,
     isAdmin,
     isAuthenticated,
+    user,
     loading: authLoading
   } = useAuth();
 
@@ -42,26 +43,50 @@ const AdminLogin = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Redireccionar si ya está autenticado y manejar errores de URL
+  // 1. Manejar errores de URL una sola vez al montar y limpiar tokens corruptos si aplica
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const urlError = params.get('error');
-    if (urlError) {
-      setError(urlError);
-      // Limpiar el parámetro de la URL sin recargar
-      window.history.replaceState({}, document.title, location.pathname);
-    }
-
-    if (isAuthenticated && !authLoading && profile) {
-      if (isAdmin) {
-        navigate('/admin/dashboard', { replace: true });
-      } else if (!profile.is_approved) {
-        navigate('/dashboard/espera-aprobacion', { replace: true });
-      } else {
-        navigate('/', { replace: true });
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get('error');
+      
+      if (urlError) {
+        setError(urlError);
+        
+        // Si detectamos errores relacionados con tokens de sesión inválidos o expiraciones
+        if (urlError.toLowerCase().includes('token') || urlError.toLowerCase().includes('sesion') || urlError.toLowerCase().includes('expirada')) {
+          console.warn('[AUTH-LOGIN] Detectado error de sesión en URL. Purgando caché local defensivamente...');
+          localStorage.clear();
+          sessionStorage.clear();
+        }
+        
+        // Limpiar el parámetro de la URL sin recargar para no ciclar el navegador
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
       }
+    } catch (err) {
+      console.error('[AUTH-LOGIN] Error en montaje inicial de verificación defensiva:', err);
     }
-  }, [isAuthenticated, isAdmin, profile, authLoading, navigate, location.search]);
+  }, []);
+
+  // 2. Redireccionar si ya está autenticado
+  useEffect(() => {
+    try {
+      if (isAuthenticated && !authLoading && profile) {
+        const userRole = profile?.role;
+        const isUserAdmin = isAdmin || userRole === 'admin' || userRole === 'core_admin' || profile?.email === 'admin@admin.com' || (user?.email && user.email.toLowerCase() === 'admin@admin.com');
+        
+        if (isUserAdmin) {
+          navigate('/admin/dashboard', { replace: true });
+        } else if (!profile.is_approved) {
+          navigate('/dashboard/espera-aprobacion', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      }
+    } catch (err) {
+      console.error('[AUTH-LOGIN] Error en redireccionamiento de sesión:', err);
+    }
+  }, [isAuthenticated, isAdmin, profile, user, authLoading, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

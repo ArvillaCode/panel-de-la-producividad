@@ -129,23 +129,66 @@ const TimezoneSelect = ({ value, onChange }) => {
   );
 };
 
+const OPENROUTER_MODELS = [
+  { value: 'deepseek/deepseek-chat', label: 'DeepSeek: DeepSeek V3 (Premium Ultra-Económico)' },
+  { value: 'deepseek/deepseek-reasoner', label: 'DeepSeek: DeepSeek R1 (Premium Razonamiento Ultra-Económico)' },
+  { value: 'google/gemini-2.5-flash', label: 'Google: Gemini 2.5 Flash' },
+  { value: 'google/gemini-2.5-pro', label: 'Google: Gemini 2.5 Pro' },
+  { value: 'anthropic/claude-3.5-sonnet', label: 'Anthropic: Claude 3.5 Sonnet' },
+  { value: 'openrouter/free', label: 'OpenRouter: Auto Free Router (Free)' },
+  { value: 'meta-llama/llama-3-8b-instruct:free', label: 'Meta: Llama 3 8B Instruct (Free)' },
+  { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Meta: Llama 3.3 70B Instruct (Free)' },
+  { value: 'google/gemma-2-9b-it:free', label: 'Google: Gemma 2 9B IT (Free)' },
+];
+
 const AdminConfig = () => {
   const { toggleTheme } = useTheme();
   
-  const [config, setConfig] = useState({
-    siteName: 'Panel de Administración',
-    siteDescription: 'Sistema de gestión administrativa',
-    adminEmail: 'admin@sistema.com',
-    timezone: 'America/Mexico_City',
-    passwordMinLength: 8,
-    requireStrongPassword: true,
-    aiAssistantEnabled: true,
-    showAcademia: true
+  const [config, setConfig] = useState(() => {
+    try {
+      const cached = localStorage.getItem('systemConfig');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return {
+      siteName: 'Panel de Administración',
+      siteDescription: 'Sistema de gestión administrativa',
+      adminEmail: 'admin@sistema.com',
+      timezone: 'America/Mexico_City',
+      passwordMinLength: 8,
+      requireStrongPassword: true,
+      aiAssistantEnabled: true,
+      showAcademia: true,
+      aiModel: 'google/gemini-2.5-flash'
+    };
   });
 
-  const [originalConfig, setOriginalConfig] = useState({});
+  const [originalConfig, setOriginalConfig] = useState(() => {
+    try {
+      const cached = localStorage.getItem('systemConfig');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return {
+      siteName: 'Panel de Administración',
+      siteDescription: 'Sistema de gestión administrativa',
+      adminEmail: 'admin@sistema.com',
+      timezone: 'America/Mexico_City',
+      passwordMinLength: 8,
+      requireStrongPassword: true,
+      aiAssistantEnabled: true,
+      showAcademia: true,
+      aiModel: 'google/gemini-2.5-flash'
+    };
+  });
+
   const [hasChanges, setHasChanges] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('systemConfig');
+      return !cached;
+    } catch (e) {
+      return true;
+    }
+  });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
@@ -158,14 +201,34 @@ const AdminConfig = () => {
   }, [config, originalConfig]);
 
   const loadConfig = async () => {
-    setLoading(true);
+    const hasCache = !!localStorage.getItem('systemConfig');
+    if (!hasCache) {
+      setLoading(true);
+    }
     try {
-      const { data, error: fetchError } = await supabase.from('system_config').select('*').eq('id', 1).maybeSingle();
+      const fetchPromise = supabase
+        .from('system_config')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout de conexión con Supabase')), 2000)
+      );
+
+      const { data, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise]);
+
       if (fetchError) {
+        console.warn('[ADMIN_CONFIG] Fallo de consulta a Supabase, aplicando fallback local:', fetchError.message);
         const saved = localStorage.getItem('systemConfig');
-        if (saved) { const p = JSON.parse(saved); setConfig(p); setOriginalConfig(p); }
+        if (saved) { 
+          const p = JSON.parse(saved); 
+          setConfig(p); 
+          setOriginalConfig(p); 
+        }
         return;
       }
+
       if (data) {
         const mapped = {
           siteName: data.site_name,
@@ -175,12 +238,28 @@ const AdminConfig = () => {
           passwordMinLength: data.password_min_length,
           requireStrongPassword: data.require_strong_password,
           aiAssistantEnabled: data.ai_assistant_enabled !== false,
-          showAcademia: data.show_academia !== false
+          showAcademia: data.show_academia !== false,
+          aiModel: data.ai_model || 'google/gemini-2.5-flash'
         };
         setConfig(mapped);
         setOriginalConfig(mapped);
+        try {
+          localStorage.setItem('systemConfig', JSON.stringify(mapped));
+        } catch (e) {}
       }
-    } catch (err) { setError('Error de conexión'); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error('[ADMIN_CONFIG] Error cargando configuración:', err);
+      const saved = localStorage.getItem('systemConfig');
+      if (saved) {
+        const p = JSON.parse(saved);
+        setConfig(p);
+        setOriginalConfig(p);
+      } else {
+        setError('Error de conexión'); 
+      }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleConfigChange = (key, value) => setConfig(prev => ({ ...prev, [key]: value }));
@@ -199,6 +278,7 @@ const AdminConfig = () => {
         require_strong_password: config.requireStrongPassword,
         ai_assistant_enabled: config.aiAssistantEnabled,
         show_academia: config.showAcademia,
+        ai_model: config.aiModel || 'google/gemini-2.5-flash',
         updated_at: new Date().toISOString()
       };
 
@@ -269,11 +349,22 @@ const AdminConfig = () => {
           
           <ConfigSection title="Inteligencia Artificial y Módulos" icon={Bot}>
             <ToggleField 
-              label="Asistente Gemini" 
+              label="Asistente de IA (Matchmaker)" 
               value={config.aiAssistantEnabled} 
               onChange={(val) => handleConfigChange('aiAssistantEnabled', val)}
               description="Activa o desactiva el asistente de IA (Matchmaker) en el panel de usuarios."
             />
+            {config.aiAssistantEnabled && (
+              <div className="mt-4">
+                <SelectField 
+                  label="Modelo de Inteligencia Artificial (OpenRouter)"
+                  value={config.aiModel}
+                  onChange={(val) => handleConfigChange('aiModel', val)}
+                  options={OPENROUTER_MODELS}
+                  description="Brain operativo global que impulsará las consultas del Matchmaker."
+                />
+              </div>
+            )}
             <div className="mt-4">
               <ToggleField
                 label="Mostrar Academia"

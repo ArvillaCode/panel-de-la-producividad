@@ -7,6 +7,7 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminAgents from './pages/admin/AdminAgents';
+import MatchmakerConfig from './pages/admin/MatchmakerConfig';
 import AdminConfig from './pages/admin/AdminConfig';
 import AdminReleases from './pages/admin/AdminReleases';
 import AdminLogs from './pages/admin/AdminLogs';
@@ -52,7 +53,9 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  if (!isAdmin && profile && !profile.is_approved) {
+  const userRole = profile?.role;
+  const bypassRedirect = isAdmin || userRole === 'admin' || userRole === 'core_admin';
+  if (!bypassRedirect && profile && !profile.is_approved) {
     if (window.location.pathname !== '/dashboard/espera-aprobacion') {
       return <Navigate to="/dashboard/espera-aprobacion" replace />;
     }
@@ -71,7 +74,9 @@ const Home = () => {
   if (!isAppDomain) return <LandingPage />;
 
   if (isAuthenticated) {
-    if (!isAdmin && profile && !profile.is_approved) return <Navigate to="/dashboard/espera-aprobacion" replace />;
+    const userRole = profile?.role;
+    const bypassRedirect = isAdmin || userRole === 'admin' || userRole === 'core_admin';
+    if (!bypassRedirect && profile && !profile.is_approved) return <Navigate to="/dashboard/espera-aprobacion" replace />;
     return <AgentPanel />;
   }
 
@@ -109,6 +114,7 @@ function App() {
               <Route path="/admin/dashboard" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} />
               <Route path="/admin/users" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} />
               <Route path="/admin/agents" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} />
+              <Route path="/admin/matchmaker-config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><MatchmakerConfig /></ProtectedRoute></DomainRestrictedRoute>} />
               <Route path="/admin/config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} />
               <Route path="/admin/releases" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} />
               <Route path="/admin/logs" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} />

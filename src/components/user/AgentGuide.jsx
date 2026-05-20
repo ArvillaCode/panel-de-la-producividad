@@ -7,7 +7,6 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useCloseModal } from '../../hooks/useCloseModal';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const AgentGuide = () => {
   const { isAdmin, isAuthenticated, profile, user } = useAuth();
@@ -18,7 +17,11 @@ const AgentGuide = () => {
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('Usuario');
   const [isEnabled, setIsEnabled] = useState(true);
+  const [aiModel, setAiModel] = useState('google/gemini-2.5-flash');
+  const [customSystemPrompt, setCustomSystemPrompt] = useState('');
+  const [dbApiKey, setDbApiKey] = useState('');
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   const { modalRef } = useCloseModal(isOpen, () => setIsOpen(false));
 
@@ -58,21 +61,33 @@ const AgentGuide = () => {
     }
   }, [profile, isAuthenticated, user]);
   
-  // Verificar si el asistente está activado globalmente
+  // Verificar si el asistente está activado globalmente y qué modelo tiene asignado
   useEffect(() => {
     const checkStatus = async () => {
       try {
         const { data, error } = await supabase
           .from('system_config')
-          .select('ai_assistant_enabled')
+          .select('*')
           .eq('id', 1)
           .maybeSingle();
         
-        if (!error && data) {
+        if (error) {
+          console.warn('[GUIDE] Advertencia recuperando config global de la BD, aplicando fallback local:', error.message);
+          setIsEnabled(true);
+          setAiModel('google/gemini-2.5-flash');
+          return;
+        }
+        
+        if (data) {
           setIsEnabled(data.ai_assistant_enabled !== false);
+          setAiModel(data.ai_model || 'google/gemini-2.5-flash');
+          setCustomSystemPrompt(data.system_prompt || data.ai_system_prompt || '');
+          setDbApiKey(data.openrouter_api_key || '');
         }
       } catch (err) {
-        console.warn('[GUIDE] Error checking AI status:', err);
+        console.warn('[GUIDE] Excepción capturada en checkStatus, aplicando fallback:', err);
+        setIsEnabled(true);
+        setAiModel('google/gemini-2.5-flash');
       }
     };
     
@@ -95,13 +110,36 @@ const AgentGuide = () => {
   useEffect(() => {
     if (isOpen) scrollToBottom();
   }, [messages, isOpen]);
+  
+  // Auto-enfocar el input cuando se abre el chat o cambia el estado de carga
+  useEffect(() => {
+    if (isOpen && !loading) {
+      // Intentar enfocar de inmediato
+      inputRef.current?.focus();
+      
+      // Intentar enfocar con diferentes retrasos para superar transiciones CSS y refrescos del DOM
+      const timers = [50, 150, 300, 500, 700].map(delay => 
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, delay)
+      );
+      
+      return () => timers.forEach(clearTimeout);
+    }
+  }, [isOpen, loading]);
 
   const fetchActiveAgents = async () => {
     // Filtrar por visible=true (equivalente a status='active' en este esquema)
-    const { data, error } = await supabase
+    let query = supabase
       .from('agents')
-      .select('name, specialty, description, chatLink')
+      .select('name, specialty, description, chatLink, admin_only')
       .eq('visible', true);
+    
+    if (!isAdmin) {
+      query = query.eq('admin_only', false);
+    }
+
+    const { data, error } = await query;
     
     if (error) {
       console.error('[GUIDE] Error fetching agents:', error);
@@ -132,71 +170,165 @@ const AgentGuide = () => {
         // Falla silenciosamente y usa una lista vacía
       }
 
-      // 2. Validación estricta de API Key
-      const apiKey = import.meta.env.VITE_GOOGLE_GEMINI_API_KEY;
-      if (!apiKey || apiKey.length < 10) {
-        console.error('[GUIDE] VITE_GOOGLE_GEMINI_API_KEY no encontrada o es muy corta.');
-        setMessages(prev => [...prev, { role: 'model', content: 'Fallo de Configuración: No se ha detectado la clave API de Google Gemini en el entorno. Por favor, asegúrate de que VITE_GOOGLE_GEMINI_API_KEY esté configurada.' }]);
+      // 2. Validación estricta de API Key (Priorizar dbApiKey sobre clave estática .env)
+      const rawApiKey = dbApiKey || import.meta.env.VITE_OPENROUTER_API_KEY || '';
+      const apiKey = typeof rawApiKey === 'string' ? rawApiKey.trim() : '';
+
+      console.log(`[GUIDE-AI] Validando API Key resolved (primeros 8 chars): ${apiKey.substring(0, 8)}...`);
+
+      if (!apiKey || apiKey === 'undefined' || apiKey.toLowerCase() === 'undefined' || apiKey.length < 10) {
+        console.error('[GUIDE-AI] Error: La API Key de OpenRouter está vacía, no se ha cargado o es inválida.');
+        setMessages(prev => [...prev, { role: 'model', content: 'Fallo de Configuración: La clave API de OpenRouter está vacía o no es válida. Por favor, configúrala introduciendo tu token "sk-or-..." en el panel de Configuración Matchmaker en el sidebar.' }]);
         setLoading(false);
         return;
       }
 
-      // 3. Configurar Google Gemini (SDK) - Forzando v1 explícitamente
-      // 3. Configurar Google Gemini (SDK) - Forzando v1 en la petición (v0.24.1+)
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel(
-        { 
-          model: "gemini-1.5-flash",
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 500,
-          }
-        },
-        { apiVersion: 'v1' }
-      );
+      if (apiKey.startsWith('AIzaSy')) {
+        console.error('[GUIDE-AI] Error: Detectada clave API de Google Gemini en lugar de OpenRouter.');
+        setMessages(prev => [...prev, { role: 'model', content: '⚠️ Fallo de Proveedor: Has configurado una clave API de Google Gemini (empieza con "AIzaSy"), pero el catálogo está migrado a OpenRouter. Por favor, ve a "Configuración Matchmaker" en el menú de la izquierda e introduce una API Key de OpenRouter válida (que comience con "sk-or-").' }]);
+        setLoading(false);
+        return;
+      }
 
-      const systemInstruction = `
-        Eres el Asistente de Upfunnel y del Panel de la Productividad. Te estás dirigiendo a ${userName}.
-        Tu misión es ser un consultor profesional que ayuda a los usuarios a encontrar la herramienta ideal en nuestro ecosistema.
+      // 1. Sanitizar y escapar el System Prompt
+      const cleanedSystemPrompt = typeof customSystemPrompt === 'string' ? customSystemPrompt.trim() : '';
+      
+      const systemInstructionRaw = `
+        ${cleanedSystemPrompt || `Eres el Asistente de Upfunnel y del Panel de la Productividad. Te estás dirigiendo a ${userName}.
+        Tu misión es ser un consultor profesional que ayuda a los usuarios a encontrar la herramienta ideal en nuestro ecosistema.`}
 
         REGLAS DE ORO (MÁXIMA PRIORIDAD):
         1. Tu conocimiento se limita ÚNICA y EXCLUSIVAMENTE a la lista de agentes activos que recibirás a continuación.
-        2. Está TERMINANTEMENTE PROHIBIDO inventar funciones, sugerir herramientas externas o mencionar que eres un modelo de IA de Google.
+        2. Está TERMINANTEMENTE PROHIBIDO inventar funciones, sugerir herramientas externas o mencionar que eres un modelo de IA.
         3. Si el usuario pregunta por algo que no existe en nuestra lista, responde educadamente: "Lo siento, ${userName}. Actualmente no contamos con un agente especializado para esa tarea en Upfunnel, pero puedo ayudarte con otras automatizaciones."
         4. Tono: Profesional, ejecutivo, servicial, minimalista y PERSONALIZADO (dirígete al usuario por su nombre ocasionalmente).
         5. Para cada recomendación, menciona el NOMBRE del agente y su ESPECIALIDAD.
         6. Al final de tu recomendación, incluye el enlace de esta forma exacta: [BOT_LINK:Nombre|URL]
         7. Responde siempre en Español.
+        8. NO UTILICES formato Markdown (como asteriscos ** o *) bajo ninguna circunstancia. Escribe todo en texto plano limpio. Por ejemplo, escribe "1. Nombre del Agente: Especialidad" en lugar de "1. **Nombre del Agente**: Especialidad".
 
         LISTA DE AGENTES ACTIVOS EN UPFUNNEL:
         ${agents.length > 0 
-          ? agents.map(a => `- ${a.name} (${a.specialty}): ${a.description} [LINK:${a.chatLink}]`).join('\n')
-          : 'No hay agentes disponibles en este momento debido a que no se pudo conectar con la base de datos.'}
+          ? agents.map(a => `- ${a.name}: ${a.description ? a.description.slice(0, 120) : ''} [LINK:${a.chatLink || ''}]`).join('\n')
+          : 'No hay agentes disponibles.'}
       `;
 
-      const historyText = messages.map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n');
-      const fullPrompt = `${systemInstruction}\n\nHistorial de conversación previo:\n${historyText}\n\nUsuario: ${userMessage}\nAsistente:`;
+      // Eliminar caracteres de control no imprimibles no deseados
+      const systemInstruction = systemInstructionRaw.replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F]/g, "").trim();
 
-      // 4. Mecanismo de reintento (Retry) y límite de tiempo (Timeout)
+      // 3. Mapear historial en formato compatible con OpenAI (filtrando posibles errores previos)
+      const chatHistoryPayload = [
+        ...messages.map(m => ({
+          role: m.role === 'model' ? 'assistant' : m.role,
+          content: m.content
+        })),
+        { role: 'user', content: userMessage }
+      ];
+
+      // 4. Mecanismo de reintento inteligente y Modelo Alternativo (Respaldo)
       let responseText = null;
-      let retries = 1;
-      
-      while (retries >= 0 && !responseText) {
-        try {
-          const fetchPromise = model.generateContent(fullPrompt);
-          // Timeout preventivo de 8 segundos para no chocar con el límite de Vercel
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 8000));
+      let modelToUse = typeof aiModel === 'string' ? aiModel.trim() : 'google/gemini-2.5-flash';
+      modelToUse = modelToUse.replace(/['"]+/g, '').trim(); // Eliminar comillas accidentales
+      let payloadA = null;
+
+      try {
+        // --- INTENTO A: Intentar con el modelo configurado ---
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos
+
+        payloadA = {
+          model: modelToUse,
+          messages: [
+            { role: "system", content: systemInstruction },
+            ...chatHistoryPayload
+          ],
+          temperature: 0.1,
+          max_tokens: 500
+        };
+
+        console.log(`[GUIDE-AI] Intentando petición con modelo principal: ${modelToUse}`);
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": window.location.origin || "https://upfunnel.com",
+            "X-Title": "Upfunnel Productivity Panel"
+          },
+          body: JSON.stringify(payloadA),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorDetails = await response.json().catch(() => ({}));
+          const errMsg = errorDetails.error?.message || `HTTP error! status: ${response.status}`;
+          const is404 = response.status === 404 || errMsg.toLowerCase().includes('no endpoints found') || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('model_not_found');
+          throw new Error(is404 ? `OPENROUTER_NO_ENDPOINTS_FOUND: ${errMsg}` : errMsg);
+        }
+
+        const data = await response.json();
+        responseText = data.choices?.[0]?.message?.content;
+      } catch (firstAttemptError) {
+        console.error("Error Real OpenRouter (Intento Principal):", firstAttemptError);
+        console.log("Payload enviado (Intento Principal):", payloadA);
+        console.warn('[GUIDE-AI] Primer intento fallido, intentando fallback de resiliencia...');
+        
+        // --- INTENTO B/C: Reintento con Modelo Alternativo (Respaldo Premium) ---
+        const fallbackModel = 'google/gemini-2.5-flash';
           
-          const result = await Promise.race([fetchPromise, timeoutPromise]);
-          responseText = result.response.text();
-        } catch (apiError) {
-          if (retries > 0) {
-            console.warn(`[GUIDE] Fallo de red, reintentando conexión con Gemini (${retries} intentos restantes)...`);
-            retries--;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            throw apiError;
+        let payloadB = null;
+        console.log(`[GUIDE-AI] Reintentando con modelo de respaldo premium estable: ${fallbackModel}`);
+        
+        try {
+          const fallbackController = new AbortController();
+          const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 8000);
+
+          payloadB = {
+            model: fallbackModel,
+            messages: [
+              { role: "system", content: systemInstruction },
+              ...chatHistoryPayload
+            ],
+            temperature: 0.1,
+            max_tokens: 500
+          };
+
+          const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiKey}`,
+              "HTTP-Referer": window.location.origin || "https://upfunnel.com",
+              "X-Title": "Upfunnel Productivity Panel"
+            },
+            body: JSON.stringify(payloadB),
+            signal: fallbackController.signal
+          });
+
+          clearTimeout(fallbackTimeoutId);
+
+          if (!fallbackResponse.ok) {
+            const fallbackErrorDetails = await fallbackResponse.json().catch(() => ({}));
+            const fallbackErrMsg = fallbackErrorDetails.error?.message || `HTTP error! status: ${fallbackResponse.status}`;
+            const isFallback404 = fallbackResponse.status === 404 || fallbackErrMsg.toLowerCase().includes('no endpoints found') || fallbackErrMsg.toLowerCase().includes('not found') || fallbackErrMsg.toLowerCase().includes('model_not_found');
+            throw new Error(isFallback404 ? `OPENROUTER_NO_ENDPOINTS_FOUND: ${fallbackErrMsg}` : fallbackErrMsg);
           }
+
+          const fallbackData = await fallbackResponse.json();
+          responseText = fallbackData.choices?.[0]?.message?.content;
+        } catch (secondAttemptError) {
+          console.error("Error Real OpenRouter (Intento Respaldo):", secondAttemptError);
+          console.log("Payload enviado (Intento Respaldo):", payloadB);
+          
+          if (firstAttemptError.message?.includes('OPENROUTER_NO_ENDPOINTS_FOUND') || 
+              secondAttemptError.message?.includes('OPENROUTER_NO_ENDPOINTS_FOUND') ||
+              firstAttemptError.message?.includes('No endpoints found') || 
+              secondAttemptError.message?.includes('No endpoints found')) {
+            throw new Error('OPENROUTER_NO_ENDPOINTS_FOUND');
+          }
+          throw new Error('FALLBACK_FAILED');
         }
       }
 
@@ -206,26 +338,25 @@ const AgentGuide = () => {
           toast.success('Agente recomendado con éxito');
         }
       } else {
-        throw new Error('Respuesta vacía de Gemini');
+        throw new Error('Respuesta vacía del servidor de OpenRouter');
       }
 
     } catch (error) {
       console.error('[GUIDE] Error crítico de conexión:', error);
-      // Intentar extraer más información del error si es posible
-      if (error.response) {
-        try {
-          const errorDetails = await error.response.json();
-          console.error('[GUIDE] Detalles técnicos de Google:', errorDetails);
-        } catch (e) {
-          console.error('[GUIDE] No se pudo parsear el detalle del error');
-        }
-      }
       
-      let userErrorMsg = '¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme.';
-      if (error.message === 'TIMEOUT') {
-        userErrorMsg = 'El sistema está tardando demasiado en responder. Por favor, inténtalo de nuevo en unos segundos.';
-      } else if (error.message.includes('API key not valid')) {
-        userErrorMsg = 'Error de Autorización: La clave API configurada es inválida o expiró.';
+      let userErrorMsg = 'El servicio está experimentando alta demanda, por favor intenta de nuevo en unos instantes.';
+      
+      if (error.message === 'OPENROUTER_NO_ENDPOINTS_FOUND') {
+        userErrorMsg = '⚠️ Error de Acceso en OpenRouter ("No Endpoints Found"):\n\n' +
+          'Esto ocurre comúnmente por dos razones:\n\n' +
+          '1. Para Modelos Premium (como Claude 3.5 Sonnet): Tu cuenta de OpenRouter no tiene saldo/crédito suficiente para procesar la consulta.\n' +
+          '2. Para Modelos Gratuitos (como Llama 3.1): OpenRouter requiere que tengas configurada tu política de privacidad. Ve a https://openrouter.ai/settings/privacy y asegúrate de:\n' +
+          '   - ACTIVAR "Permitir endpoints gratuitos que puedan publicar prompts/completions".\n' +
+          '   - DESACTIVAR la opción "ZDR (Zero Data Retention) únicamente", ya que los modelos gratuitos no son compatibles con ZDR.';
+      } else if (error.name === 'AbortError') {
+        userErrorMsg = 'El sistema de IA está tardando demasiado en responder. Por favor, inténtalo de nuevo en unos segundos.';
+      } else if (error.message && (error.message.includes('API key') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
+        userErrorMsg = 'Error de Configuración: La clave API de OpenRouter no es válida o no está autorizada.';
       }
 
       setMessages(prev => [...prev, { role: 'model', content: userErrorMsg }]);
@@ -235,6 +366,7 @@ const AgentGuide = () => {
   };
 
   const renderContent = (content) => {
+    if (typeof content !== 'string') return null;
     const parts = content.split(/(\[BOT_LINK:.*?\|.*?\])/g);
     return parts.map((part, index) => {
       if (part.startsWith('[BOT_LINK:')) {
@@ -256,12 +388,16 @@ const AgentGuide = () => {
           );
         }
       }
-      return <span key={index}>{part}</span>;
+      // Limpiar los asteriscos de Markdown para mostrar texto plano limpio y premium
+      const textClean = part.replace(/\*\*/g, '').replace(/\*/g, '');
+      return <span key={index}>{textClean}</span>;
     });
   };
 
-  // No mostrar si está desactivado globalmente
-  if (!isEnabled) return null;
+  // El administrador siempre ve la burbuja del Matchmaker (para pruebas),
+  // los usuarios finales solo si está habilitado globalmente (isEnabled)
+  const shouldRender = isEnabled || isAdmin;
+  if (!shouldRender) return null;
 
   return (
     <>
@@ -303,7 +439,7 @@ const AgentGuide = () => {
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:20px_20px] scroll-smooth custom-scrollbar">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[88%] p-5 rounded-2xl text-xs leading-loose font-medium shadow-xl ${
+              <div className={`max-w-[88%] p-5 rounded-2xl text-xs leading-loose font-medium shadow-xl whitespace-pre-wrap ${
                 m.role === 'user' 
                   ? 'bg-neon-teal/10 border border-neon-teal/30 text-white rounded-tr-none shadow-neon-teal/5' 
                   : 'bg-white/5 border border-white/5 text-gray-300 rounded-tl-none backdrop-blur-md'
@@ -327,12 +463,13 @@ const AgentGuide = () => {
         {/* Input - Glass Overlay */}
         <form onSubmit={handleSendMessage} className="p-6 bg-white/5 border-t border-white/5 flex gap-3">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Comando o consulta..."
             className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-xs text-white placeholder-gray-600 focus:ring-2 focus:ring-neon-teal/30 focus:border-neon-teal/50 transition-all outline-none"
-            disabled={loading}
+            readOnly={loading}
           />
           <button
             type="submit"

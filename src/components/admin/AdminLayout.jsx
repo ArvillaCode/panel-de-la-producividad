@@ -49,6 +49,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     if (path === '/admin/config') return 'config';
     if (path === '/admin/releases') return 'releases';
     if (path === '/admin/logs') return 'logs';
+    if (path === '/admin/matchmaker-config') return 'matchmaker-config';
     if (path.startsWith('/dashboard/academia')) return 'academia';
     return 'dashboard';
   };
@@ -76,6 +77,13 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       icon: Bot,
       path: '/admin/agents',
       description: 'Configuración de agentes'
+    },
+    {
+      id: 'matchmaker-config',
+      name: 'Matchmaker',
+      icon: Sparkles,
+      path: '/admin/matchmaker-config',
+      description: 'Ajustes del bot'
     },
     {
       id: 'config',

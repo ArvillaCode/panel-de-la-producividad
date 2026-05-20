@@ -9,6 +9,7 @@ import { categories } from '../../data/agents';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+
 const AdminAgents = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,11 +39,13 @@ const AdminAgents = () => {
     avatar: '',
     category: 'Marketing',
     chatLink: '',
-    visible: true
+    visible: true,
+    admin_only: false
   });
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
+
   const [selectedRows, setSelectedRows] = useState([]);
 
   const { broadcastNotification, sendUserNotification } = useAuth();
@@ -171,8 +174,12 @@ const AdminAgents = () => {
       );
     }
     if (filterStatus !== 'all') {
-      const isVisible = filterStatus === 'active';
-      filtered = filtered.filter(agent => agent.visible === isVisible);
+      if (filterStatus === 'admin_only') {
+        filtered = filtered.filter(agent => agent.admin_only === true);
+      } else {
+        const isVisible = filterStatus === 'active';
+        filtered = filtered.filter(agent => agent.visible === isVisible && !agent.admin_only);
+      }
     }
     setFilteredAgents(filtered);
   };
@@ -263,7 +270,8 @@ const AdminAgents = () => {
       avatar: '',
       category: 'Marketing',
       chatLink: '',
-      visible: true
+      visible: true,
+      admin_only: false
     });
     setSelectedAgent(null);
   };
@@ -284,7 +292,8 @@ const AdminAgents = () => {
       avatar: agent.avatar || '',
       category: agent.category || 'Marketing',
       chatLink: agent.chatLink || '',
-      visible: agent.visible ?? true
+      visible: agent.visible ?? true,
+      admin_only: agent.admin_only ?? false
     });
     setShowEditModal(true);
   };
@@ -359,6 +368,7 @@ const AdminAgents = () => {
                   <option value="all">Todos los estados</option>
                   <option value="active">Activos</option>
                   <option value="inactive">Inactivos</option>
+                  <option value="admin_only">Solo Admin / Borradores</option>
                 </select>
               </div>
             </div>
@@ -404,10 +414,15 @@ const AdminAgents = () => {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-black text-white truncate uppercase italic tracking-tight">{agent.name}</h3>
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-widest truncate">{agent.specialty}</p>
-                      <div className="mt-4">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         <span className={`inline-flex text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${agent.visible ? 'bg-neon-teal/20 text-neon-teal neon-glow' : 'bg-white/5 text-gray-600'}`}>
                           {agent.visible ? 'Activo' : 'Oculto'}
                         </span>
+                        {agent.admin_only && (
+                          <span className="inline-flex text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                            Borrador / Admin
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -558,11 +573,22 @@ const AdminAgents = () => {
                 <input value={formData.chatLink} onChange={e => setFormData({...formData, chatLink: e.target.value})} className="premium-input w-full" placeholder="https://app.customgpt.ai/..." />
               </div>
 
-              <div className="flex items-center gap-4 p-5 glass-card !bg-white/5 border-white/10 rounded-2xl">
-                <div className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={formData.visible} onChange={e => setFormData({...formData, visible: e.target.checked})} id="visible" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-teal"></div>
-                    <span className="ml-4 text-xs font-black text-white uppercase tracking-widest">Activar visibilidad en terminales</span>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center gap-4 p-5 glass-card !bg-white/5 border-white/10 rounded-2xl">
+                  <div className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={formData.visible} onChange={e => setFormData({...formData, visible: e.target.checked})} id="visible" className="sr-only peer" />
+                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-teal"></div>
+                      <span className="ml-4 text-xs font-black text-white uppercase tracking-widest">Activar visibilidad en terminales</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-5 glass-card !bg-white/5 border-white/10 rounded-2xl">
+                  <div className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={formData.admin_only} onChange={e => setFormData({...formData, admin_only: e.target.checked})} id="admin_only" className="sr-only peer" />
+                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-teal"></div>
+                      <span className="ml-4 text-xs font-black text-white uppercase tracking-widest">Solo Administradores (Borrador/Testing)</span>
+                  </div>
                 </div>
               </div>
 
