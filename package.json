@@ -4,6 +4,7 @@
   "description": "Panel interactivo con 50 agentes de IA especializados",
   "type": "module",
   "scripts": {
+    "configure-assistant": "node scripts/configureAssistant.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
