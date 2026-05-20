@@ -10,8 +10,6 @@ import {
   Home,
   Shield,
   Bell,
-  Moon,
-  Sun,
   Sparkles,
   Activity,
   ChevronLeft,
@@ -20,13 +18,11 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { useTheme } from '../../hooks/useTheme';
 import { BRANDING } from '../../constants/branding';
 
 const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
   const { logout, user, profile, loading, notifications, systemConfig } = useAuth();
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);

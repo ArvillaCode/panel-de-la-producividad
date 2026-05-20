@@ -243,28 +243,28 @@ const AgentPanel = () => {
   };
 
   const PaginationControls = ({ className = "" }) => (
-    <div className={`flex items-center justify-center gap-2 ${className}`}>
+    <div className={`flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap ${className}`}>
       <button
         onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === 1}
-        className="p-2.5 rounded-xl hover:bg-neon-teal hover:text-deep-dark disabled:opacity-20 transition-all border border-white/10"
+        className="p-2 sm:p-2.5 rounded-xl hover:bg-neon-teal hover:text-deep-dark disabled:opacity-20 transition-all border border-white/10 touch-manipulation"
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
-      <div className="flex items-center px-4 py-2 glass-card !bg-white/5 border-white/10 shadow-inner">
-        <span className="text-[10px] font-black text-gray-500 uppercase mr-2 tracking-widest">Pág.</span>
-        <span className="text-sm font-black neon-text">{currentPage}</span>
-        <span className="text-[10px] font-bold text-gray-500 mx-2">/</span>
-        <span className="text-sm font-bold text-gray-300">{totalPages}</span>
+      <div className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 glass-card !bg-white/5 border-white/10 shadow-inner">
+        <span className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase mr-1.5 sm:mr-2 tracking-widest">Pág.</span>
+        <span className="text-xs sm:text-sm font-black neon-text">{currentPage}</span>
+        <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 mx-1.5 sm:mx-2">/</span>
+        <span className="text-xs sm:text-sm font-bold text-gray-300">{totalPages}</span>
       </div>
 
       <button
         onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         disabled={currentPage === totalPages}
-        className="p-2.5 rounded-xl hover:bg-neon-teal hover:text-deep-dark disabled:opacity-20 transition-all border border-white/10"
+        className="p-2 sm:p-2.5 rounded-xl hover:bg-neon-teal hover:text-deep-dark disabled:opacity-20 transition-all border border-white/10 touch-manipulation"
       >
-        <ChevronRight className="w-5 h-5" />
+        <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
     </div>
   );
@@ -352,28 +352,17 @@ const AgentPanel = () => {
             </div>
           </div>
 
-          {/* Header */}
-          <div className="mb-10 md:mb-16 animate-fade-in-up">
-            <div className="hidden md:flex items-center gap-4 mb-6">
-              <div className="px-4 py-1.5 glass-card !bg-neon-teal/10 border-neon-teal/20 text-neon-teal text-[10px] font-black uppercase tracking-[0.2em] neon-glow">
-                Sistema Operativo Premium
-              </div>
-              <div className="h-px w-24 bg-white/10" />
+          {/* Minimal Header */}
+          <div className="mb-8 md:mb-12 animate-fade-in-up">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-neon-teal animate-pulse shadow-[0_0_8px_rgba(0,229,255,0.6)]"></div>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-gray-900 dark:text-white uppercase italic">
+                Catálogo de <span className="neon-text">Agentes</span>
+              </h1>
             </div>
-
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-600 dark:text-gray-400 tracking-tight">
-                  {motivationalMessage.split('!')[0]}! <span className="neon-text">{profile?.name || user?.email?.split('@')[0]}</span>
-                </h2>
-                <h1 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-gray-900 dark:text-white">
-                  DOMINA TU <span className="neon-text">PRODUCTIVIDAD</span>
-                </h1>
-                <p className="text-lg text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xl">
-                  {motivationalMessage.split('!')[1] || "Eleva tu flujo de trabajo con la flota de agentes IA más avanzada del sector."}
-                </p>
-              </div>
-            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-500 font-bold mt-2 uppercase tracking-widest">
+              {filteredAndSortedAgents.length} agentes disponibles
+            </p>
           </div>
 
           {/* Controls - Premium Glass */}
@@ -485,7 +474,7 @@ const AgentPanel = () => {
                         onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
                         className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === tab
                             ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:bg-blue-900/20'
-                            : 'border-transparent text-gray-500 hover:text-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/10'
+                            : 'border-transparent text-gray-500 hover:text-neon-teal hover:bg-neon-teal/10 dark:hover:bg-neon-teal/10'
                           }`}
                       >
                         {tab}

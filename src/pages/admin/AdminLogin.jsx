@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Shield,
-  Eye,
-  EyeOff,
+  Mail,
+  KeyRound,
   AlertTriangle,
   CheckCircle,
   Check,
@@ -12,7 +12,6 @@ import {
 
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-import RegisterForm from '../../components/RegisterForm';
 import { BRANDING } from '../../constants/branding';
 
 const AdminLogin = () => {
@@ -20,8 +19,8 @@ const AdminLogin = () => {
   const location = useLocation();
 
   const {
-    login,
-    logout,
+    loginWithOtp,
+    verifyOtpCode,
     profile,
     isAdmin,
     isAuthenticated,
@@ -29,19 +28,13 @@ const AdminLogin = () => {
     loading: authLoading
   } = useAuth();
 
-  const { theme, toggleTheme } = useTheme();
-
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-
-  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState('email'); // 'email' o 'otp'
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
 
   // 1. Manejar errores de URL una sola vez al montar y limpiar tokens corruptos si aplica
   useEffect(() => {
@@ -51,15 +44,11 @@ const AdminLogin = () => {
       
       if (urlError) {
         setError(urlError);
-        
-        // Si detectamos errores relacionados con tokens de sesión inválidos o expiraciones
         if (urlError.toLowerCase().includes('token') || urlError.toLowerCase().includes('sesion') || urlError.toLowerCase().includes('expirada')) {
           console.warn('[AUTH-LOGIN] Detectado error de sesión en URL. Purgando caché local defensivamente...');
           localStorage.clear();
           sessionStorage.clear();
         }
-        
-        // Limpiar el parámetro de la URL sin recargar para no ciclar el navegador
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       }
@@ -88,104 +77,60 @@ const AdminLogin = () => {
     }
   }, [isAuthenticated, isAdmin, profile, user, authLoading, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    if (error) setError('');
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
-
     setLoading(true);
     setError('');
     setSuccess('');
 
     try {
-      if (!formData.email || !formData.password) {
-        throw new Error('Email y contraseña son obligatorios');
+      if (!email || !email.includes('@')) {
+        throw new Error('Ingresa un email válido');
       }
 
-      console.log('[DEBUG] Intentando iniciar sesión con:', formData.email);
-
-      const result = await login(formData.email, formData.password);
-
-      console.log('[DEBUG] Resultado login:', result);
+      console.log('[DEBUG] Solicitando OTP para:', email);
+      const result = await loginWithOtp(email);
 
       if (!result.success) {
-        throw new Error(result.error || 'Credenciales incorrectas');
+        throw new Error(result.error || 'Error al enviar el código de verificación');
       }
 
-      // Recordar usuario
-      if (rememberMe) {
-        localStorage.setItem(
-          'loginCredentials',
-          JSON.stringify({
-            email: formData.email,
-            rememberMe: true
-          })
-        );
-      } else {
-        localStorage.removeItem('loginCredentials');
-      }
-
-      setSuccess('Inicio de sesión exitoso');
-      // La redirección la hace el useEffect cuando profile/isAdmin estén sincronizados
-
+      setSuccess('Código enviado. Revisa tu bandeja de entrada (y la carpeta de spam).');
+      setStep('otp');
     } catch (err) {
-      console.error('[DEBUG] Error en login form:', err);
-
-      setError(err.message || 'Error al iniciar sesión');
+      console.error('[DEBUG] Error en envío OTP:', err);
+      setError(err.message || 'Error al enviar código');
+    } finally {
       setLoading(false);
     }
   };
 
-  if (isRegistering) {
-    return (
-      <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-4 relative overflow-hidden pointer-events-auto">
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
-        </div>
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
 
-        <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-700">
-          <div className="text-center mb-10">
-            <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 border border-blue-500/20 mb-6 shadow-2xl shadow-blue-500/10">
-              <Shield className="w-12 h-12 text-blue-500" />
-            </div>
-            <h2 className="text-3xl font-black text-white tracking-tight mb-2">
-              Crear Cuenta
-            </h2>
-            <p className="text-slate-400 font-medium">
-              Únete a la matriz de productividad <span className="text-blue-500 font-black">AI</span>
-            </p>
-          </div>
+    try {
+      if (!otp || otp.length !== 6) {
+        throw new Error('El código debe tener 6 dígitos');
+      }
 
-          <div className="bg-[#0f172a]/40 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-15px_rgba(0,0,0,0.5)] p-10 border border-white/10 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-            
-            <RegisterForm
-              onSuccess={() => setIsRegistering(false)}
-              onCancel={() => setIsRegistering(false)}
-            />
+      console.log('[DEBUG] Verificando OTP para:', email);
+      const result = await verifyOtpCode(email, otp);
 
-            <div className="mt-8 pt-6 border-t border-white/5 text-center">
-              <button
-                onClick={() => setIsRegistering(false)}
-                className="text-slate-400 hover:text-white text-sm font-bold transition-all duration-300"
-              >
-                ¿Ya tienes cuenta? <span className="text-blue-500 underline underline-offset-4">Inicia sesión aquí</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+      if (!result.success) {
+        throw new Error(result.error || 'Código incorrecto o expirado');
+      }
+
+      setSuccess('¡Verificación exitosa! Entrando al sistema...');
+      // La redirección la hace el useEffect cuando profile/isAdmin estén sincronizados
+    } catch (err) {
+      console.error('[DEBUG] Error en verificación OTP:', err);
+      setError(err.message || 'Error al verificar el código');
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-4 relative overflow-hidden pointer-events-auto">
@@ -230,84 +175,96 @@ const AdminLogin = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
-                Email Corporativo
-              </label>
-              <div className="relative group">
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-5 py-4 text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-600"
-                  placeholder="admin@ejemplo.com"
-                  disabled={loading}
-                />
+          {step === 'email' ? (
+            <form onSubmit={handleSendOtp} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
+                  Email Corporativo
+                </label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError('');
+                    }}
+                    className="w-full bg-slate-900/50 border border-white/5 rounded-2xl pl-12 pr-5 py-4 text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-600"
+                    placeholder="tucorreo@ejemplo.com"
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 ml-1 mt-2">No necesitas contraseña. Te enviaremos un código seguro de 6 dígitos.</p>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
-                Contraseña
-              </label>
-              <div className="relative group">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full bg-slate-900/50 border border-white/5 rounded-2xl px-5 py-4 text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-600"
-                  placeholder="••••••••"
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full relative group overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
+                <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)]">
+                  {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Recibir Código'}
+                </div>
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+              <div className="space-y-2">
+                <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1 text-center w-full">
+                  Código de 6 dígitos
+                </label>
+                <div className="relative group">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    name="otp"
+                    value={otp}
+                    onChange={(e) => {
+                      setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); // Solo números, max 6
+                      if (error) setError('');
+                    }}
+                    className="w-full bg-slate-900/50 border border-white/5 rounded-2xl pl-12 pr-5 py-4 text-white text-center tracking-[1em] text-xl font-mono focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-700"
+                    placeholder="••••••"
+                    disabled={loading}
+                    autoFocus
+                    maxLength={6}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 text-center mt-2">Enviado a <span className="text-white font-medium">{email}</span></p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || otp.length !== 6}
+                className="w-full relative group overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
+                <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)]">
+                  {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Verificar y Entrar'}
+                </div>
+              </button>
+              
+              <div className="text-center mt-4">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setStep('email');
+                    setOtp('');
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="text-xs text-slate-400 hover:text-white transition-colors"
                   disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  Usar otro correo
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between px-1">
-              <label className="flex items-center group cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="peer sr-only"
-                  />
-                  <div className="w-5 h-5 bg-slate-900 border border-white/10 rounded-lg peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all duration-300" />
-                  <Check className="absolute top-0.5 left-0.5 w-4 h-4 text-white scale-0 peer-checked:scale-100 transition-transform duration-300" />
-                </div>
-                <span className="ml-3 text-sm font-medium text-slate-400 group-hover:text-slate-200 transition-colors">Recordarme</span>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full relative group overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
-              <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)]">
-                {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Acceder al Sistema'}
-              </div>
-            </button>
-          </form>
-
-          <div className="mt-10 pt-8 border-t border-white/5 text-center">
-            <button
-              onClick={() => setIsRegistering(true)}
-              className="group text-slate-400 hover:text-white text-sm font-bold transition-all duration-300"
-            >
-              ¿Eres nuevo? <span className="text-blue-500 group-hover:underline underline-offset-4 decoration-2">Crea tu cuenta aquí</span>
-            </button>
-          </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

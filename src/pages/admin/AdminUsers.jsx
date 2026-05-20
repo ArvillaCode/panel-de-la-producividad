@@ -661,16 +661,58 @@ const AdminUsers = () => {
                 </table>
             </div>
             {totalPages > 1 && (
-                <div className="p-6 border-t border-white/10 flex justify-center gap-3">
-                    {Array.from({ length: totalPages }, (_, i) => (
-                        <button
-                            key={i}
-                            onClick={() => setCurrentPage(i + 1)}
-                            className={`w-10 h-10 rounded-xl font-black transition-all ${currentPage === i + 1 ? 'bg-neon-teal text-deep-dark' : 'glass-card border-white/5 text-gray-500 hover:text-white'}`}
-                        >
-                            {i + 1}
-                        </button>
-                    ))}
+                <div className="p-6 border-t border-white/10 flex items-center justify-center gap-2">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2.5 rounded-xl glass-card border-white/5 text-gray-500 hover:text-white disabled:opacity-20 transition-all"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    
+                    {(() => {
+                        const pages = [];
+                        const maxVisible = 5;
+                        let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                        let end = Math.min(totalPages, start + maxVisible - 1);
+                        if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                        
+                        if (start > 1) {
+                            pages.push(
+                                <button key={1} onClick={() => setCurrentPage(1)} className="w-10 h-10 rounded-xl font-black transition-all glass-card border-white/5 text-gray-500 hover:text-white">1</button>
+                            );
+                            if (start > 2) pages.push(<span key="start-ellipsis" className="text-gray-600 font-bold px-1">...</span>);
+                        }
+                        
+                        for (let i = start; i <= end; i++) {
+                            pages.push(
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i)}
+                                    className={`w-10 h-10 rounded-xl font-black transition-all ${currentPage === i ? 'bg-neon-teal text-deep-dark shadow-lg shadow-neon-teal/20' : 'glass-card border-white/5 text-gray-500 hover:text-white'}`}
+                                >
+                                    {i}
+                                </button>
+                            );
+                        }
+                        
+                        if (end < totalPages) {
+                            if (end < totalPages - 1) pages.push(<span key="end-ellipsis" className="text-gray-600 font-bold px-1">...</span>);
+                            pages.push(
+                                <button key={totalPages} onClick={() => setCurrentPage(totalPages)} className="w-10 h-10 rounded-xl font-black transition-all glass-card border-white/5 text-gray-500 hover:text-white">{totalPages}</button>
+                            );
+                        }
+                        
+                        return pages;
+                    })()}
+                    
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-2.5 rounded-xl glass-card border-white/5 text-gray-500 hover:text-white disabled:opacity-20 transition-all"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
                 </div>
             )}
         </div>
@@ -746,7 +788,15 @@ const AdminUsers = () => {
                     </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Email Corporativo</label>
-                        <input required type="email" disabled={showEditModal} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="premium-input w-full disabled:opacity-50" placeholder="user@upfunnel.click" />
+                        <div className="relative">
+                          <input required type="email" disabled={showEditModal} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="premium-input w-full disabled:opacity-40 disabled:cursor-not-allowed" placeholder="user@upfunnel.click" />
+                          {showEditModal && (
+                            <div className="flex items-center gap-2 mt-2 text-amber-400">
+                              <Shield className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Campo bloqueado por seguridad de Supabase Auth</span>
+                            </div>
+                          )}
+                        </div>
                     </div>
                     {!showEditModal && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -436,6 +436,16 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(notifInterval);
   }, [user, fetchNotifications]);
 
+  const loginWithOtp = async (email) => {
+    const { data, error } = await supabase.auth.signInWithOtp({ email });
+    return { success: !error, error: error?.message };
+  };
+
+  const verifyOtpCode = async (email, token) => {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    return { success: !error, error: error?.message, data };
+  };
+
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     return { success: !error, error: error?.message };
@@ -761,6 +771,8 @@ export const AuthProvider = ({ children }) => {
     notifications,
     systemConfig,
     login,
+    loginWithOtp,
+    verifyOtpCode,
     logout,
     register,
     updateUser,

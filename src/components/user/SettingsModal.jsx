@@ -24,10 +24,17 @@ const SettingsModal = ({ onClose }) => {
     (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const timezones = typeof Intl !== 'undefined' && Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [];
-  const filteredTz = timezones.filter(tz => {
+  const filteredTz = React.useMemo(() => {
     const search = normalize(tzSearch);
-    return normalize(tz).includes(search) || tz.toLowerCase().includes(tzSearch.toLowerCase());
-  });
+    const results = [];
+    for (let i = 0; i < timezones.length && results.length < 50; i++) {
+      const tz = timezones[i];
+      if (normalize(tz).includes(search) || tz.toLowerCase().includes(tzSearch.toLowerCase())) {
+        results.push(tz);
+      }
+    }
+    return results;
+  }, [tzSearch, timezones]);
 
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -334,6 +341,7 @@ const SettingsModal = ({ onClose }) => {
                         />
                       </div>
                       
+                      <p className="text-[10px] text-gray-400 font-bold px-2 py-1">{filteredTz.length} resultados{filteredTz.length >= 50 ? ' (mostrando primeros 50)' : ''}</p>
                       <div className="max-h-[180px] overflow-y-auto pr-2 space-y-1 scrollbar-thin border-t border-gray-50 dark:border-white/5 pt-2">
                         {filteredTz.map(tz => (
                           <button
@@ -342,7 +350,7 @@ const SettingsModal = ({ onClose }) => {
                             onClick={() => {
                               setProfileData(prev => ({ ...prev, timezone: tz }));
                               setTzSearch('');
-                              setIsTzOpen(false); // Colapsar al seleccionar
+                              setIsTzOpen(false);
                             }}
                             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all ${
                               profileData.timezone === tz 
@@ -351,9 +359,14 @@ const SettingsModal = ({ onClose }) => {
                             }`}
                           >
                             <span className="truncate">{tz.replace(/_/g, ' ')}</span>
-                            {profileData.timezone === tz && (
-                              <Check className="w-4 h-4" />
-                            )}
+                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                              <span className={`text-[10px] font-bold tabular-nums ${profileData.timezone === tz ? 'text-blue-200' : 'text-gray-400'}`}>
+                                {new Date().toLocaleTimeString('es-MX', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })}
+                              </span>
+                              {profileData.timezone === tz && (
+                                <Check className="w-4 h-4" />
+                              )}
+                            </div>
                           </button>
                         ))}
                         {filteredTz.length === 0 && (
