@@ -80,6 +80,7 @@ const AdminUsers = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirm: '' });
   const [selectedUser, setSelectedUser] = useState(null);
@@ -563,7 +564,7 @@ const AdminUsers = () => {
                         </button>
                         
                         <button 
-                            onClick={handleBulkDelete}
+                            onClick={() => setShowBulkDeleteModal(true)}
                             title="Eliminar Permanente"
                             className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
                         >
@@ -880,6 +881,31 @@ const AdminUsers = () => {
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+      {/* Modal Confirmación Eliminación Masiva */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={() => setShowBulkDeleteModal(false)}></div>
+          <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-red-500/10">
+              <AlertTriangle className="w-10 h-10" />
+            </div>
+            <h2 className="text-3xl font-black text-white uppercase italic mb-4">¿Eliminar {selectedRows.length} usuarios?</h2>
+            <p className="text-gray-500 font-bold mb-10 text-sm leading-relaxed uppercase tracking-wider">
+              Esta acción eliminará <span className="text-red-500">{selectedRows.length} usuario{selectedRows.length !== 1 ? 's' : ''}</span> de forma permanente. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-4">
+              <button onClick={() => setShowBulkDeleteModal(false)} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>
+              <button
+                onClick={async () => { setShowBulkDeleteModal(false); await handleBulkDelete(); }}
+                disabled={actionLoading}
+                className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+              >
+                {actionLoading ? 'Eliminando...' : `Eliminar ${selectedRows.length}`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </AdminLayout>
