@@ -124,19 +124,43 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
-  const StatCard = ({ title, value, icon: Icon, description }) => (
-    <div className="glass-card p-7 border border-white/10 relative overflow-hidden group glass-card-hover animate-fade-in-up">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-neon-teal/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-neon-teal/10 transition-all duration-700"></div>
-      <div className="flex items-center justify-between relative z-10">
-        <div>
-          <p className="text-[11px] font-black text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-widest">{title}</p>
-          <p className="text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter">{value}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{description}</p>
+  const useCountUp = (target, duration = 1200) => {
+    const [count, setCount] = useState(0);
+    useEffect(() => {
+      if (!target || target === 0) { setCount(0); return; }
+      const start = 0;
+      const increment = target / (duration / 16);
+      let current = start;
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+          setCount(target);
+          clearInterval(timer);
+        } else {
+          setCount(Math.floor(current));
+        }
+      }, 16);
+      return () => clearInterval(timer);
+    }, [target, duration]);
+    return count;
+  };
+
+  const StatCard = ({ title, value, icon: Icon, description }) => {
+    const animatedValue = useCountUp(typeof value === 'number' ? value : parseInt(value) || 0);
+    return (
+      <div className="glass-card p-7 border border-white/10 relative overflow-hidden group glass-card-hover animate-fade-in-up">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-neon-teal/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-neon-teal/10 transition-all duration-700"></div>
+        <div className="flex items-center justify-between relative z-10">
+          <div>
+            <p className="text-[11px] font-black text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-widest">{title}</p>
+            <p className="text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter">{animatedValue}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{description}</p>
+          </div>
+          <div className="p-4 rounded-[1.2rem] bg-neon-teal/10 text-neon-teal neon-glow"><Icon className="w-8 h-8" /></div>
         </div>
-        <div className="p-4 rounded-[1.2rem] bg-neon-teal/10 text-neon-teal neon-glow"><Icon className="w-8 h-8" /></div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const chartTooltipStyle = {
     background: '#0E1A2B',
