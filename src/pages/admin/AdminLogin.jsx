@@ -1,18 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  Shield,
-  Mail,
-  KeyRound,
-  AlertTriangle,
-  CheckCircle,
-  Check,
-  Loader2 as Loader
-} from 'lucide-react';
-
+import { Shield, Mail, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { useTheme } from '../../hooks/useTheme';
 import { BRANDING } from '../../constants/branding';
+import { supabase } from '../../lib/supabase';
+import Particles from "react-tsparticles";
+import { loadFull } from "tsparticles";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -28,17 +21,19 @@ const AdminLogin = () => {
     loading: authLoading
   } = useAuth();
 
-  const [step, setStep] = useState('email'); // 'email' o 'otp'
+  const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   
   const [isProcessingMagicLink, setIsProcessingMagicLink] = useState(false);
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // 1. Manejar errores de URL una sola vez al montar y limpiar tokens corruptos si aplica
+  const particlesInit = useCallback(async engine => {
+    await loadFull(engine);
+  }, []);
+
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -47,23 +42,19 @@ const AdminLogin = () => {
       if (urlError) {
         setError(urlError);
         if (urlError.toLowerCase().includes('token') || urlError.toLowerCase().includes('sesion') || urlError.toLowerCase().includes('expirada')) {
-          console.warn('[AUTH-LOGIN] Detectado error de sesión en URL. Purgando caché local defensivamente...');
           localStorage.clear();
           sessionStorage.clear();
         }
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       }
-    } catch (err) {
-      console.error('[AUTH-LOGIN] Error en montaje inicial de verificación defensiva:', err);
-    }
+    } catch (err) {}
 
     if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink'))) {
       setIsProcessingMagicLink(true);
     }
   }, []);
 
-  // 2. Redireccionar si ya está autenticado
   useEffect(() => {
     try {
       if (isAuthenticated && !authLoading && profile) {
@@ -78,10 +69,22 @@ const AdminLogin = () => {
           navigate('/', { replace: true });
         }
       }
-    } catch (err) {
-      console.error('[AUTH-LOGIN] Error en redireccionamiento de sesión:', err);
-    }
+    } catch (err) {}
   }, [isAuthenticated, isAdmin, profile, user, authLoading, navigate]);
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/admin/login`
+        }
+      });
+      if (error) throw error;
+    } catch (err) {
+      setError(err.message || 'Error al conectar con Google');
+    }
+  };
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -90,169 +93,199 @@ const AdminLogin = () => {
     setSuccess('');
 
     try {
-      if (!email || !email.includes('@')) {
-        throw new Error('Ingresa un email válido');
-      }
-
-      console.log('[DEBUG] Solicitando OTP para:', email);
+      if (!email || !email.includes('@')) throw new Error('Ingresa un email válido');
       const result = await loginWithOtp(email);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al enviar el código de verificación');
-      }
-
-      setSuccess('Enlace enviado. Revisa tu bandeja de entrada (y spam) y haz clic en el Magic Link.');
+      if (!result.success) throw new Error(result.error || 'Error al enviar el código');
+      
+      setSuccess('Enlace enviado. Revisa tu bandeja de entrada (y spam).');
       setStep('magiclink');
     } catch (err) {
-      console.error('[DEBUG] Error en envío OTP:', err);
       setError(err.message || 'Error al enviar código');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      if (!otp || otp.length !== 6) {
-        throw new Error('El código debe tener 6 dígitos');
-      }
-
-      console.log('[DEBUG] Verificando OTP para:', email);
-      const result = await verifyOtpCode(email, otp);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Código incorrecto o expirado');
-      }
-
-      setSuccess('¡Verificación exitosa! Entrando al sistema...');
-      // La redirección la hace el useEffect cuando profile/isAdmin estén sincronizados
-    } catch (err) {
-      console.error('[DEBUG] Error en verificación OTP:', err);
-      setError(err.message || 'Error al verificar el código');
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-4 relative overflow-hidden pointer-events-auto">
-      {/* Dynamic Background Glows */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
-
-      <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-700">
-        <div className="text-center mb-10">
-          <div className="inline-flex p-4 rounded-3xl bg-white/10 border border-white/20 mb-6 shadow-2xl shadow-white/5 overflow-hidden">
-            <img 
-              src={BRANDING.logo} 
-              alt={BRANDING.name} 
-              className="h-20 md:h-24 w-auto object-contain dark:brightness-0 dark:invert"
-            />
-          </div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-2">
-            Iniciar Sesión
-          </h1>
-          <p className="text-slate-400 font-medium">
-            Panel de Productividad <span className="text-blue-500 font-black">AI</span>
-          </p>
-        </div>
-
-        <div className="bg-[#0f172a]/40 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-15px_rgba(0,0,0,0.5)] p-10 border border-white/10 relative overflow-hidden">
-          {/* Top accent line */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+    <div className="min-h-screen bg-[#02040a] flex items-center justify-center relative overflow-hidden pointer-events-auto">
+      <div className="flex w-full h-screen">
+        
+        {/* Lado Izquierdo: Formulario de Login */}
+        <div className="w-full lg:w-5/12 flex flex-col justify-center items-center p-8 md:p-16 z-20 bg-[#02040a]/90 backdrop-blur-xl border-r border-white/5 relative">
           
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-sm flex items-start animate-in slide-in-from-top-2">
-              <AlertTriangle className="w-4 h-4 mr-3 mt-0.5 flex-shrink-0" />
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl text-sm flex items-center animate-in slide-in-from-top-2">
-              <CheckCircle className="w-4 h-4 mr-3" />
-              <span className="font-medium">{success}</span>
-            </div>
-          )}
-
-          {isProcessingMagicLink ? (
-            <div className="flex flex-col items-center justify-center py-10 space-y-6 animate-in fade-in zoom-in duration-500">
-              <div className="premium-spinner !w-12 !h-12 !border-4"></div>
-              <h2 className="text-xl font-bold text-white tracking-wide animate-pulse">Verificando acceso seguro...</h2>
-              <p className="text-sm text-slate-400">Por favor, espera mientras confirmamos tu sesión.</p>
-            </div>
-          ) : step === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-6">
-              <div className="space-y-2">
-                <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
-                  Email Corporativo
-                </label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (error) setError('');
-                    }}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-2xl pl-12 pr-5 py-4 text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-600"
-                    placeholder="tucorreo@ejemplo.com"
-                    disabled={loading}
-                    autoFocus
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 ml-1 mt-2">No necesitas contraseña. Te enviaremos un código seguro de 6 dígitos.</p>
+          <div className="w-full max-w-sm animate-in fade-in slide-in-from-left-8 duration-700">
+            <div className="mb-12 text-center lg:text-left">
+              <div className="inline-flex p-3 rounded-2xl bg-white/5 border border-white/10 mb-6 shadow-2xl overflow-hidden">
+                <img 
+                  src={BRANDING.logo} 
+                  alt={BRANDING.name} 
+                  className="h-12 w-auto object-contain dark:brightness-0 dark:invert"
+                />
               </div>
+              <h1 className="text-3xl lg:text-4xl font-black text-white tracking-tight mb-2">
+                Bienvenido al Panel
+              </h1>
+              <p className="text-slate-400 font-medium">
+                Ingresa para gestionar <span className="text-blue-500 font-black">Inteligencia Artificial</span>
+              </p>
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full relative group overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
-                <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)]">
-                  {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Recibir Enlace'}
-                </div>
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-6 text-center animate-in slide-in-from-right-4 duration-500">
-              <div className="mx-auto w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                <Mail className="w-8 h-8 text-blue-400" />
+            {error && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-sm flex items-start animate-in slide-in-from-top-2">
+                <AlertTriangle className="w-4 h-4 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="font-medium">{error}</span>
               </div>
-              <h2 className="text-2xl font-black text-white tracking-tight">Revisa tu correo</h2>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
-                Hemos enviado un <strong className="text-white">enlace mágico</strong> a <br/>
-                <span className="text-blue-400 font-medium">{email}</span>
-              </p>
-              <p className="text-xs text-slate-500 mt-2">
-                Haz clic en el enlace del correo para iniciar sesión automáticamente.
-              </p>
-              
-              <div className="pt-6 mt-6 border-t border-white/5">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setStep('email');
-                    setError('');
-                    setSuccess('');
-                  }}
-                  className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+            )}
+
+            {success && (
+              <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl text-sm flex items-center animate-in slide-in-from-top-2">
+                <CheckCircle className="w-4 h-4 mr-3" />
+                <span className="font-medium">{success}</span>
+              </div>
+            )}
+
+            {isProcessingMagicLink ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-6 animate-in fade-in zoom-in duration-500">
+                <div className="premium-spinner !w-12 !h-12 !border-4"></div>
+                <h2 className="text-xl font-bold text-white tracking-wide animate-pulse">Verificando acceso seguro...</h2>
+              </div>
+            ) : step === 'email' ? (
+              <div className="space-y-6">
+                
+                {/* Botón de Google */}
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white hover:bg-gray-100 text-gray-900 rounded-2xl font-bold transition-all shadow-lg active:scale-95 group"
                 >
-                   Usar otro correo
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  Continuar con Google
                 </button>
+
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-white/10"></div>
+                  <span className="flex-shrink-0 mx-4 text-xs font-bold text-slate-500 uppercase tracking-widest">O usa tu correo</span>
+                  <div className="flex-grow border-t border-white/10"></div>
+                </div>
+
+                {/* Formulario de Email */}
+                <form onSubmit={handleSendOtp} className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
+                      Email Corporativo
+                    </label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 transition-colors group-focus-within:text-blue-500" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (error) setError('');
+                        }}
+                        className="w-full bg-[#0a0f1c]/50 border border-white/10 rounded-2xl pl-12 pr-5 py-4 text-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 outline-none transition-all placeholder:text-slate-600"
+                        placeholder="tucorreo@ejemplo.com"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full relative group overflow-hidden rounded-2xl p-[1px]"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl transition-all duration-500 group-hover:scale-105" />
+                    <div className="relative flex items-center justify-center py-4 bg-[#0a0f1c] hover:bg-transparent rounded-2xl font-black text-white tracking-widest uppercase text-sm transition-colors duration-300">
+                      {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Enviarme Magic Link'}
+                    </div>
+                  </button>
+                </form>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-6 text-center animate-in slide-in-from-right-4 duration-500">
+                <div className="mx-auto w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mb-4">
+                  <Mail className="w-8 h-8 text-blue-400" />
+                </div>
+                <h2 className="text-2xl font-black text-white tracking-tight">Revisa tu correo</h2>
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  Hemos enviado un <strong className="text-white">enlace mágico</strong> a <br/>
+                  <span className="text-blue-400 font-medium">{email}</span>
+                </p>
+                <div className="pt-6 mt-6 border-t border-white/5">
+                  <button onClick={() => { setStep('email'); setError(''); setSuccess(''); }} className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors">
+                     Usar otro correo
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Lado Derecho: Visual Espectacular */}
+        <div className="hidden lg:flex w-7/12 relative bg-[#02040a] flex-col justify-between p-12 overflow-hidden items-center">
+          
+          {/* Partículas de Fondo */}
+          <Particles
+            id="tsparticles"
+            init={particlesInit}
+            className="absolute inset-0 z-0"
+            options={{
+              background: { color: { value: "transparent" } },
+              fpsLimit: 120,
+              interactivity: {
+                events: { onHover: { enable: true, mode: "grab" } },
+                modes: { grab: { distance: 140, links: { opacity: 0.5 } } }
+              },
+              particles: {
+                color: { value: "#3b82f6" },
+                links: { color: "#3b82f6", distance: 150, enable: true, opacity: 0.2, width: 1 },
+                move: { enable: true, speed: 0.5, direction: "none", random: true, straight: false, outModes: { default: "bounce" } },
+                number: { density: { enable: true, area: 800 }, value: 60 },
+                opacity: { value: 0.3 },
+                shape: { type: "circle" },
+                size: { value: { min: 1, max: 3 } }
+              },
+              detectRetina: true
+            }}
+          />
+
+          {/* Gradientes Decorativos */}
+          <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
+          <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-purple-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
+
+          {/* Contenido Visual */}
+          <div className="relative z-10 w-full max-w-lg mt-auto mb-auto">
+            <div className="glass-card border-white/10 bg-white/5 p-8 rounded-3xl backdrop-blur-md">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-purple-400" />
+                </div>
+              </div>
+              <h2 className="text-4xl font-black text-white leading-tight mb-4">
+                El futuro de la <br/> Productividad
+              </h2>
+              <p className="text-slate-400 text-lg leading-relaxed">
+                Supervisa a tus agentes inteligentes, analiza métricas en tiempo real y toma decisiones basadas en datos.
+              </p>
+            </div>
+          </div>
+
+          <div className="relative z-10 w-full text-center">
+            <p className="text-xs text-slate-500 font-bold tracking-widest uppercase">
+              Plataforma Segura • {new Date().getFullYear()}
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
   );

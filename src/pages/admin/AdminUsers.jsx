@@ -36,6 +36,7 @@ import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Draggable from 'react-draggable';
 
 const AdminUsers = () => {
   const { 
@@ -197,12 +198,15 @@ const AdminUsers = () => {
       return;
     }
 
-    setSelectedRows(prev => {
-      const merged = [...new Set([...prev, ...matchingIds])];
-      return merged;
-    });
+    const allSelected = matchingIds.every(id => selectedRows.includes(id));
 
-    toast.success(`${matchingIds.length} usuario${matchingIds.length !== 1 ? 's' : ''} ${status === 'active' ? 'activos' : 'offline'} añadidos a la selección`);
+    if (allSelected) {
+      setSelectedRows(prev => prev.filter(id => !matchingIds.includes(id)));
+      toast.success(`Deseleccionados los usuarios ${status === 'active' ? 'activos' : 'offline'}`);
+    } else {
+      setSelectedRows(prev => [...new Set([...prev, ...matchingIds])]);
+      toast.success(`${matchingIds.length} usuario${matchingIds.length !== 1 ? 's' : ''} ${status === 'active' ? 'activos' : 'offline'} añadidos a la selección`);
+    }
   };
 
   const handleCreateUser = async (e) => {
@@ -553,11 +557,21 @@ const AdminUsers = () => {
 
         {/* Selected Rows Bulk Actions - Premium Minimalist Glass */}
         {selectedRows.length > 0 && (
-            <div className="fixed bottom-8 left-0 right-0 z-[110] flex justify-center pointer-events-none animate-in slide-in-from-bottom-10 duration-500">
-                <div className="pointer-events-auto glass-card flex flex-wrap items-center gap-4 px-6 py-4 shadow-2xl border-white/20 backdrop-blur-2xl mx-4">
+            <Draggable bounds="parent" handle=".drag-handle">
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[110] animate-in slide-in-from-bottom-10 duration-500">
+                    <div className="pointer-events-auto glass-card flex flex-wrap items-center gap-4 px-6 py-4 shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/20 backdrop-blur-2xl mx-4 rounded-3xl cursor-default">
+                        
+                        {/* Drag Handle */}
+                        <div className="drag-handle cursor-move p-2 -ml-4 hover:bg-white/5 rounded-xl transition-colors flex items-center justify-center group" title="Arrastrar barra">
+                            <div className="flex flex-col gap-1">
+                                <div className="w-4 h-0.5 bg-white/20 group-hover:bg-white/50 rounded-full transition-colors"></div>
+                                <div className="w-4 h-0.5 bg-white/20 group-hover:bg-white/50 rounded-full transition-colors"></div>
+                                <div className="w-4 h-0.5 bg-white/20 group-hover:bg-white/50 rounded-full transition-colors"></div>
+                            </div>
+                        </div>
 
-                    {/* Contador */}
-                    <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+                        {/* Contador */}
+                        <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                         <div className="w-9 h-9 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow shrink-0">
                             <Users className="w-4 h-4" />
                         </div>
