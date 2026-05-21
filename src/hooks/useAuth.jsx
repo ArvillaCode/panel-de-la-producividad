@@ -429,14 +429,13 @@ export const AuthProvider = ({ children }) => {
   }, [user, fetchNotifications]);
 
   const loginWithOtp = async (email) => {
-    // IMPORTANTE: No pasar emailRedirectTo para que Supabase envíe el OTP de 6 dígitos
-    // en lugar de un Magic Link. El usuario debe ingresar el código manualmente.
-    console.log(`[AUTH] Solicitando OTP de 6 dígitos para: ${email}`);
+    console.log(`[AUTH] Solicitando Magic Link para: ${email}`);
 
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: false // Solo permite login de usuarios ya registrados
+        shouldCreateUser: false, // Solo permite login de usuarios ya registrados
+        emailRedirectTo: window.location.origin + '/login'
       }
     });
     return { success: !error, error: error?.message };

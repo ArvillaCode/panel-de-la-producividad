@@ -95,8 +95,8 @@ const AdminLogin = () => {
         throw new Error(result.error || 'Error al enviar el código de verificación');
       }
 
-      setSuccess('Código enviado. Revisa tu bandeja de entrada (y la carpeta de spam).');
-      setStep('otp');
+      setSuccess('Enlace enviado. Revisa tu bandeja de entrada (y spam) y haz clic en el Magic Link.');
+      setStep('magiclink');
     } catch (err) {
       console.error('[DEBUG] Error en envío OTP:', err);
       setError(err.message || 'Error al enviar código');
@@ -207,63 +207,38 @@ const AdminLogin = () => {
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
                 <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)]">
-                  {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Recibir Código'}
+                  {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Recibir Enlace'}
                 </div>
               </button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-              <div className="space-y-2">
-                <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1 text-center w-full">
-                  Código de 6 dígitos
-                </label>
-                <div className="relative group">
-                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    name="otp"
-                    value={otp}
-                    onChange={(e) => {
-                      setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); // Solo números, max 6
-                      if (error) setError('');
-                    }}
-                    className="w-full bg-slate-900/50 border border-white/5 rounded-2xl pl-12 pr-5 py-4 text-white text-center tracking-[1em] text-xl font-mono focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none transition-all duration-300 placeholder:text-slate-700"
-                    placeholder="••••••"
-                    disabled={loading}
-                    autoFocus
-                    maxLength={6}
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 text-center mt-2">Enviado a <span className="text-white font-medium">{email}</span></p>
+            <div className="space-y-6 text-center animate-in slide-in-from-right-4 duration-500">
+              <div className="mx-auto w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mb-4">
+                <Mail className="w-8 h-8 text-blue-400" />
               </div>
-
-              <button
-                type="submit"
-                disabled={loading || otp.length !== 6}
-                className="w-full relative group overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-500 group-hover:scale-110 pointer-events-none" />
-                <div className="relative flex items-center justify-center py-4 rounded-2xl font-black text-white tracking-widest uppercase text-sm shadow-[0_20px_40px_-10px_rgba(16,185,129,0.4)]">
-                  {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Verificar y Entrar'}
-                </div>
-              </button>
+              <h2 className="text-2xl font-black text-white tracking-tight">Revisa tu correo</h2>
+              <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
+                Hemos enviado un <strong className="text-white">enlace mágico</strong> a <br/>
+                <span className="text-blue-400 font-medium">{email}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                Haz clic en el enlace del correo para iniciar sesión automáticamente.
+              </p>
               
-              <div className="text-center mt-4">
+              <div className="pt-6 mt-6 border-t border-white/5">
                 <button 
                   type="button" 
                   onClick={() => {
                     setStep('email');
-                    setOtp('');
                     setError('');
                     setSuccess('');
                   }}
-                  className="text-xs text-slate-400 hover:text-white transition-colors"
-                  disabled={loading}
+                  className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
                 >
-                  Usar otro correo
+                   Usar otro correo
                 </button>
               </div>
-            </form>
+            </div>
           )}
         </div>
       </div>
