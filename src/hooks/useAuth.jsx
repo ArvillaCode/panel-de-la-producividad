@@ -390,11 +390,6 @@ export const AuthProvider = ({ children }) => {
           setProfile(null);
           setLoading(false);
           clearTimeout(escapeTimeout);
-          
-          // Redirigir al login si no está en login o registro
-          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
-            window.location.href = '/login';
-          }
           return;
         }
 

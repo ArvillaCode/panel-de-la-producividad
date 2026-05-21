@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { BRANDING } from '../../constants/branding';
 import { supabase } from '../../lib/supabase';
 import ParticlesBackground from '../../components/ui/ParticlesBackground';
+import TechVisualizer from '../../components/ui/TechVisualizer';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -190,17 +191,17 @@ const AdminLogin = () => {
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full relative group overflow-hidden rounded-2xl p-[1px]"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl transition-all duration-500 group-hover:scale-105" />
-                    <div className="relative flex items-center justify-center py-4 bg-[#0a0f1c] hover:bg-transparent rounded-2xl font-black text-white tracking-widest uppercase text-sm transition-colors duration-300">
-                      {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Enviarme Magic Link'}
-                    </div>
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full relative group rounded-2xl p-[1px] mt-2 mb-2"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl transition-all duration-500 group-hover:scale-105" />
+                      <div className="relative flex items-center justify-center py-4 bg-[#0a0f1c] hover:bg-transparent rounded-2xl font-black text-white tracking-widest uppercase text-sm transition-colors duration-300 overflow-hidden">
+                        {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Enviarme Magic Link'}
+                      </div>
+                    </button>
+                  </form>
               </div>
             ) : (
               <div className="space-y-6 text-center animate-in slide-in-from-right-4 duration-500">
@@ -232,24 +233,9 @@ const AdminLogin = () => {
           <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
           <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-purple-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
 
-          {/* Contenido Visual */}
+          {/* Contenido Visual Interactivo */}
           <div className="relative z-10 w-full max-w-lg mt-auto mb-auto">
-            <div className="glass-card border-white/10 bg-white/5 p-8 rounded-3xl backdrop-blur-md">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-blue-400" />
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                </div>
-              </div>
-              <h2 className="text-4xl font-black text-white leading-tight mb-4">
-                El futuro de la <br/> Productividad
-              </h2>
-              <p className="text-slate-400 text-lg leading-relaxed">
-                Supervisa a tus agentes inteligentes, analiza métricas en tiempo real y toma decisiones basadas en datos.
-              </p>
-            </div>
+            <TechVisualizer />
           </div>
 
           <div className="relative z-10 w-full text-center">
