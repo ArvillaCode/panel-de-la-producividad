@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle, Github } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -24,6 +24,7 @@ const AdminReleases = () => {
 
   const [releases, setReleases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentRelease, setCurrentRelease] = useState(null);
   const [newChange, setNewChange] = useState('');
@@ -69,6 +70,42 @@ const AdminReleases = () => {
     const lastNum = parseInt(parts[parts.length - 1]);
     parts[parts.length - 1] = isNaN(lastNum) ? 1 : lastNum + 1;
     return parts.join('.');
+  };
+
+  const syncWithGithub = async () => {
+    setSyncing(true);
+    try {
+      const response = await fetch('https://api.github.com/repos/ArvillaCode/panel-de-la-producividad/commits?per_page=15');
+      if (!response.ok) throw new Error('No se pudo conectar con GitHub');
+      const commits = await response.json();
+      
+      const lastReleaseDate = releases.length > 0 ? new Date(releases[0].publish_date) : new Date(0);
+      const newCommits = commits.filter(c => new Date(c.commit.author.date) > lastReleaseDate && !c.commit.message.startsWith('Merge') && !c.commit.message.startsWith('Auto-commit'));
+      
+      if (newCommits.length === 0) {
+        alert('No hay nuevos cambios en GitHub desde la última versión.');
+        return;
+      }
+
+      const draftRelease = {
+        ...emptyRelease,
+        version: getNextVersion(releases.length > 0 ? releases[0].version : '2.5.0'),
+        title: 'Actualización Automática',
+        description: 'Borrador generado automáticamente con los últimos cambios de GitHub.',
+        changes: newCommits.map(c => c.commit.message.split('\\n')[0]),
+        type: 'improvement',
+        is_visible: false,
+        publish_date: new Date().toISOString()
+      };
+      
+      setCurrentRelease(draftRelease);
+      setIsEditing(true);
+      
+    } catch (err) {
+      alert('Error sincronizando con GitHub: ' + err.message);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -165,20 +202,30 @@ const AdminReleases = () => {
             </h1>
             <p className="text-[#94a3b8] mt-4 text-lg font-medium">Administra el pulso de las actualizaciones del sistema.</p>
           </div>
-          <button
-            onClick={() => {
-              const lastVer = releases.length > 0 ? releases[0].version : '2.5.0';
-              setCurrentRelease({ 
-                ...emptyRelease, 
-                version: getNextVersion(lastVer) 
-              });
-              setIsEditing(true);
-            }}
-            className="flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-[1.5rem] font-black transition-all shadow-[0_15px_40px_rgba(59,130,246,0.3)] active:scale-95 group"
-          >
-            <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
-            Nueva Actualización
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <button
+              onClick={syncWithGithub}
+              disabled={syncing}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[#1e293b] hover:bg-[#334155] text-white rounded-[1.5rem] font-bold transition-all border border-slate-700/50 shadow-lg disabled:opacity-50"
+            >
+              <Github className="w-5 h-5" />
+              {syncing ? 'Sincronizando...' : 'Auto-Borrador GitHub'}
+            </button>
+            <button
+              onClick={() => {
+                const lastVer = releases.length > 0 ? releases[0].version : '2.5.0';
+                setCurrentRelease({ 
+                  ...emptyRelease, 
+                  version: getNextVersion(lastVer) 
+                });
+                setIsEditing(true);
+              }}
+              className="flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-[1.5rem] font-black transition-all shadow-[0_15px_40px_rgba(59,130,246,0.3)] active:scale-95 group"
+            >
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              Nueva Actualización
+            </button>
+          </div>
         </div>
 
         {isEditing && (
