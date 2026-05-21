@@ -19,7 +19,6 @@ import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
 import Policies from './pages/Policies';
 import Privacy from './pages/Privacy';
 import Support from './pages/Support';
-import WaitingApproval from './pages/WaitingApproval';
 import AdminBanners from './pages/admin/AdminBanners';
 import GlobalBanner from './components/user/GlobalBanner';
 import AcademiaPage from './app/dashboard/academia/page';
@@ -53,14 +52,6 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  const userRole = profile?.role;
-  const bypassRedirect = isAdmin || userRole === 'admin' || userRole === 'core_admin';
-  if (!bypassRedirect && profile && !profile.is_approved) {
-    if (window.location.pathname !== '/dashboard/espera-aprobacion') {
-      return <Navigate to="/dashboard/espera-aprobacion" replace />;
-    }
-  }
-
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   return children;
 };
@@ -74,9 +65,6 @@ const Home = () => {
   if (!isAppDomain) return <LandingPage />;
 
   if (isAuthenticated) {
-    const userRole = profile?.role;
-    const bypassRedirect = isAdmin || userRole === 'admin' || userRole === 'core_admin';
-    if (!bypassRedirect && profile && !profile.is_approved) return <Navigate to="/dashboard/espera-aprobacion" replace />;
     return <AgentPanel />;
   }
 
@@ -102,14 +90,8 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/coming-soon" element={<ComingSoon />} />
-              <Route path="/login" element={<DomainRestrictedRoute appOnly={true}><AdminLogin /></DomainRestrictedRoute>} />
+              <Route path="/login" element={<AdminLogin />} />
               
-              <Route path="/dashboard/espera-aprobacion" element={
-                <DomainRestrictedRoute appOnly={true}>
-                  <ProtectedRoute><WaitingApproval /></ProtectedRoute>
-                </DomainRestrictedRoute>
-              } />
-
               {/* Rutas Admin */}
               <Route path="/admin/dashboard" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} />
               <Route path="/admin/users" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} />

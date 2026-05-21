@@ -591,6 +591,7 @@ const SECTION_IDS = ['solucion', 'features', 'academia', 'pricing'];
 const LandingPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('freelancer');
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const reducedMotion = false;
   const activeSection = useActiveSection(SECTION_IDS);
 
@@ -677,7 +678,7 @@ const LandingPage = () => {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
               </a>
               <button
-                onClick={() => scrollToSection('solucion')}
+                onClick={() => setShowVideoModal(true)}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-5 rounded-2xl border border-white/10 hover:border-white/20 text-white font-black uppercase text-[10px] tracking-widest hover:bg-white/5 transition-colors touch-manipulation"
               >
                 Ver cómo funciona
@@ -1243,6 +1244,36 @@ const LandingPage = () => {
           </a>
         </div>
       </footer>
+
+      {showVideoModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#090C12] border border-white/10 p-8 rounded-3xl max-w-md w-full relative">
+            <button 
+              onClick={() => setShowVideoModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-neon-teal/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-neon-teal/20">
+                <PlayCircle className="w-8 h-8 text-neon-teal" />
+              </div>
+              <h3 className="text-2xl font-black italic uppercase tracking-tight text-white">
+                Próximamente
+              </h3>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Estamos preparando una demostración en video increíble para que veas todo el potencial de Upfunnel en acción. ¡Mantente atento!
+              </p>
+              <button
+                onClick={() => setShowVideoModal(false)}
+                className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors text-white"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

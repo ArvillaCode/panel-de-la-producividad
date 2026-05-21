@@ -274,7 +274,6 @@ export const AuthProvider = ({ children }) => {
       const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
 
       // 2. Validación forzosa de acceso (excepto para admins)
-      // Nota: Eliminamos la expulsión inmediata para permitir redirección a /espera-aprobacion
       if (!userIsAdmin && (status === 'rejected' || status === 'inactive' || isExpired)) {
         let reason = 'Tu cuenta no tiene acceso permitido.';
         if (status === 'rejected') reason = 'Tu solicitud de acceso fue denegada.';
