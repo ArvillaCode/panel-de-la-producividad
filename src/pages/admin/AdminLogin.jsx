@@ -4,8 +4,7 @@ import { Shield, Mail, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react
 import { useAuth } from '../../hooks/useAuth';
 import { BRANDING } from '../../constants/branding';
 import { supabase } from '../../lib/supabase';
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
+import ParticlesBackground from '../../components/ui/ParticlesBackground';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -29,10 +28,6 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  const particlesInit = useCallback(async engine => {
-    await loadFull(engine);
-  }, []);
 
   useEffect(() => {
     try {
@@ -231,29 +226,7 @@ const AdminLogin = () => {
         <div className="hidden lg:flex w-7/12 relative bg-[#02040a] flex-col justify-between p-12 overflow-hidden items-center">
           
           {/* Partículas de Fondo */}
-          <Particles
-            id="tsparticles"
-            init={particlesInit}
-            className="absolute inset-0 z-0"
-            options={{
-              background: { color: { value: "transparent" } },
-              fpsLimit: 120,
-              interactivity: {
-                events: { onHover: { enable: true, mode: "grab" } },
-                modes: { grab: { distance: 140, links: { opacity: 0.5 } } }
-              },
-              particles: {
-                color: { value: "#3b82f6" },
-                links: { color: "#3b82f6", distance: 150, enable: true, opacity: 0.2, width: 1 },
-                move: { enable: true, speed: 0.5, direction: "none", random: true, straight: false, outModes: { default: "bounce" } },
-                number: { density: { enable: true, area: 800 }, value: 60 },
-                opacity: { value: 0.3 },
-                shape: { type: "circle" },
-                size: { value: { min: 1, max: 3 } }
-              },
-              detectRetina: true
-            }}
-          />
+          <ParticlesBackground />
 
           {/* Gradientes Decorativos */}
           <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
