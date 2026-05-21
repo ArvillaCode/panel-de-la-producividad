@@ -186,10 +186,10 @@ const AdminUsers = () => {
     );
   };
 
-  // Selección rápida por estado — usa el array `filteredUsers` para respetar búsquedas/filtros activos
+  // Selección rápida por estado 
   const handleSelectByStatus = (status) => {
     const matchingIds = filteredUsers
-      .filter(u => u.status === status)
+      .filter(u => status === 'active' ? u.status === 'active' : u.status !== 'active')
       .map(u => u.id);
 
     if (matchingIds.length === 0) {
@@ -552,8 +552,6 @@ const AdminUsers = () => {
         </div>
 
         {/* Selected Rows Bulk Actions - Premium Minimalist Glass */}
-        {/* pointer-events-none en el wrapper fijo para que los clics en el espacio vacío
-            trasparen a la paginación de la tabla. La tarjeta interna mantiene pointer-events-auto. */}
         {selectedRows.length > 0 && (
             <div className="fixed bottom-8 left-0 right-0 z-[110] flex justify-center pointer-events-none animate-in slide-in-from-bottom-10 duration-500">
                 <div className="pointer-events-auto glass-card flex flex-wrap items-center gap-4 px-6 py-4 shadow-2xl border-white/20 backdrop-blur-2xl mx-4">
@@ -708,7 +706,7 @@ const AdminUsers = () => {
                 </table>
             </div>
             {totalPages > 1 && (
-                <div className="p-6 border-t border-white/10 flex items-center justify-center gap-2">
+                <div className="p-6 pb-32 md:pb-10 border-t border-white/10 flex items-center justify-center gap-2">
                     <button
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
