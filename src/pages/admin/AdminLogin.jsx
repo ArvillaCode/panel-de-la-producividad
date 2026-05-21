@@ -194,10 +194,10 @@ const AdminLogin = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full relative group rounded-2xl p-[1px] mt-2 mb-2"
+                      className="w-full relative group rounded-2xl border-2 border-indigo-500/50 hover:border-blue-500/80 transition-colors duration-300 overflow-hidden mt-4 shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_25px_rgba(59,130,246,0.4)]"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl transition-all duration-500 group-hover:scale-105" />
-                      <div className="relative flex items-center justify-center py-4 bg-[#0a0f1c] hover:bg-transparent rounded-2xl font-black text-white tracking-widest uppercase text-sm transition-colors duration-300 overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 group-hover:from-blue-600/20 group-hover:to-indigo-600/20 transition-colors duration-300" />
+                      <div className="relative flex items-center justify-center py-4 font-black text-white tracking-widest uppercase text-sm transition-colors duration-300">
                         {loading ? <div className="premium-spinner !w-5 !h-5 !border-2" /> : 'Enviarme Magic Link'}
                       </div>
                     </button>

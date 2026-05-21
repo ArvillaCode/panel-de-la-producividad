@@ -161,15 +161,8 @@ const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#080C14]';
 
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReduced(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  return reduced;
+  // Ignorar configuración del SO y forzar animaciones siempre
+  return false;
 }
 
 function useActiveSection(sectionIds) {
@@ -593,13 +586,12 @@ const FAQItemComponent = ({ id, question, answer }) => {
     </div>
   );
 };
-
 const SECTION_IDS = ['solucion', 'features', 'academia', 'pricing'];
 
 const LandingPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('freelancer');
-  const reducedMotion = usePrefersReducedMotion();
+  const reducedMotion = false;
   const activeSection = useActiveSection(SECTION_IDS);
 
   const scrollToSection = (id) => {
