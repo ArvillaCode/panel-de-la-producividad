@@ -186,6 +186,25 @@ const AdminUsers = () => {
     );
   };
 
+  // Selección rápida por estado — usa el array `filteredUsers` para respetar búsquedas/filtros activos
+  const handleSelectByStatus = (status) => {
+    const matchingIds = filteredUsers
+      .filter(u => u.status === status)
+      .map(u => u.id);
+
+    if (matchingIds.length === 0) {
+      toast.error(`No hay usuarios con estado "${status === 'active' ? 'Activo' : 'Offline'}" en la vista actual`);
+      return;
+    }
+
+    setSelectedRows(prev => {
+      const merged = [...new Set([...prev, ...matchingIds])];
+      return merged;
+    });
+
+    toast.success(`${matchingIds.length} usuario${matchingIds.length !== 1 ? 's' : ''} ${status === 'active' ? 'activos' : 'offline'} añadidos a la selección`);
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setActionLoading(true);
@@ -533,50 +552,77 @@ const AdminUsers = () => {
         </div>
 
         {/* Selected Rows Bulk Actions - Premium Minimalist Glass */}
+        {/* pointer-events-none en el wrapper fijo para que los clics en el espacio vacío
+            trasparen a la paginación de la tabla. La tarjeta interna mantiene pointer-events-auto. */}
         {selectedRows.length > 0 && (
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[110] animate-in slide-in-from-bottom-10 duration-500">
-                <div className="glass-card flex items-center gap-6 px-8 py-4 shadow-2xl border-slate-100 dark:border-white/20 backdrop-blur-2xl">
-                    <div className="flex items-center gap-3 pr-6 border-r border-white/10">
-                        <div className="w-10 h-10 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow">
-                            <Users className="w-5 h-5" />
+            <div className="fixed bottom-8 left-0 right-0 z-[110] flex justify-center pointer-events-none animate-in slide-in-from-bottom-10 duration-500">
+                <div className="pointer-events-auto glass-card flex flex-wrap items-center gap-4 px-6 py-4 shadow-2xl border-white/20 backdrop-blur-2xl mx-4">
+
+                    {/* Contador */}
+                    <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+                        <div className="w-9 h-9 rounded-xl bg-neon-teal/10 flex items-center justify-center text-neon-teal neon-glow shrink-0">
+                            <Users className="w-4 h-4" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{selectedRows.length} Seleccionados</p>
+                            <p className="text-[10px] font-black text-white uppercase italic tracking-tighter whitespace-nowrap">{selectedRows.length} Seleccionados</p>
                             <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Acciones Masivas</p>
                         </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
+
+                    {/* Filtros Rápidos por Estado */}
+                    <div className="flex items-center gap-2 pr-4 border-r border-white/10">
+                        <button
+                            onClick={() => handleSelectByStatus('active')}
+                            title="Añadir todos los usuarios Activos a la selección"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white rounded-xl transition-all hover:scale-105 active:scale-95 text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+                        >
+                            <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                            Activos
+                        </button>
+                        <button
+                            onClick={() => handleSelectByStatus('inactive')}
+                            title="Añadir todos los usuarios Offline/Inactivos a la selección"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-slate-500/10 text-slate-400 hover:bg-slate-500 hover:text-white rounded-xl transition-all hover:scale-105 active:scale-95 text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+                        >
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            Offline
+                        </button>
+                    </div>
+
+                    {/* Acciones Masivas */}
+                    <div className="flex items-center gap-2">
                         <button 
                             onClick={handleBulkApprove}
-                            title="Aceptar Todos"
-                            className="p-3 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95 group relative"
+                            title="Activar / Aprobar Seleccionados"
+                            className="p-2.5 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
                         >
-                            <UserCheck className="w-5 h-5" />
+                            <UserCheck className="w-4 h-4" />
                         </button>
                         
                         <button 
                             onClick={handleBulkExpel}
-                            title="Expulsar Todos"
-                            className="p-3 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
+                            title="Expulsar Seleccionados"
+                            className="p-2.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
                         >
-                            <UserMinus className="w-5 h-5" />
+                            <UserMinus className="w-4 h-4" />
                         </button>
                         
                         <button 
                             onClick={() => setShowBulkDeleteModal(true)}
-                            title="Eliminar Permanente"
-                            className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
+                            title="Eliminar Permanentemente"
+                            className="p-2.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
                         >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="w-4 h-4" />
                         </button>
                         
+                        <div className="w-px h-6 bg-white/10 mx-1" />
+
                         <button 
                             onClick={() => setSelectedRows([])}
                             title="Limpiar Selección"
-                            className="p-3 bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
+                            className="p-2.5 bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white rounded-xl transition-all hover:scale-110 active:scale-95"
                         >
-                            <XCircle className="w-5 h-5" />
+                            <XCircle className="w-4 h-4" />
                         </button>
                     </div>
                 </div>

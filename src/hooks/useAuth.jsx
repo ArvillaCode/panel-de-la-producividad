@@ -6,16 +6,9 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
-const BOOTSTRAP_ADMIN_EMAILS = [
-  'admin@admin.com',
-  ...(import.meta.env.VITE_BOOTSTRAP_ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-];
-
-const isBootstrapAdmin = (email) =>
-  !!email && BOOTSTRAP_ADMIN_EMAILS.includes(email.toLowerCase());
+const OWN_PROFILE_FIELDS = ['name', 'avatar_url', 'timezone'];
+const pickAllowedFields = (data, allowedFields) =>
+  Object.fromEntries(Object.entries(data || {}).filter(([key]) => allowedFields.includes(key)));
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -71,7 +64,7 @@ export const AuthProvider = ({ children }) => {
   const [systemConfig, setSystemConfig] = useState(null);
 
   const isAuthenticated = !!user;
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'core_admin' || (user?.email && BOOTSTRAP_ADMIN_EMAILS.includes(user.email.toLowerCase()));
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'core_admin';
   const isEditor = profile?.role === 'editor' || isAdmin;
   const isSupport = profile?.role === 'support' || isEditor;
 
@@ -149,7 +142,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('system_config')
-        .select('*')
+        .select('max_login_attempts, password_min_length, require_strong_password, show_academia')
         .eq('id', 1)
         .maybeSingle();
 
@@ -232,15 +225,14 @@ export const AuthProvider = ({ children }) => {
         }
 
         const metadata = currentUser.user_metadata || {};
-        const isBootstrap = isBootstrapAdmin(currentUser.email);
         const fallbackProfile = {
           id: currentUser.id,
           email: currentUser.email,
           name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
-          role: isBootstrap ? 'admin' : 'user',
+          role: 'user',
           avatar_url: metadata.avatar_url || '',
-          status: isBootstrap ? 'active' : 'pending',
-          is_approved: isBootstrap ? true : false,
+          status: 'pending',
+          is_approved: false,
           timezone: metadata.timezone || 'UTC',
           start_date: metadata.start_date || null,
           end_date: metadata.end_date || null,
@@ -278,7 +270,7 @@ export const AuthProvider = ({ children }) => {
       // 1. Determinar estados de acceso
       const isApproved = profileData.is_approved === true;
       const status = profileData.status || 'pending';
-      const userIsAdmin = profileData.role === 'admin' || profileData.role === 'core_admin' || (currentUser?.email && BOOTSTRAP_ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));
+      const userIsAdmin = profileData.role === 'admin' || profileData.role === 'core_admin';
       const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
 
       // 2. Validación forzosa de acceso (excepto para admins)
@@ -437,14 +429,14 @@ export const AuthProvider = ({ children }) => {
   }, [user, fetchNotifications]);
 
   const loginWithOtp = async (email) => {
-    // Detectar dinámicamente el origen para la redirección
-    const redirectTo = window.location.origin + '/login';
-    console.log(`[AUTH] Solicitando OTP. Redirección configurada a: ${redirectTo}`);
+    // IMPORTANTE: No pasar emailRedirectTo para que Supabase envíe el OTP de 6 dígitos
+    // en lugar de un Magic Link. El usuario debe ingresar el código manualmente.
+    console.log(`[AUTH] Solicitando OTP de 6 dígitos para: ${email}`);
 
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: redirectTo
+        shouldCreateUser: false // Solo permite login de usuarios ya registrados
       }
     });
     return { success: !error, error: error?.message };
@@ -498,21 +490,25 @@ export const AuthProvider = ({ children }) => {
   const register = async (email, password, metadata = {}) => {
     const validation = validatePassword(password);
     if (!validation.valid) return { success: false, error: validation.error };
+    const safeMetadata = pickAllowedFields(metadata, ['name', 'avatar_url', 'timezone']);
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: metadata }
+      options: { data: safeMetadata }
     });
     return { success: !error, error: error?.message };
   };
 
   const updateUser = async (data) => {
     if (!user) return { success: false, error: 'Sesión no activa' };
-    const { error } = await supabase.from('profiles').update(data).eq('id', user.id);
+    const safeData = pickAllowedFields(data, OWN_PROFILE_FIELDS);
+    if (Object.keys(safeData).length === 0) return { success: false, error: 'No hay campos editables para actualizar' };
+
+    const { error } = await supabase.from('profiles').update(safeData).eq('id', user.id);
     if (!error) {
       setProfile(prev => {
-        const next = { ...prev, ...data };
+        const next = { ...prev, ...safeData };
         try {
           localStorage.setItem(`cached_profile_${user.id}`, JSON.stringify(next));
         } catch (e) {
@@ -558,7 +554,11 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    const { error } = await supabase.from('profiles').update(finalData).eq('id', id);
+    const { force_dates, ...rpcPatch } = finalData;
+    const { error } = await supabase.rpc('admin_update_profile', {
+      target_user_id: id,
+      profile_patch: rpcPatch
+    });
     if (!error) {
       fetchUsers();
       // Si el usuario editado es el actual usuario logueado, actualizamos su perfil local y su caché
@@ -588,7 +588,9 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    const { error } = await supabase.rpc('admin_delete_profile', {
+      target_user_id: id
+    });
     if (!error) {
       await fetchUsers();
       return { success: true };
@@ -726,13 +728,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const validation = validatePassword(password);
       if (!validation.valid) return { success: false, error: validation.error };
+      const safeMetadata = pickAllowedFields(metadata, OWN_PROFILE_FIELDS);
 
       // Usar la instancia única para el registro. 
       // NOTA: Esto podría cerrar la sesión del admin si no se maneja con cuidado en el backend.
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: metadata }
+        options: { data: safeMetadata }
       });
 
       if (error) throw error;

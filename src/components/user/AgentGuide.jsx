@@ -1,12 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Bot, X, Send, Sparkles, MessageCircle, ChevronRight, 
-  ExternalLink, Search, Zap, HelpCircle, Compass
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  X,
+  Send,
+  Sparkles,
+  ExternalLink,
+  Zap,
+  Compass
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useCloseModal } from '../../hooks/useCloseModal';
+
+const DEFAULT_GREETING = 'Hola. Bienvenido de nuevo. Soy el Asistente de Upfunnel. En que puedo ayudarte hoy?';
+const CHAT_HISTORY_KEY = 'upfunnel_chat_history';
+const HISTORY_LIMIT = 12;
+
+const getFriendlyError = (error) => {
+  const message = error?.message || '';
+
+  if (message.includes('OPENROUTER_NO_ENDPOINTS_FOUND')) {
+    return 'Error de acceso en OpenRouter: revisa saldo, modelo disponible y politicas de privacidad en la cuenta de OpenRouter.';
+  }
+
+  if (message.includes('server_not_configured')) {
+    return 'El servidor de IA no esta configurado correctamente. Por favor, contacte a soporte.';
+  }
+
+  if (message.includes('profile_not_approved')) {
+    return 'Tu cuenta aun no ha sido aprobada o no esta activa para usar el asistente de IA.';
+  }
+
+  if (message.includes('assistant_disabled')) {
+    return 'El asistente de IA esta desactivado temporalmente por la administracion.';
+  }
+
+  if (message.includes('401') || message.includes('Unauthorized') || message.includes('API key')) {
+    return 'Error de configuracion: la clave del proveedor no esta autorizada en el backend.';
+  }
+
+  return 'El servicio esta experimentando alta demanda. Intenta de nuevo en unos instantes.';
+};
 
 const AgentGuide = () => {
   const { isAdmin, isAuthenticated, profile, user } = useAuth();
@@ -15,358 +49,135 @@ const AgentGuide = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userName, setUserName] = useState('Usuario');
   const [isEnabled, setIsEnabled] = useState(true);
-  const [aiModel, setAiModel] = useState('google/gemini-2.5-flash');
-  const [customSystemPrompt, setCustomSystemPrompt] = useState('');
-  const [dbApiKey, setDbApiKey] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   const { modalRef } = useCloseModal(isOpen, () => setIsOpen(false));
 
-  // No mostrar a usuarios no autenticados
-  if (!isAuthenticated) return null;
-
-  // Cargar nombre del usuario y mensaje inicial personalizado
   useEffect(() => {
-    if (profile) {
-      const name = profile.name || user?.user_metadata?.name || 'Usuario';
-      setUserName(name);
-      
-      const savedMessages = sessionStorage.getItem('upfunnel_chat_history');
-      if (savedMessages) {
+    if (!isAuthenticated) return;
+
+    const name = profile?.name || user?.user_metadata?.name || 'Usuario';
+    const savedMessages = sessionStorage.getItem(CHAT_HISTORY_KEY);
+
+    if (savedMessages) {
+      try {
         setMessages(JSON.parse(savedMessages));
-      } else {
-        setMessages([
-          { 
-            role: 'model', 
-            content: `¡Hola, ${name}! Soy el Asistente de Upfunnel y del Panel de la Productividad. ¿En qué puedo ayudarte hoy?` 
-          }
-        ]);
-      }
-    } else if (isAuthenticated) {
-      // Fallback mientras carga el perfil
-      const savedMessages = sessionStorage.getItem('upfunnel_chat_history');
-      if (savedMessages) {
-        setMessages(JSON.parse(savedMessages));
-      } else {
-        setMessages([
-          { 
-            role: 'model', 
-            content: '¡Hola! Bienvenido de nuevo. Soy el Asistente de Upfunnel. ¿En qué puedo ayudarte hoy?' 
-          }
-        ]);
+        return;
+      } catch (e) {
+        sessionStorage.removeItem(CHAT_HISTORY_KEY);
       }
     }
+
+    setMessages([
+      {
+        role: 'model',
+        content: profile ? `Hola, ${name}. Soy el Asistente de Upfunnel y del Panel de la Productividad. En que puedo ayudarte hoy?` : DEFAULT_GREETING
+      }
+    ]);
   }, [profile, isAuthenticated, user]);
-  
-  // Verificar si el asistente está activado globalmente y qué modelo tiene asignado
+
   useEffect(() => {
     const checkStatus = async () => {
       try {
         const { data, error } = await supabase
           .from('system_config')
-          .select('*')
+          .select('ai_assistant_enabled')
           .eq('id', 1)
           .maybeSingle();
-        
+
         if (error) {
-          console.warn('[GUIDE] Advertencia recuperando config global de la BD, aplicando fallback local:', error.message);
+          console.warn('[GUIDE] Advertencia recuperando config global:', error.message);
           setIsEnabled(true);
-          setAiModel('google/gemini-2.5-flash');
           return;
         }
-        
-        if (data) {
-          setIsEnabled(data.ai_assistant_enabled !== false);
-          setAiModel(data.ai_model || 'google/gemini-2.5-flash');
-          setCustomSystemPrompt(data.system_prompt || data.ai_system_prompt || '');
-          setDbApiKey(data.openrouter_api_key || '');
-        }
+
+        if (data) setIsEnabled(data.ai_assistant_enabled !== false);
       } catch (err) {
-        console.warn('[GUIDE] Excepción capturada en checkStatus, aplicando fallback:', err);
+        console.warn('[GUIDE] Excepcion capturada en checkStatus:', err);
         setIsEnabled(true);
-        setAiModel('google/gemini-2.5-flash');
       }
     };
-    
-    if (isAuthenticated) {
-      checkStatus();
-    }
+
+    if (isAuthenticated) checkStatus();
   }, [isAuthenticated]);
 
-  // Guardar en sessionStorage cada vez que cambien los mensajes
   useEffect(() => {
     if (messages.length > 0) {
-      sessionStorage.setItem('upfunnel_chat_history', JSON.stringify(messages));
+      sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
     }
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    if (isOpen) scrollToBottom();
+    if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
-  
-  // Auto-enfocar el input cuando se abre el chat o cambia el estado de carga
+
   useEffect(() => {
-    if (isOpen && !loading) {
-      // Intentar enfocar de inmediato
-      inputRef.current?.focus();
-      
-      // Intentar enfocar con diferentes retrasos para superar transiciones CSS y refrescos del DOM
-      const timers = [50, 150, 300, 500, 700].map(delay => 
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, delay)
-      );
-      
-      return () => timers.forEach(clearTimeout);
-    }
+    if (!isOpen || loading) return;
+
+    inputRef.current?.focus();
+    const timers = [50, 150, 300, 500, 700].map((delay) =>
+      setTimeout(() => inputRef.current?.focus(), delay)
+    );
+
+    return () => timers.forEach(clearTimeout);
   }, [isOpen, loading]);
-
-  const fetchActiveAgents = async () => {
-    // Filtrar por visible=true (equivalente a status='active' en este esquema)
-    let query = supabase
-      .from('agents')
-      .select('name, specialty, description, chatLink, admin_only')
-      .eq('visible', true);
-    
-    if (!isAdmin) {
-      query = query.eq('admin_only', false);
-    }
-
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('[GUIDE] Error fetching agents:', error);
-      return [];
-    }
-    return data || [];
-  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
+    const nextMessages = [...messages, { role: 'user', content: userMessage }];
+
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages(nextMessages);
     setLoading(true);
 
     try {
-      // 1. Obtener datos frescos de agentes (aislado)
-      let agents = [];
-      try {
-        agents = await fetchActiveAgents();
-        if (agents.length === 0) {
-          console.warn('[GUIDE] No se encontraron agentes activos en Supabase.');
-        }
-      } catch (dbError) {
-        console.error('[GUIDE] Error obteniendo agentes de Supabase:', dbError);
-        // Falla silenciosamente y usa una lista vacía
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error('Unauthorized');
       }
 
-      // 2. Validación estricta de API Key (Priorizar dbApiKey si es válida y comienza con "sk-or-", de lo contrario usar .env)
-      const isDbKeyValid = typeof dbApiKey === 'string' && dbApiKey.trim().startsWith('sk-or-');
-      const rawApiKey = isDbKeyValid ? dbApiKey : (import.meta.env.VITE_OPENROUTER_API_KEY || '');
-      const apiKey = typeof rawApiKey === 'string' ? rawApiKey.trim() : '';
+      const historyPayload = nextMessages.slice(-HISTORY_LIMIT).map((message) => ({
+        role: message.role === 'model' ? 'assistant' : message.role,
+        content: message.content
+      }));
 
-      console.log(`[GUIDE-AI] Validando API Key resolved (primeros 8 chars): ${apiKey.substring(0, 8)}...`);
+      const { data, error } = await supabase.functions.invoke('openrouter-chat', {
+        body: { messages: historyPayload },
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
 
-      if (!apiKey || apiKey === 'undefined' || apiKey.toLowerCase() === 'undefined' || apiKey.length < 10 || !apiKey.startsWith('sk-or-')) {
-        console.error('[GUIDE-AI] Error: La API Key de OpenRouter está vacía, no se ha cargado o es inválida.');
-        setMessages(prev => [...prev, { role: 'model', content: 'Fallo de Configuración: La clave API de OpenRouter está vacía o no es válida. Por favor, configúrala introduciendo tu token "sk-or-..." en el panel de Configuración Matchmaker en el sidebar.' }]);
-        setLoading(false);
-        return;
-      }
-
-      if (apiKey.startsWith('AIzaSy')) {
-        console.error('[GUIDE-AI] Error: Detectada clave API de Google Gemini en lugar de OpenRouter.');
-        setMessages(prev => [...prev, { role: 'model', content: '⚠️ Fallo de Proveedor: Has configurado una clave API de Google Gemini (empieza con "AIzaSy"), pero el catálogo está migrado a OpenRouter. Por favor, ve a "Configuración Matchmaker" en el menú de la izquierda e introduce una API Key de OpenRouter válida (que comience con "sk-or-").' }]);
-        setLoading(false);
-        return;
-      }
-
-      // 1. Sanitizar y escapar el System Prompt
-      const cleanedSystemPrompt = typeof customSystemPrompt === 'string' ? customSystemPrompt.trim() : '';
-      
-      const systemInstructionRaw = `
-        ${cleanedSystemPrompt || `[ROL Y PERFIL]: Actúas como Consultor Senior de Crecimiento & Especialista de Ecosistema SaaS en Upfunnel. Te diriges a ${userName}.
-        Tu misión es brindar asesoría profesional de alto nivel y guiar de forma ejecutiva a los usuarios a encontrar la herramienta ideal en nuestro ecosistema.`}
-
-        [REGLAS DE ORO (MÁXIMA PRIORIDAD)]:
-        1. Tu conocimiento se limita ÚNICA y EXCLUSIVAMENTE a la lista de agentes activos que recibirás a continuación.
-        2. Está TERMINANTEMENTE PROHIBIDO inventar funciones, sugerir herramientas externas o mencionar que eres un modelo de IA.
-        3. Si el usuario pregunta por algo que no existe en nuestra lista, responde de manera elegante y profesional: "Lo siento, ${userName}. Actualmente no contamos con un agente especializado para esa tarea en Upfunnel, pero puedo ayudarte con otras automatizaciones y herramientas del catálogo."
-        4. Tono: Profesional, ejecutivo, de consultor senior, servicial, minimalista y PERSONALIZADO (dirígete a ${userName} de forma natural).
-        5. Para cada recomendación, menciona el NOMBRE del agente y su ESPECIALIDAD en una línea limpia.
-        6. Al final de tu recomendación, incluye el enlace de esta forma exacta: [BOT_LINK:Nombre|URL]
-        7. Responde siempre en Español.
-        8. NO UTILICES formato Markdown (como asteriscos ** o *) bajo ninguna circunstancia. Escribe todo en texto plano limpio. Por ejemplo, escribe "1. Nombre del Agente: Especialidad" en lugar de "1. **Nombre del Agente**: Especialidad". Esta regla es crítica para la elegancia de la interfaz.
-
-        [GUÍA TÉCNICA DE RESOLUCIÓN DE ERRORES (CASOS DE BORDE)]:
-        Si el usuario menciona tener problemas de conexión, errores de saldo, errores de API (ej. error 404, 401, 402, 429) o fallas al conectar con OpenRouter, guíalo con estos pasos exactos en texto plano:
-        - Paso 1: Verificar el saldo/crédito disponible en la cuenta de OpenRouter.
-        - Paso 2: Si el saldo es cero, se pueden activar/seleccionar modelos gratuitos del catálogo de OpenRouter.
-        - Paso 3: Revisar los ajustes de privacidad en "https://openrouter.ai/settings/privacy" y asegurarse de desactivar o ajustar la opción de "Zero Data Retention" (ZDR) si el modelo elegido no la soporta, ya que esto suele causar bloqueos en la conexión de la API.
-
-        [LISTA DE AGENTES ACTIVOS EN UPFUNNEL]:
-        ${agents.length > 0 
-          ? agents.map(a => `- ${a.name}: ${a.description ? a.description.slice(0, 120) : ''} [LINK:${a.chatLink || ''}]`).join('\n')
-          : 'No hay agentes disponibles.'}
-      `;
-
-      // Eliminar caracteres de control no imprimibles no deseados
-      const systemInstruction = systemInstructionRaw.replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F]/g, "").trim();
-
-      // 3. Mapear historial en formato compatible con OpenAI (filtrando posibles errores previos)
-      const chatHistoryPayload = [
-        ...messages.map(m => ({
-          role: m.role === 'model' ? 'assistant' : m.role,
-          content: m.content
-        })),
-        { role: 'user', content: userMessage }
-      ];
-
-      // 4. Mecanismo de reintento inteligente y Modelo Alternativo (Respaldo)
-      let responseText = null;
-      let modelToUse = typeof aiModel === 'string' ? aiModel.trim() : 'google/gemini-2.5-flash';
-      modelToUse = modelToUse.replace(/['"]+/g, '').trim(); // Eliminar comillas accidentales
-      let payloadA = null;
-
-      try {
-        // --- INTENTO A: Intentar con el modelo configurado ---
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos
-
-        payloadA = {
-          model: modelToUse,
-          messages: [
-            { role: "system", content: systemInstruction },
-            ...chatHistoryPayload
-          ],
-          temperature: 0.1,
-          max_tokens: 500
-        };
-
-        console.log(`[GUIDE-AI] Intentando petición con modelo principal: ${modelToUse}`);
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": window.location.origin || "https://upfunnel.com",
-            "X-Title": "Upfunnel Productivity Panel"
-          },
-          body: JSON.stringify(payloadA),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const errorDetails = await response.json().catch(() => ({}));
-          const errMsg = errorDetails.error?.message || `HTTP error! status: ${response.status}`;
-          const is404 = response.status === 404 || errMsg.toLowerCase().includes('no endpoints found') || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('model_not_found');
-          throw new Error(is404 ? `OPENROUTER_NO_ENDPOINTS_FOUND: ${errMsg}` : errMsg);
-        }
-
-        const data = await response.json();
-        responseText = data.choices?.[0]?.message?.content;
-      } catch (firstAttemptError) {
-        console.error("Error Real OpenRouter (Intento Principal):", firstAttemptError);
-        console.log("Payload enviado (Intento Principal):", payloadA);
-        console.warn('[GUIDE-AI] Primer intento fallido, intentando fallback de resiliencia...');
-        
-        // --- INTENTO B/C: Reintento con Modelo Alternativo (Respaldo Premium) ---
-        const fallbackModel = 'google/gemini-2.5-flash';
-          
-        let payloadB = null;
-        console.log(`[GUIDE-AI] Reintentando con modelo de respaldo premium estable: ${fallbackModel}`);
-        
-        try {
-          const fallbackController = new AbortController();
-          const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 8000);
-
-          payloadB = {
-            model: fallbackModel,
-            messages: [
-              { role: "system", content: systemInstruction },
-              ...chatHistoryPayload
-            ],
-            temperature: 0.1,
-            max_tokens: 500
-          };
-
-          const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${apiKey}`,
-              "HTTP-Referer": window.location.origin || "https://upfunnel.com",
-              "X-Title": "Upfunnel Productivity Panel"
-            },
-            body: JSON.stringify(payloadB),
-            signal: fallbackController.signal
-          });
-
-          clearTimeout(fallbackTimeoutId);
-
-          if (!fallbackResponse.ok) {
-            const fallbackErrorDetails = await fallbackResponse.json().catch(() => ({}));
-            const fallbackErrMsg = fallbackErrorDetails.error?.message || `HTTP error! status: ${fallbackResponse.status}`;
-            const isFallback404 = fallbackResponse.status === 404 || fallbackErrMsg.toLowerCase().includes('no endpoints found') || fallbackErrMsg.toLowerCase().includes('not found') || fallbackErrMsg.toLowerCase().includes('model_not_found');
-            throw new Error(isFallback404 ? `OPENROUTER_NO_ENDPOINTS_FOUND: ${fallbackErrMsg}` : fallbackErrMsg);
+      if (error) {
+        let errorMessage = error.message;
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const body = await error.context.json();
+            if (body && body.error) {
+              errorMessage = body.error;
+            }
+          } catch (_) {
+            // Ignorar fallos de parseo
           }
-
-          const fallbackData = await fallbackResponse.json();
-          responseText = fallbackData.choices?.[0]?.message?.content;
-        } catch (secondAttemptError) {
-          console.error("Error Real OpenRouter (Intento Respaldo):", secondAttemptError);
-          console.log("Payload enviado (Intento Respaldo):", payloadB);
-          
-          if (firstAttemptError.message?.includes('OPENROUTER_NO_ENDPOINTS_FOUND') || 
-              secondAttemptError.message?.includes('OPENROUTER_NO_ENDPOINTS_FOUND') ||
-              firstAttemptError.message?.includes('No endpoints found') || 
-              secondAttemptError.message?.includes('No endpoints found')) {
-            throw new Error('OPENROUTER_NO_ENDPOINTS_FOUND');
-          }
-          throw new Error('FALLBACK_FAILED');
         }
+        throw new Error(errorMessage);
       }
 
-      if (responseText) {
-        setMessages(prev => [...prev, { role: 'model', content: responseText }]);
-        if (responseText.includes('[BOT_LINK:')) {
-          toast.success('Agente recomendado con éxito');
-        }
-      } else {
-        throw new Error('Respuesta vacía del servidor de OpenRouter');
-      }
+      const responseText = data?.text;
+      if (!responseText) throw new Error('Respuesta vacia del servidor de IA');
 
+      setMessages((prev) => [...prev, { role: 'model', content: responseText }]);
+      if (responseText.includes('[BOT_LINK:')) {
+        toast.success('Agente recomendado con exito');
+      }
     } catch (error) {
-      console.error('[GUIDE] Error crítico de conexión:', error);
-      
-      let userErrorMsg = 'El servicio está experimentando alta demanda, por favor intenta de nuevo en unos instantes.';
-      
-      if (error.message === 'OPENROUTER_NO_ENDPOINTS_FOUND') {
-        userErrorMsg = '⚠️ Error de Acceso en OpenRouter ("No Endpoints Found"):\n\n' +
-          'Esto ocurre comúnmente por dos razones:\n\n' +
-          '1. Para Modelos Premium (como Claude 3.5 Sonnet): Tu cuenta de OpenRouter no tiene saldo/crédito suficiente para procesar la consulta.\n' +
-          '2. Para Modelos Gratuitos (como Llama 3.1): OpenRouter requiere que tengas configurada tu política de privacidad. Ve a https://openrouter.ai/settings/privacy y asegúrate de:\n' +
-          '   - ACTIVAR "Permitir endpoints gratuitos que puedan publicar prompts/completions".\n' +
-          '   - DESACTIVAR la opción "ZDR (Zero Data Retention) únicamente", ya que los modelos gratuitos no son compatibles con ZDR.';
-      } else if (error.name === 'AbortError') {
-        userErrorMsg = 'El sistema de IA está tardando demasiado en responder. Por favor, inténtalo de nuevo en unos segundos.';
-      } else if (error.message && (error.message.includes('API key') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
-        userErrorMsg = 'Error de Configuración: La clave API de OpenRouter no es válida o no está autorizada.';
-      }
-
-      setMessages(prev => [...prev, { role: 'model', content: userErrorMsg }]);
+      console.error('[GUIDE] Error critico de conexion:', error);
+      setMessages((prev) => [...prev, { role: 'model', content: getFriendlyError(error) }]);
     } finally {
       setLoading(false);
     }
@@ -375,16 +186,17 @@ const AgentGuide = () => {
   const renderContent = (content) => {
     if (typeof content !== 'string') return null;
     const parts = content.split(/(\[BOT_LINK:.*?\|.*?\])/g);
+
     return parts.map((part, index) => {
       if (part.startsWith('[BOT_LINK:')) {
         const match = part.match(/\[BOT_LINK:(.*?)\|(.*?)\]/);
         if (match) {
-          const [_, name, url] = match;
+          const [, name, url] = match;
           return (
-            <a 
-              key={index} 
-              href={url} 
-              target="_blank" 
+            <a
+              key={index}
+              href={url}
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black mt-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
             >
@@ -395,20 +207,19 @@ const AgentGuide = () => {
           );
         }
       }
-      // Limpiar los asteriscos de Markdown para mostrar texto plano limpio y premium
+
       const textClean = part.replace(/\*\*/g, '').replace(/\*/g, '');
       return <span key={index}>{textClean}</span>;
     });
   };
 
-  // El administrador siempre ve la burbuja del Matchmaker (para pruebas),
-  // los usuarios finales solo si está habilitado globalmente (isEnabled)
+  if (!isAuthenticated) return null;
+
   const shouldRender = isEnabled || isAdmin;
   if (!shouldRender) return null;
 
   return (
     <>
-      {/* Botón Flotante (Burbuja) - Premium Glass */}
       <button
         onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
         className={`fixed bottom-4 right-4 w-16 h-16 bg-neon-teal/10 backdrop-blur-xl text-neon-teal rounded-2xl border border-neon-teal/20 shadow-[0_0_30px_rgba(0,229,255,0.15)] flex items-center justify-center transition-all duration-500 hover:scale-110 hover:rotate-6 active:scale-95 z-[100] group ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
@@ -417,13 +228,10 @@ const AgentGuide = () => {
         <Compass className="w-8 h-8 relative z-10 neon-glow" />
       </button>
 
-      {/* Ventana de Chat - Premium Dark Glass */}
-      <div 
+      <div
         ref={modalRef}
         className={`fixed bottom-4 right-4 w-full max-w-[380px] h-[580px] bg-deep-dark/80 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] transition-all duration-500 flex flex-col rounded-[2.5rem] border border-white/10 overflow-hidden ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}
       >
-        
-        {/* Header - Glass Overlay */}
         <div className="p-6 bg-white/5 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-neon-teal/10 rounded-2xl flex items-center justify-center border border-neon-teal/20 shadow-lg shadow-neon-teal/5">
@@ -442,19 +250,19 @@ const AgentGuide = () => {
           </button>
         </div>
 
-        {/* Mensajes - Spatial Grid Background */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:20px_20px] scroll-smooth custom-scrollbar">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          {messages.map((message, index) => (
+            <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[88%] p-5 rounded-2xl text-xs leading-loose font-medium shadow-xl whitespace-pre-wrap ${
-                m.role === 'user' 
-                  ? 'bg-neon-teal/10 border border-neon-teal/30 text-white rounded-tr-none shadow-neon-teal/5' 
+                message.role === 'user'
+                  ? 'bg-neon-teal/10 border border-neon-teal/30 text-white rounded-tr-none shadow-neon-teal/5'
                   : 'bg-white/5 border border-white/5 text-gray-300 rounded-tl-none backdrop-blur-md'
               }`}>
-                {renderContent(m.content)}
+                {renderContent(message.content)}
               </div>
             </div>
           ))}
+
           {loading && (
             <div className="flex justify-start">
               <div className="bg-white/5 border border-white/5 p-4 rounded-2xl rounded-tl-none flex gap-2">
@@ -467,7 +275,6 @@ const AgentGuide = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input - Glass Overlay */}
         <form onSubmit={handleSendMessage} className="p-6 bg-white/5 border-t border-white/5 flex gap-3">
           <input
             ref={inputRef}

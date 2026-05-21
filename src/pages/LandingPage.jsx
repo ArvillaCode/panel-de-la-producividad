@@ -245,6 +245,7 @@ const DashboardMockup = () => {
 
   useEffect(() => {
     let timeoutId;
+    let intervalId;
     
     const runSimulation = () => {
       // 1. Reset
@@ -255,11 +256,11 @@ const DashboardMockup = () => {
       
       // 2. Escribir prompt
       let currentLength = 0;
-      const typeInterval = setInterval(() => {
+      intervalId = setInterval(() => {
         currentLength++;
         setTypedPrompt(fullPromptText.substring(0, currentLength));
         if (currentLength >= fullPromptText.length) {
-          clearInterval(typeInterval);
+          clearInterval(intervalId);
           setStatus('analyzing');
           
           // 3. Analizar (1s)
@@ -285,6 +286,7 @@ const DashboardMockup = () => {
 
     return () => {
       clearTimeout(timeoutId);
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -592,12 +594,13 @@ const FAQItemComponent = ({ id, question, answer }) => {
   );
 };
 
+const SECTION_IDS = ['solucion', 'features', 'academia', 'pricing'];
+
 const LandingPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('freelancer');
   const reducedMotion = usePrefersReducedMotion();
-  const sectionIds = ['solucion', 'features', 'academia', 'pricing'];
-  const activeSection = useActiveSection(sectionIds);
+  const activeSection = useActiveSection(SECTION_IDS);
 
   const scrollToSection = (id) => {
     const el = document.getElementById(id);

@@ -1,30 +1,41 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://krtthtzljlyewlngaklo.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_aEHBN2kyCw_nLv06x3UYKg_9dLEVg1p';
+const required = (name) => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Falta variable requerida: ${name}`);
+  }
+  return value;
+};
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  required('VITE_SUPABASE_URL'),
+  required('VITE_SUPABASE_ANON_KEY')
+);
 
 async function run() {
   const { data, error } = await supabase
     .from('academy_lessons')
-    .select('*');
-  
+    .select('id, title, video_path, video_url, created_at')
+    .order('created_at', { ascending: false });
+
   if (error) {
-    console.error("Error querying lessons:", error);
-    return;
+    throw error;
   }
-  
-  console.log("\n--- ACADEMY LESSONS ---");
-  data.forEach(lesson => {
+
+  console.log('\n--- ACADEMY LESSONS ---');
+  for (const lesson of data || []) {
     console.log(`ID: ${lesson.id}`);
     console.log(`Title: ${lesson.title}`);
     console.log(`Video Path: ${lesson.video_path}`);
     console.log(`Video URL: ${lesson.video_url}`);
     console.log(`Created At: ${lesson.created_at}`);
-    console.log("------------------------");
-  });
+    console.log('------------------------');
+  }
 }
 
-run();
+run().catch((error) => {
+  console.error('Error querying lessons:', error);
+  process.exitCode = 1;
+});

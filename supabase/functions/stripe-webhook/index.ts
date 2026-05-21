@@ -85,17 +85,32 @@ Deno.serve(async (req) => {
         
         // Al no proveer "password", Supabase genera un usuario que debe ingresar vía Magic Link
         // El metadata inyectará `status` y `is_approved` directo al trigger `on_auth_user_created`
-        const { error: createError } = await supabase.auth.admin.createUser({
+        const { data: createdUser, error: createError } = await supabase.auth.admin.createUser({
           email: email,
           email_confirm: true,
           user_metadata: {
-            name: name,
-            status: 'active',
-            is_approved: true
+            name: name
           }
         })
 
         if (createError) throw createError
+
+        if (createdUser.user?.id) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: createdUser.user.id,
+              email,
+              name,
+              role: 'user',
+              status: 'active',
+              is_approved: true,
+              start_date: new Date().toISOString(),
+              end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
+            }, { onConflict: 'id' })
+
+          if (profileError) throw profileError
+        }
       }
     } 
     

@@ -208,7 +208,7 @@ const AdminConfig = () => {
     try {
       const fetchPromise = supabase
         .from('system_config')
-        .select('*')
+        .select('site_name, site_description, admin_email, timezone, password_min_length, require_strong_password, ai_assistant_enabled, show_academia, ai_model')
         .eq('id', 1)
         .maybeSingle();
 

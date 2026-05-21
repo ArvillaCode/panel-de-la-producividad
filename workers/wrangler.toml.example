@@ -3,12 +3,14 @@ main = "r2-presign.js"
 compatibility_date = "2024-01-01"
 
 # Instalar dependencia en el worker: npm i aws4fetch
-# Configurar secretos con: wrangler secret put R2_ACCESS_KEY_ID
+# Configurar secretos:
+# wrangler secret put R2_ACCESS_KEY_ID
 # wrangler secret put R2_SECRET_ACCESS_KEY
 # wrangler secret put R2_ACCOUNT_ID
-# wrangler secret put R2_BUCKET_NAME
 # wrangler secret put SUPABASE_URL
 # wrangler secret put SUPABASE_ANON_KEY
 
 [vars]
 R2_BUCKET_NAME = "upfunnel-academy"
+ALLOWED_ORIGINS = "https://upfunnel.click,https://app.upfunnel.click,http://localhost:5173"
+MAX_UPLOAD_BYTES = "536870912"

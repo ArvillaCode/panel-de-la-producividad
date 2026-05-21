@@ -1,7 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
+import 'dotenv/config';
 
-const SUPABASE_URL = 'https://krtthtzljlyewlngaklo.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydHRodHpsamx5ZXdsbmdha2xvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODEwOTMyMywiZXhwIjoyMDkzNjg1MzIzfQ.X1-WWW80SmdJEorwNvSWwANE5G4UpksA-ik7AuY837g';
+const required = (name) => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Falta variable requerida: ${name}`);
+  }
+  return value;
+};
+
+const SUPABASE_URL = required('SUPABASE_URL');
+const SUPABASE_SERVICE_ROLE_KEY = required('SUPABASE_SERVICE_ROLE_KEY');
+const RESTORE_ADMIN_EMAILS = new Set(
+  (process.env.RESTORE_ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
@@ -11,58 +26,51 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 async function restoreProfiles() {
-  console.log('--- INICIANDO RECUPERACIÓN DE PERFILES ---');
-  
-  // 1. Obtener todos los usuarios de Supabase Auth
+  console.log('--- INICIANDO RECUPERACION DE PERFILES ---');
+
   const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
   if (listError) {
-    console.error('Error al obtener lista de usuarios de Auth:', listError);
-    return;
+    throw listError;
   }
-  
+
   console.log(`Se encontraron ${users.length} usuarios en Supabase Auth.`);
-  
-  // 2. Restaurar perfiles uno a uno
+
   for (const user of users) {
     const metadata = user.user_metadata || {};
-    
-    // Determinar rol correcto
-    let role = metadata.role || 'user';
-    let emailLower = user.email.toLowerCase();
-    
-    // Andrés y Gabriel e emails que contengan admin se catalogan como administradores
-    if (emailLower.includes('admin') || emailLower.includes('andres') || emailLower.includes('gabriel')) {
-      role = 'admin';
-    }
-    
-    console.log(`Procesando usuario: ${user.email} | ID: ${user.id} | Rol Determinado: ${role}`);
-    
+    const email = user.email || '';
+    const emailLower = email.toLowerCase();
+    const isAdmin = RESTORE_ADMIN_EMAILS.has(emailLower);
+
     const profileData = {
       id: user.id,
-      email: user.email,
-      name: metadata.name || user.email.split('@')[0],
-      role: role,
+      email,
+      name: metadata.name || email.split('@')[0] || 'Usuario',
+      role: isAdmin ? 'admin' : 'user',
       avatar_url: metadata.avatar_url || '',
-      status: 'active',
-      is_approved: true,
+      status: isAdmin ? 'active' : 'pending',
+      is_approved: isAdmin,
       timezone: metadata.timezone || 'UTC',
-      start_date: metadata.start_date || new Date().toISOString(),
-      end_date: metadata.end_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+      start_date: isAdmin ? new Date().toISOString() : null,
+      end_date: isAdmin ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null
     };
-    
-    // Upsert para recrear el perfil borrado o actualizar a activo
+
+    console.log(`Procesando usuario: ${email} | ID: ${user.id} | Rol: ${profileData.role}`);
+
     const { error: upsertError } = await supabase
       .from('profiles')
       .upsert(profileData, { onConflict: 'id' });
-      
+
     if (upsertError) {
-      console.error(`Error al restaurar perfil para ${user.email}:`, upsertError.message);
+      console.error(`Error al restaurar perfil para ${email}:`, upsertError.message);
     } else {
-      console.log(`✅ Perfil restaurado exitosamente para ${user.email} con rol [${role}]`);
+      console.log(`Perfil restaurado para ${email}`);
     }
   }
-  
-  console.log('--- RECUPERACIÓN COMPLETADA CON ÉXITO ---');
+
+  console.log('--- RECUPERACION COMPLETADA ---');
 }
 
-restoreProfiles().catch(console.error);
+restoreProfiles().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

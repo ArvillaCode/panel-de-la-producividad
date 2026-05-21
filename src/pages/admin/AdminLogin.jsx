@@ -62,7 +62,7 @@ const AdminLogin = () => {
     try {
       if (isAuthenticated && !authLoading && profile) {
         const userRole = profile?.role;
-        const isUserAdmin = isAdmin || userRole === 'admin' || userRole === 'core_admin' || profile?.email === 'admin@admin.com' || (user?.email && user.email.toLowerCase() === 'admin@admin.com');
+        const isUserAdmin = isAdmin || userRole === 'admin' || userRole === 'core_admin';
         
         if (isUserAdmin) {
           navigate('/admin/dashboard', { replace: true });

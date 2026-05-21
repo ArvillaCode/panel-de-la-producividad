@@ -1,41 +1,44 @@
-# 🤖 Guía de Conexión: Inteligencia Artificial en Upfunnel (Google Gemini)
+# Guia de Conexion: Inteligencia Artificial en Upfunnel
 
-Esta guía documenta el funcionamiento, configuración y mantenimiento del asistente virtual (AgentGuide) integrado en Upfunnel utilizando la API de Google Generative AI.
+El asistente `AgentGuide` ya no llama proveedores de IA desde el navegador. El flujo seguro es:
 
----
+1. El usuario autenticado envia el historial a la Edge Function `openrouter-chat`.
+2. La funcion valida el JWT con Supabase.
+3. La funcion consulta perfil, configuracion y agentes visibles en el backend.
+4. La funcion llama a OpenRouter usando el secreto `OPENROUTER_API_KEY`.
+5. El navegador recibe solo el texto de respuesta.
 
-## 🔑 1. Configuración del Entorno y Credenciales
-El agente opera en el cliente usando el SDK oficial de Google. Requiere una clave API activa.
+## Variables Requeridas
 
-- **Variable de Entorno:** `VITE_GOOGLE_GEMINI_API_KEY`
-- **Ubicación:** Esta variable debe configurarse en Vercel (Environment Variables) y en el archivo `.env.local` del entorno de desarrollo.
-- **Validación:** Si la variable falta, el asistente informará inmediatamente: *"Fallo de Configuración: No se ha detectado la clave API..."*
+Frontend:
 
-## 🧠 2. Configuración del Modelo
-- **Modelo Designado:** `gemini-1.5-flash-latest` (Elegido por su rapidez y optimización de costos en tareas de recomendación rápida).
-- **Temperature:** `0.1` (Se mantiene muy bajo para forzar respuestas estrictas, analíticas y deterministas basadas únicamente en los agentes activos).
-- **Max Output Tokens:** `500` (El agente de sugerencias es conciso y no debe dar monólogos largos, ahorrando consumo de API).
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
 
-## ⚙️ 3. Flujo Lógico y "Prompt Engineering"
-El asistente recibe un "System Prompt" invisible antes de cada interacción.
+Backend / Supabase Edge Functions:
 
-**Reglas de Oro del Prompt (Inyectadas en código):**
-1. El agente desconoce que es una IA de Google; asume el rol de "Asistente de Upfunnel".
-2. Su conocimiento está encapsulado: Solo puede sugerir herramientas que estén en la lista de agentes obtenida de Supabase.
-3. Si le preguntan por algo externo, debe negarlo amablemente usando el nombre del usuario.
-4. Genera botones ejecutables devolviendo la sintaxis estricta: `[BOT_LINK:Nombre|URL]`.
+```env
+OPENROUTER_API_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ALLOWED_ORIGINS=https://upfunnel.click,https://app.upfunnel.click,http://localhost:5173
+```
 
-## 🛡️ 4. Resiliencia y Control de Errores
-El componente `AgentGuide.jsx` tiene medidas de protección severas contra la latencia y la saturación:
-- **Timeout Preventivo:** Si Gemini tarda más de 8 segundos en responder, se interrumpe la petición para no agotar el tiempo de ejecución en Vercel o el dispositivo móvil del usuario.
-- **Mecanismo de Reintento (Retry):** Si hay una caída de red ligera, hace un reintento silencioso antes de fallar.
-- **Fallback de Error:** En cualquier fallo crítico de API o límite de tiempo, NUNCA expone el error de la API al usuario. Muestra el mensaje: *"¡Ups! Mi conexión se tomó un respiro. Dame un segundo y vuelve a preguntarme."*
+No uses variables `VITE_` para claves privadas de IA. Todo valor con prefijo `VITE_` termina disponible en el bundle del navegador.
 
-## 🔄 5. Persistencia de Historial
-- El historial conversacional (el hilo con Gemini) no se guarda en Supabase, sino en **sessionStorage** del navegador del usuario.
-- Esto asegura que al cambiar entre Novedades, Administrador o Inicio, el usuario no pierda su conversación activa, pero al cerrar el navegador o la pestaña, se restablece, evitando fuga de datos locales.
+## Operacion
 
-## 🛠️ 6. Troubleshooting
-- **Responde cosas genéricas o alucina funciones:** Revisa si la llamada a `fetchActiveAgents()` en `AgentGuide.jsx` está devolviendo un arreglo vacío o fallando por permisos RLS en Supabase.
-- **Mensaje de timeout constante:** Es posible que Google Gemini esté experimentando interrupciones, o la red del usuario sea inestable. Verifica el status de Google Cloud.
-- **Error 404 (Not Found):** Asegúrate de que el modelo configurado existe. `gemini-1.5-flash-latest` es el actual; si Google lo deprecia, debe actualizarse.
+- El modelo global se configura en `system_config.ai_model`.
+- El prompt global se configura en `system_config.system_prompt` / `ai_system_prompt`.
+- Los agentes `admin_only` solo se inyectan al prompt si el usuario autenticado es admin o core_admin.
+- La clave de OpenRouter no se guarda en `system_config`; debe existir como secreto `OPENROUTER_API_KEY`.
+
+## Troubleshooting
+
+- `server_not_configured`: falta una variable del backend.
+- `profile_not_approved`: el usuario no esta aprobado o activo.
+- `assistant_disabled`: el asistente esta desactivado para usuarios no admin.
+- `OPENROUTER_NO_ENDPOINTS_FOUND`: revisa saldo, modelo disponible y politicas de privacidad en OpenRouter.

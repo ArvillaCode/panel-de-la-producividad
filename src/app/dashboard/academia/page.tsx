@@ -803,9 +803,12 @@ export default function AcademyDashboard() {
                         return (
                           <iframe
                             key={activeLesson.id}
+                            title={activeLesson.title || 'Video de la leccion'}
                             src={embedUrl}
                             className="w-full h-full border-0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            sandbox="allow-scripts allow-same-origin allow-presentation"
                             allowFullScreen
                           />
                         );
@@ -909,7 +912,7 @@ export default function AcademyDashboard() {
                           </div>
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Descripción (HTML permitido)</label>
+                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Descripción</label>
                           <textarea
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
@@ -941,10 +944,9 @@ export default function AcademyDashboard() {
                     ) : (
                       <>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">{activeLesson.title}</h2>
-                        <div
-                          className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line"
-                          dangerouslySetInnerHTML={{ __html: activeLesson.description || '' }}
-                        />
+                        <p className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line">
+                          {activeLesson.description || ''}
+                        </p>
                       </>
                     )}
 

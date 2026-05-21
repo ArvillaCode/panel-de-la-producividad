@@ -2,10 +2,14 @@ name = "upfunnel-r2-presign"
 main = "r2-presign.js"
 compatibility_date = "2024-01-01"
 
+# Secrets must be configured outside git:
+# wrangler secret put R2_ACCESS_KEY_ID
+# wrangler secret put R2_SECRET_ACCESS_KEY
+# wrangler secret put R2_ACCOUNT_ID
+# wrangler secret put SUPABASE_URL
+# wrangler secret put SUPABASE_ANON_KEY
+
 [vars]
 R2_BUCKET_NAME = "upfunnel-academy"
-R2_ACCESS_KEY_ID = "068c7a59fc24c38689120af3f04458db"
-R2_SECRET_ACCESS_KEY = "edb3f8f12faa4f7c5074741388eded5975fdc289c7c22a390382a2ae31f2218b"
-R2_ACCOUNT_ID = "1fbed4859cc6f03d691ea813a7039210"
-SUPABASE_URL = "https://krtthtzljlyewlngaklo.supabase.co"
-SUPABASE_ANON_KEY = "sb_publishable_aEHBN2kyCw_nLv06x3UYKg_9dLEVg1p"
+ALLOWED_ORIGINS = "https://upfunnel.click,https://app.upfunnel.click,http://localhost:5173"
+MAX_UPLOAD_BYTES = "536870912"

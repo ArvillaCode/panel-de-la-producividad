@@ -1,10 +1,31 @@
 import { supabase } from './supabase';
 
+const ALLOWED_SUBFOLDERS = new Set(['videos', 'thumbnails', 'courses']);
+const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
+
+function sanitizeFilename(name) {
+  const safeName = String(name || 'upload.bin')
+    .normalize('NFKD')
+    .replace(/[^\w.-]+/g, '_')
+    .replace(/^_+/, '')
+    .slice(0, 120);
+
+  return safeName || 'upload.bin';
+}
+
 /**
  * Sube un archivo a R2 usando una URL firmada generada en el servidor (Worker).
  * Las credenciales de R2 NUNCA deben estar en el frontend.
  */
 export async function uploadToAcademyR2(file, subfolder) {
+  if (!ALLOWED_SUBFOLDERS.has(subfolder)) {
+    throw new Error('Carpeta de subida no permitida.');
+  }
+
+  if (!file || file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+    throw new Error('Archivo invalido o demasiado grande.');
+  }
+
   const presignEndpoint = import.meta.env.VITE_R2_PRESIGN_URL;
   if (!presignEndpoint) {
     throw new Error(
@@ -17,7 +38,7 @@ export async function uploadToAcademyR2(file, subfolder) {
     throw new Error('Debes iniciar sesión para subir archivos.');
   }
 
-  const key = `academy/${subfolder}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+  const key = `academy/${subfolder}/${Date.now()}-${sanitizeFilename(file.name)}`;
 
   const presignRes = await fetch(presignEndpoint, {
     method: 'POST',
@@ -25,7 +46,11 @@ export async function uploadToAcademyR2(file, subfolder) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ key, contentType: file.type || 'application/octet-stream' }),
+    body: JSON.stringify({
+      key,
+      contentType: file.type || 'application/octet-stream',
+      size: file.size
+    }),
   });
 
   if (!presignRes.ok) {
