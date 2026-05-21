@@ -17,6 +17,7 @@ const AdminAgents = () => {
   const [filteredAgents, setFilteredAgents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -145,7 +146,7 @@ const AdminAgents = () => {
   useEffect(() => {
     filterAgents();
     setCurrentPage(1);
-  }, [agents, searchTerm, filterStatus]);
+  }, [agents, searchTerm, filterStatus, sortBy]);
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -181,6 +182,16 @@ const AdminAgents = () => {
         filtered = filtered.filter(agent => agent.visible === isVisible && !agent.admin_only);
       }
     }
+    
+    // Sorting
+    if (sortBy === 'newest') {
+      filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    } else if (sortBy === 'oldest') {
+      filtered.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    } else if (sortBy === 'name') {
+      filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
     setFilteredAgents(filtered);
   };
 
@@ -360,16 +371,27 @@ const AdminAgents = () => {
                     className="w-full pl-12 pr-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-neon-teal/30 focus:border-neon-teal transition-all outline-none"
                   />
                 </div>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white font-bold text-xs uppercase tracking-widest focus:ring-2 focus:ring-neon-teal/30 outline-none appearance-none"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="active">Activos</option>
-                  <option value="inactive">Inactivos</option>
-                  <option value="admin_only">Solo Admin / Borradores</option>
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white font-bold text-xs uppercase tracking-widest focus:ring-2 focus:ring-neon-teal/30 outline-none appearance-none"
+                  >
+                    <option value="newest">Últimos agregados</option>
+                    <option value="oldest">Más antiguos</option>
+                    <option value="name">Alfabético</option>
+                  </select>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white font-bold text-xs uppercase tracking-widest focus:ring-2 focus:ring-neon-teal/30 outline-none appearance-none"
+                  >
+                    <option value="all">Todos los estados</option>
+                    <option value="active">Activos</option>
+                    <option value="inactive">Inactivos</option>
+                    <option value="admin_only">Solo Admin / Borradores</option>
+                  </select>
+                </div>
               </div>
             </div>
 

@@ -91,6 +91,7 @@ const AdminDashboard = () => {
   const { user, profile, users, fetchUsers, loading } = useAuth();
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dateFilter, setDateFilter] = useState('all');
   const [stats, setStats] = useState({
     totalUsers: 0,
     adminUsers: 0,
@@ -110,7 +111,19 @@ const AdminDashboard = () => {
     const { data: agentsData } = await supabase.from('agents').select('*');
     const { data: ratingsData } = await supabase.from('agent_ratings').select('*');
 
-    const allUsers = directUsers || [];
+    let allUsers = directUsers || [];
+    let filteredAgents = agentsData || [];
+
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      let limitDate = new Date();
+      if (dateFilter === '7days') limitDate.setDate(now.getDate() - 7);
+      else if (dateFilter === '30days') limitDate.setDate(now.getDate() - 30);
+      else if (dateFilter === 'thisMonth') limitDate = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      allUsers = allUsers.filter(u => new Date(u.created_at) >= limitDate);
+      filteredAgents = filteredAgents.filter(a => new Date(a.created_at) >= limitDate);
+    }
 
     // --- User Growth: last 7 days grouped by created_at ---
     const now = new Date();
@@ -128,7 +141,7 @@ const AdminDashboard = () => {
     }
 
     // --- Agent Usage: top 5 by total_interactions ---
-    const agentUsage = (agentsData || [])
+    const agentUsage = filteredAgents
       .map(a => ({ name: a.name ? a.name.split(' ').slice(0, 2).join(' ') : 'Sin nombre', interactions: a.total_interactions || 0 }))
       .sort((a, b) => b.interactions - a.interactions)
       .slice(0, 5);
@@ -142,7 +155,7 @@ const AdminDashboard = () => {
     ];
 
     // --- Rankings ---
-    const rankings = (agentsData || []).map(agent => {
+    const rankings = filteredAgents.map(agent => {
       const agentRatings = (ratingsData || []).filter(r => r.agent_id === agent.id);
       const avg = agentRatings.length > 0 ? agentRatings.reduce((sum, r) => sum + r.rating, 0) / agentRatings.length : 0;
       return { id: agent.id, name: agent.name, avgRating: avg, totalVotes: agentRatings.length, trend: avg >= 4 ? 'up' : 'neutral' };
@@ -153,7 +166,7 @@ const AdminDashboard = () => {
       adminUsers: allUsers.filter(u => u.role === 'admin').length,
       activeUsers: allUsers.filter(u => u.status === 'active').length,
       pendingUsers: allUsers.filter(u => u.status === 'pending').length,
-      totalAgents: agentsData?.length || 0,
+      totalAgents: filteredAgents.length,
       recentActivity: allUsers.slice(0, 5).map(u => ({ id: u.id, message: `Nuevo usuario: ${u.name || u.email}`, timestamp: new Date(u.created_at).toLocaleTimeString() })),
       userGrowth,
       agentUsage,
@@ -170,7 +183,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [dateFilter]);
 
   // (Moved outside to prevent re-renders)
 
@@ -195,14 +208,26 @@ const AdminDashboard = () => {
                 <Sparkles className="w-8 h-8 text-neon-teal neon-glow" />
                 <span className="text-neon-teal font-black uppercase tracking-[0.3em] text-xs">Ecosistema Premium</span>
               </div>
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neon-teal/10 text-neon-teal border border-neon-teal/20 hover:bg-neon-teal/20 transition-all duration-300 text-xs font-black uppercase tracking-widest disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Actualizar
-              </button>
+              <div className="flex items-center gap-4">
+                <select 
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="bg-deep-dark/50 border border-white/10 text-white text-xs font-bold rounded-xl px-4 py-2 outline-none focus:border-neon-teal transition-colors"
+                >
+                  <option value="all">Todo el tiempo</option>
+                  <option value="7days">Últimos 7 días</option>
+                  <option value="30days">Últimos 30 días</option>
+                  <option value="thisMonth">Este mes</option>
+                </select>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neon-teal/10 text-neon-teal border border-neon-teal/20 hover:bg-neon-teal/20 transition-all duration-300 text-xs font-black uppercase tracking-widest disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </button>
+              </div>
             </div>
             <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
               Control Maestro, <span className="neon-text">{profile?.name || 'Líder'}</span>
