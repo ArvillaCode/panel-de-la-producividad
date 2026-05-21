@@ -32,6 +32,8 @@ const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   
+  const [isProcessingMagicLink, setIsProcessingMagicLink] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -54,6 +56,10 @@ const AdminLogin = () => {
       }
     } catch (err) {
       console.error('[AUTH-LOGIN] Error en montaje inicial de verificación defensiva:', err);
+    }
+
+    if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink'))) {
+      setIsProcessingMagicLink(true);
     }
   }, []);
 
@@ -175,7 +181,13 @@ const AdminLogin = () => {
             </div>
           )}
 
-          {step === 'email' ? (
+          {isProcessingMagicLink ? (
+            <div className="flex flex-col items-center justify-center py-10 space-y-6 animate-in fade-in zoom-in duration-500">
+              <div className="premium-spinner !w-12 !h-12 !border-4"></div>
+              <h2 className="text-xl font-bold text-white tracking-wide animate-pulse">Verificando acceso seguro...</h2>
+              <p className="text-sm text-slate-400">Por favor, espera mientras confirmamos tu sesión.</p>
+            </div>
+          ) : step === 'email' ? (
             <form onSubmit={handleSendOtp} className="space-y-6">
               <div className="space-y-2">
                 <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
