@@ -41,22 +41,32 @@ import { supabase } from '../../lib/supabase';
 
 const useCountUp = (target, duration = 1200) => {
   const [count, setCount] = useState(0);
+
   useEffect(() => {
-    if (!target || target === 0) { setCount(0); return; }
+    const end = typeof target === 'number' ? target : parseInt(target) || 0;
+    if (end === 0) {
+      setCount(0);
+      return;
+    }
+    
+    // Always start from 0 to target on mount or when target updates
     const start = 0;
-    const increment = target / (duration / 16);
+    const increment = end / (duration / 16);
     let current = start;
+    
     const timer = setInterval(() => {
       current += increment;
-      if (current >= target) {
-        setCount(target);
+      if (current >= end) {
+        setCount(end);
         clearInterval(timer);
       } else {
         setCount(Math.floor(current));
       }
     }, 16);
+
     return () => clearInterval(timer);
   }, [target, duration]);
+
   return count;
 };
 

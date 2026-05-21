@@ -1,0 +1,25 @@
+name-template: 'v$RESOLVED_VERSION 🌈'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Novedades (Features)'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Correcciones (Bug Fixes)'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '🧰 Mantenimiento'
+    labels:
+      - 'chore'
+      - 'refactor'
+      - 'documentation'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+template: |
+  ## Novedades para aprobar en esta versión
+  
+  $CHANGES
+
+  ---
+  *Borrador de novedades autogenerado.*
