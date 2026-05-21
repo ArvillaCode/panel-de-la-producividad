@@ -639,6 +639,7 @@ const AdminUsers = () => {
                     </div>
                 </div>
             </div>
+            </Draggable>
         )}
 
         {/* Users Table */}
