@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, 
   Bot, 
@@ -21,7 +21,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { BRANDING } from '../../constants/branding';
 
 const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
-  const { logout, user, profile, loading, notifications, systemConfig } = useAuth();
+  const { logout, user, profile, loading, notifications, systemConfig, isAdmin } = useAuth();
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +35,24 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
   React.useEffect(() => {
     localStorage.setItem('admin-sidebar-collapsed', isCollapsed);
   }, [isCollapsed]);
+
+  React.useEffect(() => {
+    if (!loading && !isAdmin) {
+      localStorage.removeItem('cached_system_config');
+      localStorage.removeItem('systemConfig');
+    }
+  }, [loading, isAdmin]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] bg-deep-dark flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-neon-teal/20 border-t-neon-teal animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   // Determinar la página actual basada en la URL
   const getCurrentPage = () => {

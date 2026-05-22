@@ -81,11 +81,7 @@ const AgentGuide = () => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const { data, error } = await supabase
-          .from('system_config')
-          .select('ai_assistant_enabled')
-          .eq('id', 1)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc('get_public_system_config');
 
         if (error) {
           console.warn('[GUIDE] Advertencia recuperando config global:', error.message);
@@ -93,7 +89,8 @@ const AgentGuide = () => {
           return;
         }
 
-        if (data) setIsEnabled(data.ai_assistant_enabled !== false);
+        const publicConfig = Array.isArray(data) ? data[0] : data;
+        if (publicConfig) setIsEnabled(publicConfig.ai_assistant_enabled !== false);
       } catch (err) {
         console.warn('[GUIDE] Excepcion capturada en checkStatus:', err);
         setIsEnabled(true);

@@ -140,28 +140,30 @@ export const AuthProvider = ({ children }) => {
 
   const fetchSystemConfig = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('system_config')
-        .select('max_login_attempts, password_min_length, require_strong_password, show_academia')
-        .eq('id', 1)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_public_system_config');
 
       if (!error) {
-        if (data) {
+        const publicConfig = Array.isArray(data) ? data[0] : data;
+
+        if (publicConfig) {
           setSystemConfig({
-            maxLoginAttempts: data.max_login_attempts,
-            passwordMinLength: data.password_min_length,
-            requireStrongPassword: data.require_strong_password,
-            showAcademia: data.show_academia !== false
+            maxLoginAttempts: publicConfig.max_login_attempts,
+            passwordMinLength: publicConfig.password_min_length,
+            requireStrongPassword: publicConfig.require_strong_password,
+            showAcademia: publicConfig.show_academia !== false,
+            aiAssistantEnabled: publicConfig.ai_assistant_enabled !== false
           });
         } else {
           setSystemConfig({
             maxLoginAttempts: 5,
             passwordMinLength: 8,
             requireStrongPassword: true,
-            showAcademia: true
+            showAcademia: true,
+            aiAssistantEnabled: true
           });
         }
+      } else {
+        console.warn('[AUTH] Public system config unavailable:', error.message);
       }
     } catch (err) {
       console.error('[AUTH] Fetch system config error:', err);
@@ -328,8 +330,10 @@ export const AuthProvider = ({ children }) => {
 
   // 1. Cargar configuración inicial (SOLO UNA VEZ)
   useEffect(() => {
+    if (!user) return;
+
     fetchSystemConfig();
-  }, [fetchSystemConfig]);
+  }, [fetchSystemConfig, user?.id]);
 
   // 2. Inicializar autenticación y listener (SOLO UNA VEZ al montar)
   useEffect(() => {

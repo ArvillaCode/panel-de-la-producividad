@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const openRouterKey = Deno.env.get('OPENROUTER_API_KEY')
 
-  if (!supabaseUrl || !anonKey || !openRouterKey) {
+  if (!supabaseUrl || !anonKey || !serviceRoleKey || !openRouterKey) {
     console.error('[OPENROUTER_CHAT] Missing required environment variables')
     return jsonResponse(req, 500, { error: 'server_not_configured' })
   }
@@ -223,9 +223,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    const dbClient = createClient(supabaseUrl, serviceRoleKey || anonKey, {
+    const dbClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: `Bearer ${serviceRoleKey || accessToken}` } }
+      global: { headers: { Authorization: `Bearer ${serviceRoleKey}` } }
     })
 
     const [{ data: profile }, { data: config }, { data: agents, error: agentsError }] = await Promise.all([
