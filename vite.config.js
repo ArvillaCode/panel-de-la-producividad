@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const allowedHosts = ['app.upfunnel.click', 'upfunnel.click', 'www.upfunnel.click']
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -9,9 +11,9 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    allowedHosts: ['app.upfunnel.click']
+    allowedHosts
   },
   preview: {
-    allowedHosts: ['app.upfunnel.click']
+    allowedHosts
   }
 })
