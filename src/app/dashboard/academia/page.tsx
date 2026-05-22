@@ -116,6 +116,7 @@ export default function AcademyDashboard() {
   const [editVideoPath, setEditVideoPath] = useState('');
   const [editThumbnailUrl, setEditThumbnailUrl] = useState('');
   const [isUploadingEditThumb, setIsUploadingEditThumb] = useState(false);
+  const [isUploadingEditVideo, setIsUploadingEditVideo] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // --- ESTADOS CREACIÓN CURSO ---
@@ -1027,13 +1028,40 @@ export default function AcademyDashboard() {
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Enlace del Video o Ruta (Google Drive, YouTube o R2)</label>
-                          <input
-                            type="text"
-                            value={editVideoPath}
-                            onChange={(e) => setEditVideoPath(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
-                            placeholder="Ej: https://drive.google.com/... o academy/videos/video.mp4"
-                          />
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editVideoPath}
+                              onChange={(e) => setEditVideoPath(e.target.value)}
+                              className="flex-1 w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                              placeholder="Ej: https://drive.google.com/... o academy/videos/video.mp4"
+                            />
+                            <input
+                              type="file"
+                              accept="video/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsUploadingEditVideo(true);
+                                try {
+                                  const filename = await uploadToAcademyR2(file, 'videos');
+                                  setEditVideoPath(filename);
+                                } catch (error) {
+                                  alert(error instanceof Error ? error.message : "Error al subir video");
+                                } finally {
+                                  setIsUploadingEditVideo(false);
+                                }
+                              }}
+                              className="hidden"
+                              id="edit-video-input"
+                            />
+                            <label
+                              htmlFor="edit-video-input"
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-250 flex items-center justify-center transition-all whitespace-nowrap"
+                            >
+                              {isUploadingEditVideo ? 'Subiendo...' : 'Subir'}
+                            </label>
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Ruta o URL de la Miniatura</label>
