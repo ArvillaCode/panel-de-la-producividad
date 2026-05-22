@@ -13,7 +13,8 @@ import {
   Image as ImageIcon,
   Save,
   Trash2,
-  Lock
+  Lock,
+  Pencil
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
@@ -127,8 +128,17 @@ export default function AcademyDashboard() {
     }
   }, []);
   const [courseForm, setCourseForm] = useState({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // --- CONFIRM MODAL ---
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: () => {} });
+
+  const requestConfirm = (message: string, onConfirm: () => void) => {
+    setConfirmDialog({ isOpen: true, message, onConfirm });
+  };
+
 
   const uploadThumbnail = async (file: File) => {
     try {
@@ -144,13 +154,12 @@ export default function AcademyDashboard() {
     }
   };
 
-  const handleCreateCourse = async (e: React.FormEvent) => {
+  const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseForm.title || !courseForm.description) return alert("Completa los campos");
 
     setIsCreatingCourse(true);
     try {
-      // Generar slug automáticamente
       const slug = courseForm.title
         .toLowerCase()
         .trim()
@@ -158,28 +167,56 @@ export default function AcademyDashboard() {
         .replace(/[\s_-]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
-      const { data, error } = await supabase
-        .from('academy_courses')
-        .insert([{ ...courseForm, slug }])
-        .select();
+      if (editingCourseId) {
+        const { data, error } = await supabase
+          .from('academy_courses')
+          .update({ ...courseForm, slug })
+          .eq('id', editingCourseId)
+          .select();
 
-      if (error) throw error;
+        if (error) throw error;
+        setCourses(prev => prev.map(c => c.id === editingCourseId ? data[0] : c));
+        if (selectedCourse?.id === editingCourseId) {
+          setSelectedCourse(data[0]);
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('academy_courses')
+          .insert([{ ...courseForm, slug }])
+          .select();
 
-      setCourses(prev => [...prev, data[0]]);
+        if (error) throw error;
+        setCourses(prev => [...prev, data[0]]);
+      }
+
       setIsCourseModalOpen(false);
-      setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General' });
+      setEditingCourseId(null);
+      setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
     } catch (error) {
       console.error(error);
-      console.error("Error creating course:", error);
-      alert(`Error al crear curso: ${error.message || 'Error desconocido'}`);
+      alert(`Error al guardar curso: ${error.message || 'Error desconocido'}`);
     } finally {
       setIsCreatingCourse(false);
     }
   };
 
+  const handleEditCourseClick = (course: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCourseId(course.id);
+    setCourseForm({
+      title: course.title,
+      description: course.description || '',
+      thumbnail_url: course.thumbnail_url || '',
+      category: course.category || 'General',
+      is_premium: course.is_premium || false,
+      is_published: course.is_published !== false
+    });
+    setIsCourseModalOpen(true);
+  };
+
   const handleDeleteCourse = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("¿Estás seguro de borrar este curso? Se eliminarán todos sus módulos y lecciones.")) return;
+    requestConfirm("¿Estás seguro de borrar este curso? Se eliminarán todos sus módulos y lecciones.", async () => {
 
     try {
       const { error } = await supabase.from('academy_courses').delete().eq('id', id);
@@ -189,13 +226,15 @@ export default function AcademyDashboard() {
         setView('courses');
         setSelectedCourse(null);
       }
+      }
     } catch (error) {
       alert("Error al borrar curso");
     }
+    });
   };
 
   const handleDeleteLesson = async (id: string, moduleId: string) => {
-    if (!confirm("¿Borrar esta lección?")) return;
+    requestConfirm("¿Borrar esta lección?", async () => {
 
     try {
       const { error } = await supabase.from('academy_lessons').delete().eq('id', id);
@@ -212,11 +251,12 @@ export default function AcademyDashboard() {
     } catch (error) {
       alert("Error al borrar lección");
     }
+    });
   };
 
   const handleDeleteModule = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("¿Borrar este módulo y todas sus lecciones?")) return;
+    requestConfirm("¿Borrar este módulo y todas sus lecciones?", async () => {
 
     try {
       const { error } = await supabase.from('academy_modules').delete().eq('id', id);
@@ -225,12 +265,13 @@ export default function AcademyDashboard() {
     } catch (error) {
       alert("Error al borrar módulo");
     }
+    });
   };
 
   const handleUpdateLesson = async () => {
     if (!activeLesson) return;
     
-    if (!confirm("¿Estás seguro de que deseas guardar los cambios en esta lección?")) return;
+    requestConfirm("¿Estás seguro de que deseas guardar los cambios en esta lección?", async () => {
     
     setIsSaving(true);
 
@@ -252,32 +293,28 @@ export default function AcademyDashboard() {
         ...mod,
         lessons: mod.lessons.map(l => l.id === activeLesson.id ? {
           ...l,
-          title: editTitle,
-          description: editDescription,
-          video_path: editVideoPath,
+          ...updatedLesson,
           video_url: editVideoPath ? academyMediaUrl(editVideoPath) : '',
-          thumbnail_url: editThumbnailUrl,
           thumb_url: editThumbnailUrl ? academyMediaUrl(editThumbnailUrl) : ''
         } : l)
       })));
 
-      setActiveLesson(prev => ({
+      setActiveLesson(prev => prev ? ({
         ...prev,
-        title: editTitle,
-        description: editDescription,
-        video_path: editVideoPath,
+        ...updatedLesson,
         video_url: editVideoPath ? academyMediaUrl(editVideoPath) : '',
-        thumbnail_url: editThumbnailUrl,
         thumb_url: editThumbnailUrl ? academyMediaUrl(editThumbnailUrl) : ''
-      }));
+      }) : null);
 
       setIsEditMode(false);
       alert("Lección actualizada correctamente.");
     } catch (error) {
-      alert("Error al actualizar lección");
+      console.error(error);
+      alert("Error al guardar lección");
     } finally {
       setIsSaving(false);
     }
+    });
   };
 
   useEffect(() => {
@@ -441,9 +478,13 @@ export default function AcademyDashboard() {
         editThumbnailUrl !== (activeLesson.thumbnail_url || '');
 
       if (hasUnsavedChanges) {
-        if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres cambiar de lección y perder estos cambios?")) {
-          return;
-        }
+        requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres cambiar de lección y perder estos cambios?", () => {
+          setActiveLesson(lesson);
+          const params = new URLSearchParams(location.search);
+          params.set('lesson', lesson.id);
+          navigate(`/dashboard/academia?${params.toString()}`);
+        });
+        return;
       }
     }
     setActiveLesson(lesson);
@@ -505,7 +546,20 @@ export default function AcademyDashboard() {
               {view === 'lessons' && (
                 <button
                   onClick={() => {
-                    navigate('/dashboard/academia');
+                    const hasUnsavedChanges =
+                      activeLesson &&
+                      (editTitle !== activeLesson.title ||
+                       editDescription !== activeLesson.description ||
+                       editVideoPath !== activeLesson.video_path ||
+                       editThumbnailUrl !== activeLesson.thumbnail_url);
+
+                    if (isEditMode && hasUnsavedChanges) {
+                      requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir y perder estos cambios?", () => {
+                        navigate('/dashboard/academia');
+                      });
+                    } else {
+                      navigate('/dashboard/academia');
+                    }
                   }}
                   className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
                 >
@@ -525,7 +579,7 @@ export default function AcademyDashboard() {
           {isAdmin && (
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Link
-                to="/dashboard"
+                to={isAdmin ? "/admin" : "/dashboard"}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
@@ -564,8 +618,12 @@ export default function AcademyDashboard() {
               </button>
 
               <button
-                onClick={() => setIsCourseModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+                onClick={() => {
+                  setEditingCourseId(null);
+                  setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
+                  setIsCourseModalOpen(true);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
               >
                 <Plus className="w-4 h-4" />
                 Añadir Curso
@@ -649,13 +707,22 @@ export default function AcademyDashboard() {
                     </div>
 
                     {isAdmin && isEditMode && (
-                      <button
-                        onClick={(e) => handleDeleteCourse(course.id, e)}
-                        className="absolute top-4 right-4 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-all z-10"
-                        title="Borrar Curso"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="absolute top-4 right-4 flex gap-2 z-10">
+                        <button
+                          onClick={(e) => handleEditCourseClick(course, e)}
+                          className="p-2 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full backdrop-blur-sm transition-all shadow-lg"
+                          title="Editar Curso"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteCourse(course.id, e)}
+                          className="p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-all shadow-lg"
+                          title="Borrar Curso"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="p-6">
@@ -1000,13 +1067,16 @@ export default function AcademyDashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300 custom-scrollbar">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-              <h2 className="text-xl font-bold">Crear Nuevo Curso</h2>
-              <button onClick={() => setIsCourseModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+              <h2 className="text-xl font-bold">{editingCourseId ? 'Editar Curso' : 'Crear Nuevo Curso'}</h2>
+              <button onClick={() => {
+                setIsCourseModalOpen(false);
+                setEditingCourseId(null);
+              }} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCourse} className="p-6 space-y-6">
+            <form onSubmit={handleSaveCourse} className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Título del Curso</label>
                 <input
@@ -1110,7 +1180,10 @@ export default function AcademyDashboard() {
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsCourseModalOpen(false)}
+                  onClick={() => {
+                    setIsCourseModalOpen(false);
+                    setEditingCourseId(null);
+                  }}
                   className="flex-1 py-3 px-6 rounded-2xl border border-slate-200 dark:border-slate-700 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancelar
@@ -1121,10 +1194,44 @@ export default function AcademyDashboard() {
                   className="flex-2 py-3 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
                 >
                   {isCreatingCourse ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-                  {isCreatingCourse ? 'Creando...' : 'Crear Curso'}
+                  {isCreatingCourse ? 'Guardando...' : (editingCourseId ? 'Guardar Cambios' : 'Crear Curso')}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN CUSTOM */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Confirmación</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {confirmDialog.message}
+              </p>
+              <div className="flex w-full gap-3 mt-4">
+                <button
+                  onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmDialog({ ...confirmDialog, isOpen: false });
+                    confirmDialog.onConfirm();
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all"
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

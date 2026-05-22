@@ -27,7 +27,9 @@ import './App.css';
 
 // 1. Componente de Restricción de Dominio (Restaurado)
 const DomainRestrictedRoute = ({ children, appOnly = false }) => {
-  const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
+  const isAppDomain = window.location.hostname.includes('app.') || 
+                      window.location.hostname === 'localhost' || 
+                      window.location.hostname === '51.79.68.249'; // Permitir acceso desde la IP de Coolify
   if (appOnly && !isAppDomain) return <Navigate to="/" replace />;
   return children;
 };
@@ -59,7 +61,9 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 // 3. Componente Home (Selector Landing/App)
 const Home = () => {
   const { isAuthenticated, profile, isAdmin, loading } = useAuth();
-  const isAppDomain = window.location.hostname.includes('app.') || window.location.hostname === 'localhost';
+  const isAppDomain = window.location.hostname.includes('app.') || 
+                      window.location.hostname === 'localhost' ||
+                      window.location.hostname === '51.79.68.249';
 
   if (loading) return <div className="min-h-screen bg-[#020203] flex items-center justify-center"><div className="premium-spinner"></div></div>;
   if (!isAppDomain) return <LandingPage />;

@@ -503,7 +503,26 @@ export default function LessonCreator() {
 
             <hr className="border-slate-100 dark:border-slate-800" />
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if(confirm("¿Estás seguro de cancelar? Se perderán los datos ingresados no guardados.")) {
+                    setTitle('');
+                    setDescription('');
+                    setCourseId('');
+                    setModuleId('');
+                    setVideoPath('');
+                    setThumbnailUrl('');
+                    setMateriales([]);
+                    setFileToUpload(null);
+                    setUploadProgress(0);
+                  }
+                }}
+                className="px-10 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+              >
+                Cancelar
+              </button>
               <button type="submit" disabled={loading} className="px-10 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all">
                 {loading ? 'Guardando...' : 'Publicar Contenido'}
               </button>
