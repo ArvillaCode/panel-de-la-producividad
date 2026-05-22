@@ -10,8 +10,8 @@
     "configure-assistant": "node scripts/configureAssistant.js",
     "dev": "vite",
     "build": "vite build",
-    "preview": "node scripts/start-server.mjs",
-    "start": "node scripts/start-server.mjs",
+    "preview": "serve -s dist -l 3000",
+    "start": "serve -s dist -l 3000",
     "announce": "node scripts/announce_updates.js"
   },
   "dependencies": {
@@ -21,7 +21,8 @@
     "react-dom": "^18.2.0",
     "react-draggable": "^4.5.0",
     "react-router-dom": "^7.9.2",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "serve": "^14.2.6"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

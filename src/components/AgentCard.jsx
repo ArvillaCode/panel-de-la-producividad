@@ -4,12 +4,22 @@ import Avatar from './Avatar';
 import AgentRating from './user/AgentRating';
 import { useAuth } from '../hooks/useAuth';
 
-const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) => {
+const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0, onChatClick }) => {
   const { user } = useAuth();
-  const handleChatClick = () => {
-    const prompt = `Hola, soy ${agent.name}, especialista en ${agent.specialty}. ${agent.description}. ¿En qué puedes ayudarte hoy?`;
-    const chatGPTUrl = `https://chat.openai.com/?q=${encodeURIComponent(prompt)}`;
-    window.open(chatGPTUrl, '_blank');
+  const handleChatClick = (e) => {
+    if (e) e.stopPropagation();
+    
+    // Always call onChatClick to track interactions in Supabase
+    if (typeof onChatClick === 'function') {
+      onChatClick();
+    }
+    
+    // Si no tiene chatLink en AgentPanel, aquí nos aseguramos de que abra algo
+    if (!agent.chatLink) {
+      const prompt = `Hola, soy ${agent.name}, especialista en ${agent.specialty}. ${agent.description}. ¿En qué puedes ayudarte hoy?`;
+      const chatGPTUrl = `https://chat.openai.com/?q=${encodeURIComponent(prompt)}`;
+      window.open(chatGPTUrl, '_blank');
+    }
   };
 
   const getCategoryColor = (category) => {

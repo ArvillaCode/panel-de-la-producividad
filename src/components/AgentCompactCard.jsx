@@ -2,12 +2,21 @@ import React from 'react';
 import { MessageCircle, Heart, Star, Zap, Shield } from 'lucide-react';
 import Avatar from './Avatar';
 
-const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0 }) => {
+const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0, onChatClick }) => {
   const handleChatClick = (e) => {
-    e.stopPropagation();
-    const prompt = `Hola, soy ${agent.name}, especialista en ${agent.specialty}. ${agent.description}. ¿En qué puedes ayudarte hoy?`;
-    const chatGPTUrl = `https://chat.openai.com/?q=${encodeURIComponent(prompt)}`;
-    window.open(chatGPTUrl, '_blank');
+    if (e) e.stopPropagation();
+    
+    // Always call onChatClick to track interactions in Supabase
+    if (typeof onChatClick === 'function') {
+      onChatClick();
+    }
+    
+    // Si no tiene chatLink en AgentPanel, aquí nos aseguramos de que abra algo
+    if (!agent.chatLink) {
+      const prompt = `Hola, soy ${agent.name}, especialista en ${agent.specialty}. ${agent.description}. ¿En qué puedes ayudarte hoy?`;
+      const chatGPTUrl = `https://chat.openai.com/?q=${encodeURIComponent(prompt)}`;
+      window.open(chatGPTUrl, '_blank');
+    }
   };
 
   const handleMouseMove = (e) => {

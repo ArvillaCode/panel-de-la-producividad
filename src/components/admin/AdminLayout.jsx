@@ -131,7 +131,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       id: 'academia',
       name: 'Academia',
       icon: GraduationCap,
-      path: '/dashboard/academia/admin',
+      path: '/dashboard/academia',
       description: 'Gestión educativa'
     }
   ];

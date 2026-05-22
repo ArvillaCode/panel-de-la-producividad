@@ -169,7 +169,7 @@ const AgentGuide = () => {
       if (!responseText) throw new Error('Respuesta vacia del servidor de IA');
 
       setMessages((prev) => [...prev, { role: 'model', content: responseText }]);
-      if (responseText.includes('[BOT_LINK:')) {
+      if (responseText.includes('[BOT_LINK:') || responseText.includes('[LINK:')) {
         toast.success('Agente recomendado con exito');
       }
     } catch (error) {
@@ -182,7 +182,7 @@ const AgentGuide = () => {
 
   const renderContent = (content) => {
     if (typeof content !== 'string') return null;
-    const parts = content.split(/(\[BOT_LINK:.*?\|.*?\])/g);
+    const parts = content.split(/(\[BOT_LINK:.*?\|.*?\]|\[LINK:.*?\])/g);
 
     return parts.map((part, index) => {
       if (part.startsWith('[BOT_LINK:')) {
@@ -199,6 +199,24 @@ const AgentGuide = () => {
             >
               <Zap className="w-3.5 h-3.5" />
               Chatear con {name}
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          );
+        }
+      } else if (part.startsWith('[LINK:')) {
+        const match = part.match(/\[LINK:(.*?)\]/);
+        if (match) {
+          const [, url] = match;
+          return (
+            <a
+              key={index}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black mt-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Abrir Agente Recomendado
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           );

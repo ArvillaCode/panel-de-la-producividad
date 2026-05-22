@@ -29,6 +29,8 @@ export default function LessonCreator() {
   const [description, setDescription] = useState('');
   const [moduleId, setModuleId] = useState('');
   const [courseId, setCourseId] = useState('');
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [newCourseName, setNewCourseName] = useState('');
   const [isCreatingModule, setIsCreatingModule] = useState(false);
   const [newModuleName, setNewModuleName] = useState('');
   const [videoPath, setVideoPath] = useState('');
@@ -100,6 +102,40 @@ export default function LessonCreator() {
       }
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleCreateCourse = async () => {
+    if (!newCourseName) {
+      alert("Ingresa un nombre para el curso");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('academy_courses')
+        .insert([{ 
+          title: newCourseName,
+          category: 'General',
+          is_premium: false
+        }])
+        .select();
+
+      if (error) {
+        console.error("Error creating course:", error);
+        alert(`Error al crear curso: ${error.message}`);
+        return;
+      }
+
+      if (data) {
+        setCourses(prev => [...prev, data[0]]);
+        setCourseId(data[0].id);
+        setNewCourseName('');
+        setIsCreatingCourse(false);
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(`Error crítico: ${error.message}`);
     }
   };
 
@@ -296,10 +332,40 @@ export default function LessonCreator() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Asignar a Curso *</label>
-                  <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">Asignar a Curso *</label>
+                    <button 
+                      type="button"
+                      onClick={() => setIsCreatingCourse(!isCreatingCourse)}
+                      className="text-xs text-blue-600 font-bold hover:underline"
+                    >
+                      {isCreatingCourse ? "Cancelar" : "+ Nuevo Curso"}
+                    </button>
+                  </div>
+
+                  {isCreatingCourse ? (
+                    <div className="flex gap-2 animate-in slide-in-from-top-1">
+                      <input
+                        type="text"
+                        placeholder="Nombre del curso..."
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 focus:outline-none"
+                        value={newCourseName}
+                        onChange={(e) => setNewCourseName(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCourse}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/30"
+                      >
+                        Crear
+                      </button>
+                    </div>
+                  ) : (
+                    <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                      {courses.length === 0 && <option value="">No hay cursos</option>}
+                      {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -406,6 +472,18 @@ export default function LessonCreator() {
               {/* Thumbnail */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Miniatura (Portada)</h3>
+                
+                <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 italic">Ruta o URL externa</label>
+                  <input 
+                    type="text" 
+                    value={thumbnailUrl} 
+                    onChange={(e) => setThumbnailUrl(e.target.value)} 
+                    placeholder="Ej: academy/thumbnails/miniatura.jpg o https://..."
+                    className="w-full px-4 py-2 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
+                  />
+                </div>
+
                 <div className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-center">
                   <input type="file" accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -413,7 +491,7 @@ export default function LessonCreator() {
                   }} className="hidden" id="thumb-input" />
                   <label htmlFor="thumb-input" className="cursor-pointer">
                     {thumbnailUrl ? (
-                      <img src={academyMediaUrl(thumbnailUrl)} className="w-full aspect-video object-cover rounded-lg" />
+                      <img src={thumbnailUrl.startsWith('http') ? thumbnailUrl : academyMediaUrl(thumbnailUrl)} className="w-full aspect-video object-cover rounded-lg" />
                     ) : (
                       <div className="py-4 text-slate-400">Click para subir JPG/PNG</div>
                     )}

@@ -229,6 +229,9 @@ export default function AcademyDashboard() {
 
   const handleUpdateLesson = async () => {
     if (!activeLesson) return;
+    
+    if (!confirm("¿Estás seguro de que deseas guardar los cambios en esta lección?")) return;
+    
     setIsSaving(true);
 
     try {
@@ -408,6 +411,8 @@ export default function AcademyDashboard() {
           } else if (formattedModules[0]?.lessons.length > 0) {
             setActiveLesson(formattedModules[0].lessons[0]);
             setExpandedModules({ [formattedModules[0].id]: true });
+          } else {
+            setActiveLesson(null);
           }
         }
       } catch (error) {
@@ -428,6 +433,19 @@ export default function AcademyDashboard() {
   };
 
   const handleLessonSelect = (lesson: Lesson) => {
+    if (isEditMode && activeLesson) {
+      const hasUnsavedChanges = 
+        editTitle !== (activeLesson.title || '') ||
+        editDescription !== (activeLesson.description || '') ||
+        editVideoPath !== (activeLesson.video_path || '') ||
+        editThumbnailUrl !== (activeLesson.thumbnail_url || '');
+
+      if (hasUnsavedChanges) {
+        if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres cambiar de lección y perder estos cambios?")) {
+          return;
+        }
+      }
+    }
     setActiveLesson(lesson);
     const params = new URLSearchParams(location.search);
     params.set('lesson', lesson.id);
@@ -523,7 +541,22 @@ export default function AcademyDashboard() {
               </Link>
 
               <button
-                onClick={() => setIsEditMode(!isEditMode)}
+                onClick={() => {
+                  if (isEditMode && activeLesson) {
+                    const hasUnsavedChanges = 
+                      editTitle !== (activeLesson.title || '') ||
+                      editDescription !== (activeLesson.description || '') ||
+                      editVideoPath !== (activeLesson.video_path || '') ||
+                      editThumbnailUrl !== (activeLesson.thumbnail_url || '');
+
+                    if (hasUnsavedChanges) {
+                      if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir del modo edición y perder estos cambios?")) {
+                        return;
+                      }
+                    }
+                  }
+                  setIsEditMode(!isEditMode);
+                }}
                 className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
               >
                 <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></div>
@@ -587,19 +620,10 @@ export default function AcademyDashboard() {
         {/* VISTA DE CURSOS */}
         {view === 'courses' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {(courses.length > 0
-              ? courses.filter(c => {
+            {courses.filter(c => {
                 if (showOnlyPremium) return c.is_premium;
                 return selectedCategory === 'Todas' || c.category === selectedCategory;
-              })
-              : [
-                { id: '1', title: 'Curso de Automatización', description: 'Aprende a automatizar tus flujos con IA.', thumbnail_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800', category: 'Automatización', is_premium: true },
-                { id: '2', title: 'Marketing con IA', description: 'Estrategias avanzadas de marketing digital.', thumbnail_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800', category: 'Marketing', is_premium: false },
-                { id: '3', title: 'Inteligencia Artificial', description: 'Fundamentos y aplicaciones de la IA moderna.', thumbnail_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800', category: 'Inteligencia Artificial', is_premium: true }
-              ].filter(c => {
-                if (showOnlyPremium) return c.is_premium;
-                return selectedCategory === 'Todas' || c.category === selectedCategory;
-              })).map((course) => (
+              }).map((course) => (
                 <div
                   key={course.id}
                   onClick={() => {
@@ -844,7 +868,7 @@ export default function AcademyDashboard() {
                           onLoadedMetadata={(e) => {
                             const video = e.currentTarget;
                             const savedTime = localStorage.getItem(`lesson-time-${activeLesson.id}`);
-                            if (savedTime) {
+                            if (savedTime && parseFloat(savedTime) > 1) {
                               video.currentTime = parseFloat(savedTime);
                             }
                           }}
@@ -1036,6 +1060,18 @@ export default function AcademyDashboard() {
 
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Imagen de Portada (Thumbnail)</label>
+                
+                <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50 mb-4">
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 italic">Ruta o URL externa</label>
+                  <input 
+                    type="text" 
+                    value={courseForm.thumbnail_url} 
+                    onChange={(e) => setCourseForm({ ...courseForm, thumbnail_url: e.target.value })} 
+                    placeholder="Ej: https://..."
+                    className="w-full px-4 py-2 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
+                  />
+                </div>
+
                 <div className="relative group cursor-pointer">
                   <input
                     type="file"
@@ -1046,7 +1082,7 @@ export default function AcademyDashboard() {
                   <div className={`p-8 border-2 border-dashed rounded-3xl text-center transition-all ${courseForm.thumbnail_url ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
                     {courseForm.thumbnail_url ? (
                       <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
-                        <img src={academyMediaUrl(courseForm.thumbnail_url)} className="w-full h-full object-cover" />
+                        <img src={courseForm.thumbnail_url.startsWith('http') ? courseForm.thumbnail_url : academyMediaUrl(courseForm.thumbnail_url)} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <ImageIcon className="w-8 h-8 text-white" />
                         </div>
