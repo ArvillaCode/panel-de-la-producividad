@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Panel interactivo con 50 agentes de IA especializados",
   "type": "module",
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "configure-assistant": "node scripts/configureAssistant.js",
     "dev": "vite",
