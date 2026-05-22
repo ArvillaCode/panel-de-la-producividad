@@ -18,7 +18,8 @@ import {
   TrendingDown,
   ChevronUp,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import {
   AreaChart,
@@ -92,6 +93,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dateFilter, setDateFilter] = useState('all');
+  const [dashboardError, setDashboardError] = useState('');
   const [stats, setStats] = useState({
     totalUsers: 0,
     adminUsers: 0,
@@ -107,12 +109,34 @@ const AdminDashboard = () => {
   });
 
   const fetchStats = async () => {
-    const { data: directUsers } = await supabase.from('profiles').select('*');
-    const { data: agentsData } = await supabase.from('agents').select('*');
-    const { data: ratingsData } = await supabase.from('agent_ratings').select('*');
+    setDashboardError('');
 
-    let allUsers = directUsers || [];
-    let filteredAgents = agentsData || [];
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (!sessionData?.session) {
+      setDashboardError('La sesion aun no esta lista. Actualiza de nuevo en unos segundos.');
+      return;
+    }
+
+    const [usersResult, agentsResult, ratingsResult] = await Promise.all([
+      supabase.from('profiles').select('*'),
+      supabase.from('agents').select('*'),
+      supabase.from('agent_ratings').select('*')
+    ]);
+
+    const queryError = usersResult.error || agentsResult.error || ratingsResult.error;
+    if (queryError) {
+      console.error('[ADMIN DASHBOARD] Error loading stats:', {
+        profiles: usersResult.error,
+        agents: agentsResult.error,
+        ratings: ratingsResult.error
+      });
+      throw queryError;
+    }
+
+    let allUsers = usersResult.data || [];
+    let filteredAgents = agentsResult.data || [];
+    const ratingsData = ratingsResult.data || [];
 
     if (dateFilter !== 'all') {
       const now = new Date();
@@ -156,7 +180,7 @@ const AdminDashboard = () => {
 
     // --- Rankings ---
     const rankings = filteredAgents.map(agent => {
-      const agentRatings = (ratingsData || []).filter(r => r.agent_id === agent.id);
+      const agentRatings = ratingsData.filter(r => r.agent_id === agent.id);
       const avg = agentRatings.length > 0 ? agentRatings.reduce((sum, r) => sum + r.rating, 0) / agentRatings.length : 0;
       return { id: agent.id, name: agent.name, avgRating: avg, totalVotes: agentRatings.length, trend: avg >= 4 ? 'up' : 'neutral' };
     }).sort((a, b) => b.avgRating - a.avgRating);
@@ -177,13 +201,24 @@ const AdminDashboard = () => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchStats();
-    setIsRefreshing(false);
+    try {
+      await fetchStats();
+    } catch (error) {
+      console.error('[ADMIN DASHBOARD] Refresh failed:', error);
+      setDashboardError(`No se pudieron cargar las metricas: ${error.message || 'error desconocido'}`);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => {
-    fetchStats();
-  }, [dateFilter]);
+    if (loading || !user || !profile) return;
+
+    fetchStats().catch((error) => {
+      console.error('[ADMIN DASHBOARD] Initial load failed:', error);
+      setDashboardError(`No se pudieron cargar las metricas: ${error.message || 'error desconocido'}`);
+    });
+  }, [dateFilter, loading, user?.id, profile?.id, profile?.role]);
 
   // (Moved outside to prevent re-renders)
 
@@ -237,6 +272,16 @@ const AdminDashboard = () => {
             </p>
           </div>
         </div>
+
+        {dashboardError && (
+          <div className="glass-card border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3 text-amber-200 animate-fade-in-up">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-black uppercase tracking-widest text-amber-300">Metricas no disponibles</p>
+              <p className="text-sm text-amber-100/80 mt-1">{dashboardError}</p>
+            </div>
+          </div>
+        )}
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
