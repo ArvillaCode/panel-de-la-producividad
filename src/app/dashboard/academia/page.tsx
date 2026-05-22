@@ -117,6 +117,7 @@ export default function AcademyDashboard() {
   const [editThumbnailUrl, setEditThumbnailUrl] = useState('');
   const [isUploadingEditThumb, setIsUploadingEditThumb] = useState(false);
   const [isUploadingEditVideo, setIsUploadingEditVideo] = useState(false);
+  const [editMateriales, setEditMateriales] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // --- ESTADOS CREACIÓN CURSO ---
@@ -319,7 +320,8 @@ export default function AcademyDashboard() {
           title: editTitle,
           description: editDescription,
           video_path: editVideoPath,
-          thumbnail_url: editThumbnailUrl
+          thumbnail_url: editThumbnailUrl,
+          materiales: editMateriales
         })
         .eq('id', activeLesson.id);
 
@@ -360,6 +362,7 @@ export default function AcademyDashboard() {
       setEditDescription(activeLesson.description || '');
       setEditVideoPath(activeLesson.video_path || '');
       setEditThumbnailUrl(activeLesson.thumbnail_url || '');
+      setEditMateriales(activeLesson.materiales || []);
       setVideoError(false);
     }
   }, [activeLesson]);
@@ -512,7 +515,8 @@ export default function AcademyDashboard() {
         editTitle !== (activeLesson.title || '') ||
         editDescription !== (activeLesson.description || '') ||
         editVideoPath !== (activeLesson.video_path || '') ||
-        editThumbnailUrl !== (activeLesson.thumbnail_url || '');
+        editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
+        JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
 
       if (hasUnsavedChanges) {
         requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres cambiar de lección y perder estos cambios?", () => {
@@ -588,7 +592,8 @@ export default function AcademyDashboard() {
                       (editTitle !== activeLesson.title ||
                        editDescription !== activeLesson.description ||
                        editVideoPath !== activeLesson.video_path ||
-                       editThumbnailUrl !== activeLesson.thumbnail_url);
+                       editThumbnailUrl !== activeLesson.thumbnail_url ||
+                       JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []));
 
                     if (isEditMode && hasUnsavedChanges) {
                       requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir y perder estos cambios?", () => {
@@ -671,7 +676,8 @@ export default function AcademyDashboard() {
                       editTitle !== (activeLesson.title || '') ||
                       editDescription !== (activeLesson.description || '') ||
                       editVideoPath !== (activeLesson.video_path || '') ||
-                      editThumbnailUrl !== (activeLesson.thumbnail_url || '');
+                      editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
+                      JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
 
                     if (hasUnsavedChanges) {
                       if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir del modo edición y perder estos cambios?")) {
@@ -1108,6 +1114,39 @@ export default function AcademyDashboard() {
                             rows={6}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                           />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Materiales y Recursos</label>
+                          {editMateriales.map((m, idx) => (
+                            <div key={idx} className="flex gap-2 mb-2">
+                              <input 
+                                type="text" placeholder="Nombre (Ej: Guía en PDF)" 
+                                value={m.nombre || ''} 
+                                onChange={(e) => {
+                                  const nm = [...editMateriales]; nm[idx] = { ...nm[idx], nombre: e.target.value }; setEditMateriales(nm);
+                                }}
+                                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                              />
+                              <input 
+                                type="text" placeholder="URL del recurso" 
+                                value={m.url || ''} 
+                                onChange={(e) => {
+                                  const nm = [...editMateriales]; nm[idx] = { ...nm[idx], url: e.target.value }; setEditMateriales(nm);
+                                }}
+                                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                              />
+                              <button type="button" onClick={() => setEditMateriales(editMateriales.filter((_, i) => i !== idx))} className="px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all" title="Eliminar recurso">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <button 
+                            type="button"
+                            onClick={() => setEditMateriales([...editMateriales, {nombre: '', url: ''}])}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 mt-2"
+                          >
+                            <Plus className="w-3 h-3" /> Añadir Recurso
+                          </button>
                         </div>
                         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                           <button
