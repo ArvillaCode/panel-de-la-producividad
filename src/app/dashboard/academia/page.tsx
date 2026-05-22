@@ -14,7 +14,8 @@ import {
   Save,
   Trash2,
   Lock,
-  Pencil
+  Pencil,
+  Settings
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
@@ -132,11 +133,48 @@ export default function AcademyDashboard() {
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // --- ESTADOS AJUSTES ACADEMIA ---
+  const [isAcademySettingsModalOpen, setIsAcademySettingsModalOpen] = useState(false);
+  const [academySettingsForm, setAcademySettingsForm] = useState({ title: '', description: '', logo: '' });
+  const [isSavingAcademySettings, setIsSavingAcademySettings] = useState(false);
+
   // --- CONFIRM MODAL ---
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: () => {} });
 
   const requestConfirm = (message: string, onConfirm: () => void) => {
     setConfirmDialog({ isOpen: true, message, onConfirm });
+  };
+
+  const handleSaveAcademySettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingAcademySettings(true);
+    try {
+      const slug = 'global-academy-settings';
+      const globalSettingsCourse = courses.find(c => c.slug === slug);
+      
+      if (globalSettingsCourse) {
+        const { error } = await supabase
+          .from('academy_courses')
+          .update({ title: academySettingsForm.title, description: academySettingsForm.description, thumbnail_url: academySettingsForm.logo })
+          .eq('id', globalSettingsCourse.id);
+        if (error) throw error;
+        
+        setCourses(prev => prev.map(c => c.id === globalSettingsCourse.id ? { ...c, title: academySettingsForm.title, description: academySettingsForm.description, thumbnail_url: academySettingsForm.logo } : c));
+      } else {
+        const { data, error } = await supabase
+          .from('academy_courses')
+          .insert([{ title: academySettingsForm.title, description: academySettingsForm.description, thumbnail_url: academySettingsForm.logo, slug, category: 'System', is_published: false }])
+          .select();
+        if (error) throw error;
+        setCourses(prev => [...prev, data[0]]);
+      }
+      setIsAcademySettingsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert(`Error al guardar configuración: ${error.message || 'Error desconocido'}`);
+    } finally {
+      setIsSavingAcademySettings(false);
+    }
   };
 
 
@@ -564,18 +602,51 @@ export default function AcademyDashboard() {
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                 </button>
               )}
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {view === 'courses' ? 'Upfunne Academy' : (selectedCourse?.title || 'Cargando curso...')}
-              </h1>
+              
+              {(() => {
+                const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
+                const aTitle = globalSettings?.title || 'UpFunnel Academy';
+                const aDesc = globalSettings?.description || 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.';
+                const aLogo = globalSettings?.thumbnail_url || null;
+
+                return (
+                  <>
+                    {view === 'courses' && aLogo && (
+                      <img src={aLogo} alt={aTitle} className="h-10 md:h-12 w-auto object-contain mr-2" />
+                    )}
+                    <div>
+                      <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+                        {view === 'courses' ? aTitle : (selectedCourse?.title || 'Cargando curso...')}
+                      </h1>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base mt-1">
+                        {view === 'courses' ? aDesc : (selectedCourse?.description || 'Cargando detalles del curso...')}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
-              {view === 'courses'
-                ? 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.'
-                : (selectedCourse?.description || 'Cargando detalles del curso...')}
-            </p>
           </div>
+
           {isAdmin && (
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => {
+                  const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
+                  setAcademySettingsForm({
+                    title: globalSettings?.title || 'UpFunnel Academy',
+                    description: globalSettings?.description || 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.',
+                    logo: globalSettings?.thumbnail_url || ''
+                  });
+                  setIsAcademySettingsModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
+                title="Ajustes de Academia"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Ajustes</span>
+              </button>
+
               <Link
                 to={isAdmin ? "/admin" : "/dashboard"}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
@@ -677,6 +748,7 @@ export default function AcademyDashboard() {
         {view === 'courses' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {courses.filter(c => {
+                if (c.slug === 'global-academy-settings') return false;
                 if (showOnlyPremium) return c.is_premium;
                 return selectedCategory === 'Todas' || c.category === selectedCategory;
               }).map((course) => (
@@ -1059,6 +1131,83 @@ export default function AcademyDashboard() {
           </div>
         )}
       </div>
+
+      {/* MODAL AJUSTES ACADEMIA */}
+      {isAcademySettingsModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg overflow-y-auto rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300 custom-scrollbar">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-xl font-bold">Ajustes de la Academia</h2>
+              <button onClick={() => setIsAcademySettingsModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAcademySettings} className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">Título de la Academia</label>
+                <input
+                  type="text"
+                  value={academySettingsForm.title}
+                  onChange={(e) => setAcademySettingsForm({ ...academySettingsForm, title: e.target.value })}
+                  placeholder="Ej: UpFunnel Academy"
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">Descripción / Subtítulo</label>
+                <textarea
+                  value={academySettingsForm.description}
+                  onChange={(e) => setAcademySettingsForm({ ...academySettingsForm, description: e.target.value })}
+                  placeholder="Domina el Panel con nuestros cursos..."
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">URL del Logo (Opcional)</label>
+                <div className="flex gap-3">
+                  <input
+                    type="url"
+                    value={academySettingsForm.logo}
+                    onChange={(e) => setAcademySettingsForm({ ...academySettingsForm, logo: e.target.value })}
+                    placeholder="https://..."
+                    className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">Puedes subir tu logo a R2 usando el botón de crear curso y copiar aquí la URL generada, o pegar la URL de cualquier imagen.</p>
+              </div>
+
+              {academySettingsForm.logo && (
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center">
+                  <img src={academySettingsForm.logo} alt="Preview Logo" className="max-h-16 object-contain" />
+                </div>
+              )}
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAcademySettingsModalOpen(false)}
+                  className="flex-1 py-3 px-6 rounded-2xl border border-slate-200 dark:border-slate-700 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingAcademySettings || !academySettingsForm.title}
+                  className="flex-2 py-3 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                >
+                  {isSavingAcademySettings ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                  {isSavingAcademySettings ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL CREACIÓN CURSO */}
       {isCourseModalOpen && (
