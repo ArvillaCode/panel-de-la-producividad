@@ -1,0 +1,174 @@
+-- =====================================================================
+-- Migration: 20260521_rls_hardening.sql
+-- Descripcion: Activa Row Level Security (RLS) y define politicas
+--              Zero-Trust para tablas criticas existentes.
+--              Algunas instalaciones no tienen todos los modulos, por eso
+--              cada bloque verifica la tabla antes de tocarla.
+-- =====================================================================
+
+BEGIN;
+
+DO $$
+BEGIN
+  IF to_regclass('public.system_config') IS NOT NULL THEN
+    ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "system_config_select" ON public.system_config;
+    DROP POLICY IF EXISTS "system_config_admin_write" ON public.system_config;
+
+    CREATE POLICY "system_config_select" ON public.system_config
+      FOR SELECT TO authenticated USING (true);
+
+    CREATE POLICY "system_config_admin_write" ON public.system_config
+      FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.agents') IS NOT NULL THEN
+    ALTER TABLE public.agents ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "agents_select_policy" ON public.agents;
+    DROP POLICY IF EXISTS "agents_admin_policy" ON public.agents;
+
+    CREATE POLICY "agents_select_policy" ON public.agents
+      FOR SELECT TO authenticated USING (visible = true OR public.is_admin(auth.uid()));
+
+    CREATE POLICY "agents_admin_policy" ON public.agents
+      FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.academy_courses') IS NOT NULL THEN
+    ALTER TABLE public.academy_courses ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "courses_select" ON public.academy_courses;
+    DROP POLICY IF EXISTS "courses_admin" ON public.academy_courses;
+
+    CREATE POLICY "courses_select" ON public.academy_courses FOR SELECT TO authenticated USING (true);
+    CREATE POLICY "courses_admin" ON public.academy_courses FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.academy_modules') IS NOT NULL THEN
+    ALTER TABLE public.academy_modules ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "modules_select" ON public.academy_modules;
+    DROP POLICY IF EXISTS "modules_admin" ON public.academy_modules;
+
+    CREATE POLICY "modules_select" ON public.academy_modules FOR SELECT TO authenticated USING (true);
+    CREATE POLICY "modules_admin" ON public.academy_modules FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.academy_lessons') IS NOT NULL THEN
+    ALTER TABLE public.academy_lessons ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "lessons_select" ON public.academy_lessons;
+    DROP POLICY IF EXISTS "lessons_admin" ON public.academy_lessons;
+
+    CREATE POLICY "lessons_select" ON public.academy_lessons FOR SELECT TO authenticated USING (true);
+    CREATE POLICY "lessons_admin" ON public.academy_lessons FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.user_favorites') IS NOT NULL THEN
+    ALTER TABLE public.user_favorites ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "favorites_owner" ON public.user_favorites;
+
+    CREATE POLICY "favorites_owner" ON public.user_favorites
+      FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.agent_ratings') IS NOT NULL THEN
+    ALTER TABLE public.agent_ratings ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "ratings_select" ON public.agent_ratings;
+    DROP POLICY IF EXISTS "ratings_owner" ON public.agent_ratings;
+
+    CREATE POLICY "ratings_select" ON public.agent_ratings FOR SELECT TO authenticated USING (true);
+    CREATE POLICY "ratings_owner" ON public.agent_ratings FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.agent_suggestions') IS NOT NULL THEN
+    ALTER TABLE public.agent_suggestions ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "suggestions_select" ON public.agent_suggestions;
+    DROP POLICY IF EXISTS "suggestions_insert" ON public.agent_suggestions;
+    DROP POLICY IF EXISTS "suggestions_admin" ON public.agent_suggestions;
+
+    CREATE POLICY "suggestions_select" ON public.agent_suggestions FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_admin(auth.uid()));
+    CREATE POLICY "suggestions_insert" ON public.agent_suggestions FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+    CREATE POLICY "suggestions_admin" ON public.agent_suggestions FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.notifications') IS NOT NULL THEN
+    ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "notifications_owner_select" ON public.notifications;
+    DROP POLICY IF EXISTS "notifications_owner_update" ON public.notifications;
+    DROP POLICY IF EXISTS "notifications_admin_insert" ON public.notifications;
+
+    CREATE POLICY "notifications_owner_select" ON public.notifications FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_admin(auth.uid()));
+    CREATE POLICY "notifications_owner_update" ON public.notifications FOR UPDATE TO authenticated USING (user_id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (user_id = auth.uid() OR public.is_admin(auth.uid()));
+    CREATE POLICY "notifications_admin_insert" ON public.notifications FOR INSERT TO authenticated WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.audit_logs') IS NOT NULL THEN
+    ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "audit_logs_admin_select" ON public.audit_logs;
+    DROP POLICY IF EXISTS "audit_logs_user_insert" ON public.audit_logs;
+
+    CREATE POLICY "audit_logs_admin_select" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin(auth.uid()));
+    CREATE POLICY "audit_logs_user_insert" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.release_notes') IS NOT NULL THEN
+    ALTER TABLE public.release_notes ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "releases_select" ON public.release_notes;
+    DROP POLICY IF EXISTS "releases_admin" ON public.release_notes;
+
+    CREATE POLICY "releases_select" ON public.release_notes FOR SELECT TO authenticated USING (true);
+    CREATE POLICY "releases_admin" ON public.release_notes FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.user_release_reads') IS NOT NULL THEN
+    ALTER TABLE public.user_release_reads ENABLE ROW LEVEL SECURITY;
+
+    DROP POLICY IF EXISTS "release_reads_owner" ON public.user_release_reads;
+
+    CREATE POLICY "release_reads_owner" ON public.user_release_reads FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  END IF;
+END $$;
+
+COMMIT;
