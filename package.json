@@ -7,8 +7,8 @@
     "configure-assistant": "node scripts/configureAssistant.js",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "start": "vite",
+    "preview": "node scripts/start-server.mjs",
+    "start": "node scripts/start-server.mjs",
     "announce": "node scripts/announce_updates.js"
   },
   "dependencies": {
@@ -23,11 +23,11 @@
   "devDependencies": {
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.15",
     "postcss": "^8.4.29",
     "tailwindcss": "^3.3.3",
-    "vite": "^5.2.0"
+    "vite": "^8.0.13"
   },
   "keywords": [
     "react",
