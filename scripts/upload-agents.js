@@ -1,9 +1,22 @@
 import fs from 'fs';
-import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import { agents } from './src/data/agents.js';
+import { agents } from '../src/data/agents.js';
 
-dotenv.config({ path: '.env.local' });
+function loadEnvFile(path) {
+  if (!fs.existsSync(path)) return;
+
+  for (const line of fs.readFileSync(path, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+
+    const [key, ...valueParts] = trimmed.split('=');
+    if (!process.env[key]) {
+      process.env[key] = valueParts.join('=').replace(/^['"]|['"]$/g, '');
+    }
+  }
+}
+
+loadEnvFile('.env.local');
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
