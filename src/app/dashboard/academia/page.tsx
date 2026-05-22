@@ -217,19 +217,17 @@ export default function AcademyDashboard() {
   const handleDeleteCourse = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     requestConfirm("¿Estás seguro de borrar este curso? Se eliminarán todos sus módulos y lecciones.", async () => {
-
-    try {
-      const { error } = await supabase.from('academy_courses').delete().eq('id', id);
-      if (error) throw error;
-      setCourses(courses.filter(c => c.id !== id));
-      if (selectedCourse?.id === id) {
-        setView('courses');
-        setSelectedCourse(null);
+      try {
+        const { error } = await supabase.from('academy_courses').delete().eq('id', id);
+        if (error) throw error;
+        setCourses(courses.filter(c => c.id !== id));
+        if (selectedCourse?.id === id) {
+          setView('courses');
+          setSelectedCourse(null);
+        }
+      } catch (error) {
+        alert("Error al borrar curso");
       }
-      }
-    } catch (error) {
-      alert("Error al borrar curso");
-    }
     });
   };
 
