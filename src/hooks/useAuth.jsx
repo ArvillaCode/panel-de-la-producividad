@@ -440,7 +440,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyOtpCode = async (email, token) => {
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'magiclink' });
     return { success: !error, error: error?.message, data };
   };
 
