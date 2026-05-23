@@ -655,78 +655,80 @@ export default function AcademyDashboard() {
             </div>
           </div>
 
-          {isAdmin && (
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => {
-                  const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
-                  setAcademySettingsForm({
-                    title: globalSettings?.title || 'UpFunnel Academy',
-                    description: globalSettings?.description || 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.',
-                    logo: globalSettings?.thumbnail_url || ''
-                  });
-                  setIsAcademySettingsModalOpen(true);
-                }}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
-                title="Ajustes de Academia"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Ajustes</span>
-              </button>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Link
+              to={isAdmin ? "/admin/dashboard" : "/dashboard"}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              Volver al Panel
+            </Link>
 
-              <Link
-                to={isAdmin ? "/admin" : "/dashboard"}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard Principal
-              </Link>
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => {
+                    const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
+                    setAcademySettingsForm({
+                      title: globalSettings?.title || 'UpFunnel Academy',
+                      description: globalSettings?.description || 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.',
+                      logo: globalSettings?.thumbnail_url || ''
+                    });
+                    setIsAcademySettingsModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
+                  title="Ajustes de Academia"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Ajustes</span>
+                </button>
 
-              <Link
-                to="/dashboard/academia/admin"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
-              >
-                <Save className="w-4 h-4" />
-                Creador de Contenido
-              </Link>
+                <Link
+                  to="/dashboard/academia/admin"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  Creador de Contenido
+                </Link>
 
-              <button
-                onClick={() => {
-                  if (isEditMode && activeLesson) {
-                    const hasUnsavedChanges = 
-                      editTitle !== (activeLesson.title || '') ||
-                      editDescription !== (activeLesson.description || '') ||
-                      editVideoPath !== (activeLesson.video_path || '') ||
-                      editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
-                      JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
+                <button
+                  onClick={() => {
+                    if (isEditMode && activeLesson) {
+                      const hasUnsavedChanges = 
+                        editTitle !== (activeLesson.title || '') ||
+                        editDescription !== (activeLesson.description || '') ||
+                        editVideoPath !== (activeLesson.video_path || '') ||
+                        editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
+                        JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
 
-                    if (hasUnsavedChanges) {
-                      if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir del modo edición y perder estos cambios?")) {
-                        return;
+                      if (hasUnsavedChanges) {
+                        if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir del modo edición y perder estos cambios?")) {
+                          return;
+                        }
                       }
                     }
-                  }
-                  setIsEditMode(!isEditMode);
-                }}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
-              >
-                <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></div>
-                {isEditMode ? 'Modo Edición Activo' : 'Modo Edición'}
-              </button>
+                    setIsEditMode(!isEditMode);
+                  }}
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></div>
+                  {isEditMode ? 'Modo Edición Activo' : 'Modo Edición'}
+                </button>
 
-              <button
-                onClick={() => {
-                  setEditingCourseId(null);
-                  setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
-                  setIsCourseModalOpen(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
-              >
-                <Plus className="w-4 h-4" />
-                Añadir Curso
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={() => {
+                    setEditingCourseId(null);
+                    setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
+                    setIsCourseModalOpen(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  Añadir Curso
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* FILTROS POR CATEGORÍA */}
