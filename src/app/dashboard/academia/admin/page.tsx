@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
-import { Plus, Trash2, Save, ArrowLeft, Play } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Play, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../../lib/academyR2Upload.js';
 
@@ -275,6 +275,7 @@ export default function LessonCreator() {
       const remotePath = await uploadFileToR2(file, 'videos');
       setUploadProgress(100);
       setVideoPath(remotePath);
+      setFileToUpload(null);
     } catch (err) {
       console.error("Error subiendo video:", err);
       alert("Error al subir el video. Inténtalo de nuevo.");
@@ -448,9 +449,23 @@ export default function LessonCreator() {
                     className="hidden" 
                     id="video-input" 
                   />
-                  <label htmlFor="video-input" className="cursor-pointer">
-                    <div className="mb-2 text-blue-600 font-bold">{fileToUpload ? fileToUpload.name : videoPath ? "Video Vinculado" : "Click o arrastra .mp4"}</div>
-                  </label>
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <label htmlFor="video-input" className="cursor-pointer">
+                      <div className="text-blue-600 font-bold hover:underline">
+                        {fileToUpload ? fileToUpload.name : videoPath ? "Video Vinculado" : "Click o arrastra .mp4"}
+                      </div>
+                    </label>
+                    {(fileToUpload || videoPath) && (
+                      <button 
+                        type="button" 
+                        onClick={() => { setFileToUpload(null); setVideoPath(''); }}
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1 rounded-full transition-colors"
+                        title="Descartar video"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                   {fileToUpload && !isUploading && (
                     <button type="button" onClick={async () => {
                       setIsUploading(true);

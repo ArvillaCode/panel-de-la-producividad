@@ -327,6 +327,14 @@ export default function AcademyDashboard() {
 
       if (error) throw error;
 
+      const updatedLesson = {
+        title: editTitle,
+        description: editDescription,
+        video_path: editVideoPath,
+        thumbnail_url: editThumbnailUrl,
+        materiales: Array.isArray(editMateriales) ? editMateriales : []
+      };
+
       // Actualizar estado local
       setModules(prev => prev.map(mod => ({
         ...mod,
@@ -362,7 +370,7 @@ export default function AcademyDashboard() {
       setEditDescription(activeLesson.description || '');
       setEditVideoPath(activeLesson.video_path || '');
       setEditThumbnailUrl(activeLesson.thumbnail_url || '');
-      setEditMateriales(activeLesson.materiales || []);
+      setEditMateriales(Array.isArray(activeLesson.materiales) ? activeLesson.materiales : []);
       setVideoError(false);
     }
   }, [activeLesson]);
@@ -434,13 +442,26 @@ export default function AcademyDashboard() {
 
           data.forEach((mod: any) => {
             const existing = modulesMap.get(mod.title);
-            const lessons = (mod.academy_lessons || []).map((lesson: any) => ({
-              ...lesson,
-              is_completed: false,
-              duration: "Video",
-              video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
-              thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
-            }));
+            const lessons = (mod.academy_lessons || []).map((lesson: any) => {
+              let parsedMateriales = [];
+              if (Array.isArray(lesson.materiales)) {
+                parsedMateriales = lesson.materiales;
+              } else if (typeof lesson.materiales === 'string') {
+                try {
+                  const parsed = JSON.parse(lesson.materiales);
+                  if (Array.isArray(parsed)) parsedMateriales = parsed;
+                } catch {}
+              }
+
+              return {
+                ...lesson,
+                materiales: parsedMateriales,
+                is_completed: false,
+                duration: "Video",
+                video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
+                thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
+              };
+            });
 
             if (existing) {
               existing.lessons = [...existing.lessons, ...lessons];
@@ -1117,13 +1138,13 @@ export default function AcademyDashboard() {
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Materiales y Recursos</label>
-                          {editMateriales.map((m, idx) => (
+                          {(Array.isArray(editMateriales) ? editMateriales : []).map((m, idx) => (
                             <div key={idx} className="flex gap-2 mb-2">
                               <input 
                                 type="text" placeholder="Nombre (Ej: Guía en PDF)" 
                                 value={m.nombre || ''} 
                                 onChange={(e) => {
-                                  const nm = [...editMateriales]; nm[idx] = { ...nm[idx], nombre: e.target.value }; setEditMateriales(nm);
+                                  const nm = [...(Array.isArray(editMateriales) ? editMateriales : [])]; nm[idx] = { ...nm[idx], nombre: e.target.value }; setEditMateriales(nm);
                                 }}
                                 className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                               />
@@ -1131,18 +1152,18 @@ export default function AcademyDashboard() {
                                 type="text" placeholder="URL del recurso" 
                                 value={m.url || ''} 
                                 onChange={(e) => {
-                                  const nm = [...editMateriales]; nm[idx] = { ...nm[idx], url: e.target.value }; setEditMateriales(nm);
+                                  const nm = [...(Array.isArray(editMateriales) ? editMateriales : [])]; nm[idx] = { ...nm[idx], url: e.target.value }; setEditMateriales(nm);
                                 }}
                                 className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                               />
-                              <button type="button" onClick={() => setEditMateriales(editMateriales.filter((_, i) => i !== idx))} className="px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all" title="Eliminar recurso">
+                              <button type="button" onClick={() => setEditMateriales((Array.isArray(editMateriales) ? editMateriales : []).filter((_, i) => i !== idx))} className="px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all" title="Eliminar recurso">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           ))}
                           <button 
                             type="button"
-                            onClick={() => setEditMateriales([...editMateriales, {nombre: '', url: ''}])}
+                            onClick={() => setEditMateriales([...(Array.isArray(editMateriales) ? editMateriales : []), {nombre: '', url: ''}])}
                             className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 mt-2"
                           >
                             <Plus className="w-3 h-3" /> Añadir Recurso
@@ -1178,7 +1199,7 @@ export default function AcademyDashboard() {
                       </>
                     )}
 
-                    {(activeLesson.materiales && activeLesson.materiales.length > 0) && (
+                    {(Array.isArray(activeLesson.materiales) && activeLesson.materiales.length > 0) && (
                       <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase mb-4">Materiales de apoyo</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

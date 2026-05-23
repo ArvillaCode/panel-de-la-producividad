@@ -102,6 +102,24 @@ const AdminLogin = () => {
     }
   };
 
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp) return;
+    setLoading(true);
+    setError('');
+    
+    try {
+      const result = await verifyOtpCode(email, otp);
+      if (!result.success) throw new Error(result.error || 'Código inválido o expirado.');
+      setSuccess('Código verificado con éxito. Ingresando...');
+      // El redireccionamiento sucederá automáticamente por onAuthStateChange
+    } catch (err) {
+      setError(err.message || 'Error al verificar el código');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#02040a] flex items-center justify-center relative overflow-hidden pointer-events-auto">
       <div className="flex w-full h-screen">
@@ -213,6 +231,32 @@ const AdminLogin = () => {
                   Hemos enviado un <strong className="text-white">enlace mágico</strong> a <br/>
                   <span className="text-blue-400 font-medium">{email}</span>
                 </p>
+                
+                <div className="mt-8 pt-6 border-t border-white/5">
+                  <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-4">¿Estás en la PC y abriste el correo en el teléfono?</p>
+                  <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => {
+                        setOtp(e.target.value);
+                        if (error) setError('');
+                      }}
+                      className="w-full bg-[#0a0f1c]/50 border border-white/10 rounded-2xl px-5 py-4 text-center text-2xl tracking-[0.5em] font-mono text-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 outline-none transition-all placeholder:text-slate-700"
+                      placeholder="000000"
+                      maxLength={6}
+                      disabled={loading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={loading || otp.length < 6}
+                      className="w-full py-3 bg-white hover:bg-slate-200 text-slate-900 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Verificando...' : 'Verificar Código'}
+                    </button>
+                  </form>
+                </div>
+
                 <div className="pt-6 mt-6 border-t border-white/5">
                   <button onClick={() => { setStep('email'); setError(''); setSuccess(''); }} className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors">
                      Usar otro correo
