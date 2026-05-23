@@ -239,12 +239,12 @@ const AdminLogin = () => {
                       type="text"
                       value={otp}
                       onChange={(e) => {
-                        setOtp(e.target.value);
+                        setOtp(e.target.value.replace(/[^0-9]/g, ''));
                         if (error) setError('');
                       }}
-                      className="w-full bg-[#0a0f1c]/50 border border-white/10 rounded-2xl px-5 py-4 text-center text-2xl tracking-[0.5em] font-mono text-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 outline-none transition-all placeholder:text-slate-700"
-                      placeholder="000000"
-                      maxLength={6}
+                      className="w-full bg-[#0a0f1c]/50 border border-white/10 rounded-2xl px-5 py-4 text-center text-2xl tracking-[0.3em] font-mono text-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 outline-none transition-all placeholder:text-slate-700"
+                      placeholder="00000000"
+                      maxLength={8}
                       disabled={loading}
                     />
                     <button
