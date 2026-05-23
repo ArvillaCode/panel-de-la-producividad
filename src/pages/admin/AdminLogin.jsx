@@ -257,8 +257,19 @@ const AdminLogin = () => {
                   </form>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-white/5">
-                  <button onClick={() => { setStep('email'); setError(''); setSuccess(''); }} className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors">
+                <div className="pt-6 mt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <button 
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                    className="text-xs font-bold uppercase tracking-widest text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+                  >
+                     {loading ? 'Enviando...' : 'Reenviar código'}
+                  </button>
+                  <span className="hidden sm:inline text-slate-700">•</span>
+                  <button 
+                    onClick={() => { setStep('email'); setError(''); setSuccess(''); setOtp(''); }} 
+                    className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+                  >
                      Usar otro correo
                   </button>
                 </div>
