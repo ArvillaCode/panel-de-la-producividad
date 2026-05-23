@@ -125,9 +125,9 @@ const AdminLogin = () => {
       <div className="flex w-full h-screen">
         
         {/* Lado Izquierdo: Formulario de Login */}
-        <div className="w-full lg:w-5/12 flex flex-col justify-center items-center p-8 md:p-16 z-20 bg-[#02040a]/90 backdrop-blur-xl border-r border-white/5 relative">
+        <div className="w-full lg:w-5/12 flex flex-col items-center p-8 md:p-16 z-20 bg-[#02040a]/90 backdrop-blur-xl border-r border-white/5 relative overflow-y-auto no-scrollbar">
           
-          <div className="w-full max-w-sm animate-in fade-in slide-in-from-left-8 duration-700">
+          <div className="w-full max-w-sm animate-in fade-in slide-in-from-left-8 duration-700 my-auto py-10">
             <div className="mb-12 text-center lg:text-left">
               <div className="inline-flex p-3 rounded-2xl bg-white/5 border border-white/10 mb-6 shadow-2xl overflow-hidden">
                 <img 
