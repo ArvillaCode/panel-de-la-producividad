@@ -4,6 +4,12 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 
+const isValidHttpsUrl = (url) => {
+  if (!url) return false;
+  try { return new URL(url).protocol === 'https:'; }
+  catch { return false; }
+};
+
 const GlobalBanner = () => {
   const { isAuthenticated, isAdmin, profile } = useAuth();
   const [banner, setBanner] = useState(null);
@@ -86,8 +92,8 @@ const GlobalBanner = () => {
             <X className="w-6 h-6" />
           </button>
 
-          {/* Action Overlay (if link exists) */}
-          {banner.link_url && (
+          {/* Action Overlay (if link exists and is valid https) */}
+          {isValidHttpsUrl(banner.link_url) && (
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-8">
               <a 
                 href={banner.link_url} 
@@ -102,7 +108,7 @@ const GlobalBanner = () => {
           )}
 
           {/* Mobile Tap Indicator */}
-          {banner.link_url && (
+          {isValidHttpsUrl(banner.link_url) && (
             <a 
               href={banner.link_url} 
               target="_blank" 

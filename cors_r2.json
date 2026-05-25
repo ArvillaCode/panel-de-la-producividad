@@ -1,6 +1,6 @@
 [
   {
-    "AllowedOrigins": ["*"],
+    "AllowedOrigins": ["https://upfunnel.click", "https://app.upfunnel.click"],
     "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],

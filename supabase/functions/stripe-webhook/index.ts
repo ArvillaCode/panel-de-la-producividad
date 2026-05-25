@@ -43,6 +43,28 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    // 4. Idempotency check: skip if this event was already processed
+    const { data: existingEvent } = await supabase
+      .from('webhook_events')
+      .select('id')
+      .eq('stripe_event_id', event.id)
+      .maybeSingle()
+
+    if (existingEvent) {
+      console.log(`[STRIPE] Evento duplicado ignorado: ${event.id}`)
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Record event for idempotency
+    await supabase.from('webhook_events').insert({
+      stripe_event_id: event.id,
+      type: event.type,
+      processed_at: new Date().toISOString()
+    }).catch(e => console.error('[STRIPE] Failed to record event idempotency:', e))
+
     // ==============================================================================
     // EVENTO: PAGO COMPLETADO (NUEVO CLIENTE O RENOVACIÓN)
     // ==============================================================================
@@ -54,6 +76,9 @@ Deno.serve(async (req) => {
       if (!email) {
         throw new Error('El payload no contiene un email de cliente (customer_details.email)')
       }
+
+      // Store stripe_customer_id for future lookups
+      const stripeCustomerId = session.customer as string
 
       console.log(`Procesando pago exitoso para: ${email}`)
 
@@ -67,14 +92,16 @@ Deno.serve(async (req) => {
       if (profile) {
         // CASO A: Usuario ya registrado previamente
         console.log(`Actualizando perfil existente para ${email}`)
+        const updatePayload: Record<string, unknown> = {
+          status: 'active',
+          is_approved: true
+        }
+        if (stripeCustomerId) {
+          updatePayload.stripe_customer_id = stripeCustomerId
+        }
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({
-            status: 'active',
-            is_approved: true,
-            start_date: new Date().toISOString(),
-            end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
-          })
+          .update(updatePayload)
           .eq('id', profile.id)
 
         if (updateError) throw updateError
@@ -96,18 +123,22 @@ Deno.serve(async (req) => {
         if (createError) throw createError
 
         if (createdUser.user?.id) {
+          const profilePayload: Record<string, unknown> = {
+            id: createdUser.user.id,
+            email,
+            name,
+            role: 'user',
+            status: 'active',
+            is_approved: true,
+            start_date: new Date().toISOString(),
+            end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
+          }
+          if (stripeCustomerId) {
+            profilePayload.stripe_customer_id = stripeCustomerId
+          }
           const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({
-              id: createdUser.user.id,
-              email,
-              name,
-              role: 'user',
-              status: 'active',
-              is_approved: true,
-              start_date: new Date().toISOString(),
-              end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
-            }, { onConflict: 'id' })
+            .upsert(profilePayload, { onConflict: 'id' })
 
           if (profileError) throw profileError
         }
@@ -120,25 +151,38 @@ Deno.serve(async (req) => {
     else if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
-      
-      // Necesitamos consultar la API de Stripe para obtener el email a partir del customer ID
-      const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
-      const email = customer.email
 
-      if (email) {
-        console.log(`Revocando acceso (suscripción cancelada) para: ${email}`)
-        
+      // Try to find user by stripe_customer_id first (more reliable than email)
+      const { data: profileByStripeId } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('stripe_customer_id', customerId)
+        .maybeSingle()
+
+      if (profileByStripeId) {
+        console.log(`Revocando acceso (suscripción cancelada) para: ${profileByStripeId.email}`)
         const { error: revokeError } = await supabase
           .from('profiles')
-          .update({
-            status: 'inactive',
-            is_approved: false
-          })
-          .eq('email', email)
+          .update({ status: 'inactive', is_approved: false })
+          .eq('id', profileByStripeId.id)
 
         if (revokeError) throw revokeError
       } else {
-        console.warn(`No se pudo obtener el email para el customer_id: ${customerId}`)
+        // Fallback: lookup by email via Stripe API
+        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
+        const email = customer.email
+
+        if (email) {
+          console.log(`Revocando acceso (fallback email) para: ${email}`)
+          const { error: revokeError } = await supabase
+            .from('profiles')
+            .update({ status: 'inactive', is_approved: false })
+            .eq('email', email)
+
+          if (revokeError) throw revokeError
+        } else {
+          console.warn(`No se pudo obtener el email para el customer_id: ${customerId}`)
+        }
       }
     }
 
@@ -149,12 +193,10 @@ Deno.serve(async (req) => {
     })
 
   } catch (err) {
-    // Capturar errores (ej. firma inválida o falla de red)
     const errorMessage = err instanceof Error ? err.message : String(err)
     console.error(`Webhook Error: ${errorMessage}`)
     
-    // Devolvemos 400 para que Stripe reintente o registre la falla
-    return new Response(JSON.stringify({ error: errorMessage }), { 
+    return new Response(JSON.stringify({ error: 'webhook_error' }), { 
       status: 400,
       headers: { "Content-Type": "application/json" } 
     })

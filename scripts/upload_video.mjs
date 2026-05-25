@@ -67,8 +67,8 @@ async function subirVideo() {
         console.log("📋 COPIA ESTE TEXTO Y PÉGALO EN EL PANEL ADMIN EN 'Ruta de archivo (Opcional / Debug)':");
         console.log(`👉 \x1b[36m${uniqueKey}\x1b[0m`);
         console.log("--------------------------------------------------------------------------------");
-        console.log(`🔗 URL de reproducción pública:`);
-        console.log(`   https://rough-silence-cf74.arvilladigital12.workers.dev/?key=${uniqueKey}\n`);
+    console.log(`🔗 URL de reproducción pública:`);
+    console.log(`   Usa VITE_ACADEMY_MEDIA_URL en tu .env.local para configurar la URL base\n`);
     } catch (e) {
         console.error("\n❌ Fallo en la subida:", e.message);
         console.log("\n💡 Sugerencia: Verifica tus credenciales R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY y R2_ENDPOINT en tu archivo .env\n");

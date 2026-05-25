@@ -1,8 +1,7 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase.js';
 import { useAuth } from '../../../hooks/useAuth.jsx';
+import { useToast } from '../../../context/ToastContext';
 import {
   PlayIcon,
   CheckCircleIcon,
@@ -107,6 +106,7 @@ export default function AcademyDashboard() {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { isAdmin, profile, systemConfig, loading } = useAuth();
+  const { toast } = useToast();
   const [videoError, setVideoError] = useState(false);
 
   // --- MODO EDICIÓN ---
@@ -119,6 +119,7 @@ export default function AcademyDashboard() {
   const [isUploadingEditVideo, setIsUploadingEditVideo] = useState(false);
   const [editMateriales, setEditMateriales] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   // --- ESTADOS CREACIÓN CURSO ---
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -173,7 +174,7 @@ export default function AcademyDashboard() {
       setIsAcademySettingsModalOpen(false);
     } catch (error) {
       console.error(error);
-      alert(`Error al guardar configuración: ${error.message || 'Error desconocido'}`);
+      toast.error(`Error al guardar configuración: ${error.message || 'Error desconocido'}`);
     } finally {
       setIsSavingAcademySettings(false);
     }
@@ -188,7 +189,7 @@ export default function AcademyDashboard() {
       setCourseForm(prev => ({ ...prev, thumbnail_url: filename }));
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Error al subir miniatura");
+      toast.error(error instanceof Error ? error.message : "Error al subir miniatura");
     } finally {
       setTimeout(() => setUploadProgress(0), 1000);
     }
@@ -196,7 +197,10 @@ export default function AcademyDashboard() {
 
   const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!courseForm.title || !courseForm.description) return alert("Completa los campos");
+    if (!courseForm.title || !courseForm.description) {
+      toast.error("Completa los campos");
+      return;
+    }
 
     setIsCreatingCourse(true);
     try {
@@ -234,7 +238,7 @@ export default function AcademyDashboard() {
       setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
     } catch (error) {
       console.error(error);
-      alert(`Error al guardar curso: ${error.message || 'Error desconocido'}`);
+      toast.error(`Error al guardar curso: ${error.message || 'Error desconocido'}`);
     } finally {
       setIsCreatingCourse(false);
     }
@@ -266,7 +270,7 @@ export default function AcademyDashboard() {
           setSelectedCourse(null);
         }
       } catch (error) {
-        alert("Error al borrar curso");
+        toast.error("Error al borrar curso");
       }
     });
   };
@@ -287,7 +291,7 @@ export default function AcademyDashboard() {
 
       if (activeLesson?.id === id) setActiveLesson(null);
     } catch (error) {
-      alert("Error al borrar lección");
+      toast.error("Error al borrar lección");
     }
     });
   };
@@ -301,7 +305,7 @@ export default function AcademyDashboard() {
       if (error) throw error;
       setModules(prev => prev.filter(m => m.id !== id));
     } catch (error) {
-      alert("Error al borrar módulo");
+      toast.error("Error al borrar módulo");
     }
     });
   };
@@ -354,10 +358,10 @@ export default function AcademyDashboard() {
       }) : null);
 
       setIsEditMode(false);
-      alert("Lección actualizada correctamente.");
+      toast.success("Lección actualizada correctamente.");
     } catch (error) {
       console.error(error);
-      alert("Error al guardar lección");
+      toast.error("Error al guardar lección");
     } finally {
       setIsSaving(false);
     }
@@ -522,6 +526,20 @@ export default function AcademyDashboard() {
     fetchLessonsData();
   }, [selectedCourse, isAdmin]);
 
+  // Cargar progreso completado desde localStorage
+  useEffect(() => {
+    if (modules.length === 0) return;
+    const completedLessons = JSON.parse(localStorage.getItem('academy_completed') || '[]');
+    if (completedLessons.length === 0) return;
+    setModules(prev => prev.map(mod => ({
+      ...mod,
+      lessons: mod.lessons.map(l => completedLessons.includes(l.id) ? { ...l, is_completed: true } : l)
+    })));
+    if (activeLesson && completedLessons.includes(activeLesson.id)) {
+      setActiveLesson(prev => prev ? { ...prev, is_completed: true } : null);
+    }
+  }, [modules.length > 0]);
+
   // --- HANDLERS ---
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({
@@ -556,13 +574,20 @@ export default function AcademyDashboard() {
   };
 
   const markAsCompleted = () => {
+    if (!activeLesson) return;
+    const completedLessons = JSON.parse(localStorage.getItem('academy_completed') || '[]');
+    if (!completedLessons.includes(activeLesson.id)) {
+      completedLessons.push(activeLesson.id);
+      localStorage.setItem('academy_completed', JSON.stringify(completedLessons));
+    }
     setModules(prev => (prev || []).map(mod => ({
       ...mod,
       lessons: (mod.lessons || []).map(les =>
-        les.id === activeLesson?.id ? { ...les, is_completed: true } : les
+        les.id === activeLesson.id ? { ...les, is_completed: true } : les
       )
     })));
-    if (activeLesson) setActiveLesson(prev => prev ? ({ ...prev, is_completed: true }) : null);
+    setActiveLesson(prev => prev ? ({ ...prev, is_completed: true }) : null);
+    toast.success("Lección marcada como completada");
   };
 
   const isAcademiaEnabled = systemConfig?.showAcademia !== false || isAdmin || profile?.role === 'admin';
@@ -601,34 +626,74 @@ export default function AcademyDashboard() {
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 font-sans">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        {/* BREADCRUMB */}
+        <nav className="mb-4 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400 overflow-x-auto flex-nowrap scrollbar-hide" aria-label="Breadcrumb">
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span className="font-semibold hidden sm:inline">Inicio</span>
+          </button>
+
+          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+
+          {view === 'lessons' ? (
+            <button
+              onClick={() => {
+                const hasUnsavedChanges =
+                  activeLesson &&
+                  (editTitle !== activeLesson.title ||
+                   editDescription !== activeLesson.description ||
+                   editVideoPath !== activeLesson.video_path ||
+                   editThumbnailUrl !== activeLesson.thumbnail_url ||
+                   JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []));
+
+                if (isEditMode && hasUnsavedChanges) {
+                  requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir y perder estos cambios?", () => {
+                    navigate('/dashboard/academia');
+                  });
+                } else {
+                  navigate('/dashboard/academia');
+                }
+              }}
+              className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
+            >
+              <svg className="w-4 h-4 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              <span className="font-semibold">Academia</span>
+            </button>
+          ) : (
+            <span className="font-semibold text-blue-600 dark:text-blue-400 shrink-0">Academia</span>
+          )}
+
+          {view === 'lessons' && selectedCourse && (
+            <>
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+
+              {activeLesson ? (
+                <button
+                  onClick={() => navigate(`/dashboard/academia?course=${selectedCourse.id}`)}
+                  className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0 min-w-0"
+                >
+                  <svg className="w-4 h-4 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  <span className="font-semibold truncate max-w-[100px] sm:max-w-[200px]">{selectedCourse.title}</span>
+                </button>
+              ) : (
+                <span className="font-semibold truncate max-w-[100px] sm:max-w-[250px] shrink-0">{selectedCourse.title}</span>
+              )}
+
+              {activeLesson && (
+                <>
+                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400 truncate max-w-[100px] sm:max-w-[200px] shrink-0">{activeLesson.title}</span>
+                </>
+              )}
+            </>
+          )}
+        </nav>
+
         {/* HEADER */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              {view === 'lessons' && (
-                <button
-                  onClick={() => {
-                    const hasUnsavedChanges =
-                      activeLesson &&
-                      (editTitle !== activeLesson.title ||
-                       editDescription !== activeLesson.description ||
-                       editVideoPath !== activeLesson.video_path ||
-                       editThumbnailUrl !== activeLesson.thumbnail_url ||
-                       JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []));
-
-                    if (isEditMode && hasUnsavedChanges) {
-                      requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir y perder estos cambios?", () => {
-                        navigate('/dashboard/academia');
-                      });
-                    } else {
-                      navigate('/dashboard/academia');
-                    }
-                  }}
-                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                </button>
-              )}
               
               {(() => {
                 const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
@@ -652,80 +717,139 @@ export default function AcademyDashboard() {
                   </>
                 );
               })()}
-            </div>
-          </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link
-              to={isAdmin ? "/admin/dashboard" : "/dashboard"}
+              to="/"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              Volver al Panel
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Ir al Inicio
             </Link>
 
             {isAdmin && (
               <>
-                <button
-                  onClick={() => {
-                    const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
-                    setAcademySettingsForm({
-                      title: globalSettings?.title || 'UpFunnel Academy',
-                      description: globalSettings?.description || 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.',
-                      logo: globalSettings?.thumbnail_url || ''
-                    });
-                    setIsAcademySettingsModalOpen(true);
-                  }}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
-                  title="Ajustes de Academia"
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden sm:inline">Ajustes</span>
-                </button>
+                {/* Botones visibles en desktop + botón "..." en mobile */}
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const globalSettings = courses.find(c => c.slug === 'global-academy-settings');
+                      setAcademySettingsForm({
+                        title: globalSettings?.title || 'UpFunnel Academy',
+                        description: globalSettings?.description || 'Domina el Panel de la Productividad con nuestros recursos y cursos premium.',
+                        logo: globalSettings?.thumbnail_url || ''
+                      });
+                      setIsAcademySettingsModalOpen(true);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
+                    title="Ajustes de Academia"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Ajustes</span>
+                  </button>
 
-                <Link
-                  to="/dashboard/academia/admin"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
-                >
-                  <Save className="w-4 h-4" />
-                  Creador de Contenido
-                </Link>
+                  <Link
+                    to="/dashboard/academia/admin"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
+                  >
+                    <Save className="w-4 h-4" />
+                    Creador de Contenido
+                  </Link>
 
-                <button
-                  onClick={() => {
-                    if (isEditMode && activeLesson) {
-                      const hasUnsavedChanges = 
-                        editTitle !== (activeLesson.title || '') ||
-                        editDescription !== (activeLesson.description || '') ||
-                        editVideoPath !== (activeLesson.video_path || '') ||
-                        editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
-                        JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
+                  <button
+                    onClick={() => {
+                      if (isEditMode && activeLesson) {
+                        const hasUnsavedChanges = 
+                          editTitle !== (activeLesson.title || '') ||
+                          editDescription !== (activeLesson.description || '') ||
+                          editVideoPath !== (activeLesson.video_path || '') ||
+                          editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
+                          JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
 
-                      if (hasUnsavedChanges) {
-                        if (!window.confirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir del modo edición y perder estos cambios?")) {
+                        if (hasUnsavedChanges) {
+                          requestConfirm("Tienes cambios sin guardar en la lección actual. ¿Estás seguro de que quieres salir del modo edición y perder estos cambios?", () => {
+                            setIsEditMode(!isEditMode);
+                          });
                           return;
                         }
                       }
-                    }
-                    setIsEditMode(!isEditMode);
-                  }}
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
-                >
-                  <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></div>
-                  {isEditMode ? 'Modo Edición Activo' : 'Modo Edición'}
-                </button>
+                      setIsEditMode(!isEditMode);
+                    }}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm ${isEditMode ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></div>
+                    {isEditMode ? 'Modo Edición Activo' : 'Modo Edición'}
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setEditingCourseId(null);
-                    setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
-                    setIsCourseModalOpen(true);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
-                >
-                  <Plus className="w-4 h-4" />
-                  Añadir Curso
-                </button>
+                  <button
+                    onClick={() => {
+                      setEditingCourseId(null);
+                      setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true });
+                      setIsCourseModalOpen(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Añadir Curso
+                  </button>
+                </div>
+
+                {/* Botón menú hamburguesa solo mobile */}
+                <div className="sm:hidden relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    title="Opciones de administración"
+                  >
+                    <svg className="w-5 h-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                  </button>
+                  {showAdminMenu && (
+                    <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button
+                        onClick={() => { setShowAdminMenu(false); setIsAcademySettingsModalOpen(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                      >
+                        <Settings className="w-4 h-4" /> Ajustes
+                      </button>
+                      <Link
+                        to="/dashboard/academia/admin"
+                        onClick={() => setShowAdminMenu(false)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
+                      >
+                        <Save className="w-4 h-4" /> Creador de Contenido
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setShowAdminMenu(false);
+                          if (isEditMode && activeLesson) {
+                            const hasUnsavedChanges = 
+                              editTitle !== (activeLesson.title || '') ||
+                              editDescription !== (activeLesson.description || '') ||
+                              editVideoPath !== (activeLesson.video_path || '') ||
+                              editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
+                              JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
+                            if (hasUnsavedChanges) {
+                              requestConfirm("Tienes cambios sin guardar...", () => setIsEditMode(!isEditMode));
+                              return;
+                            }
+                          }
+                          setIsEditMode(!isEditMode);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${isEditMode ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${isEditMode ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`}></div>
+                        {isEditMode ? 'Desactivar Edición' : 'Modo Edición'}
+                      </button>
+                      <hr className="my-1 border-slate-100 dark:border-slate-800" />
+                      <button
+                        onClick={() => { setShowAdminMenu(false); setEditingCourseId(null); setCourseForm({ title: '', description: '', thumbnail_url: '', category: 'General', is_premium: false, is_published: true }); setIsCourseModalOpen(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
+                      >
+                        <Plus className="w-4 h-4" /> Añadir Curso
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -733,7 +857,9 @@ export default function AcademyDashboard() {
 
         {/* FILTROS POR CATEGORÍA */}
         {view === 'courses' && (
-          <div className="mb-10 flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar">
+          <div className="mb-10 relative">
+            <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar"
+              style={{ maskImage: 'linear-gradient(to right, transparent 8px, black 28px, black calc(100% - 28px), transparent calc(100% - 8px))', WebkitMaskImage: 'linear-gradient(to right, transparent 8px, black 28px, black calc(100% - 28px), transparent calc(100% - 8px))' }}>
             <button
               onClick={() => { setSelectedCategory('Todas'); setShowOnlyPremium(false); }}
               className={`px-6 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
@@ -772,12 +898,25 @@ export default function AcademyDashboard() {
               </button>
             ))}
           </div>
+          </div>
         )}
 
         {/* VISTA DE CURSOS */}
         {view === 'courses' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {courses.filter(c => {
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm animate-pulse">
+                  <div className="aspect-[16/9] bg-slate-200 dark:bg-slate-800" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+                    <div className="h-4 bg-slate-100 dark:bg-slate-800/50 rounded w-full" />
+                    <div className="h-4 bg-slate-100 dark:bg-slate-800/50 rounded w-1/2" />
+                  </div>
+                </div>
+              ))
+            ) : (
+            courses.filter(c => {
                 if (c.slug === 'global-academy-settings') return false;
                 if (showOnlyPremium) return c.is_premium;
                 return selectedCategory === 'Todas' || c.category === selectedCategory;
@@ -787,7 +926,7 @@ export default function AcademyDashboard() {
                   onClick={() => {
                     navigate(`/dashboard/academia?course=${course.id}`);
                   }}
-                  className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2"
+                  className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2 active:scale-[0.98] active:shadow-md"
                 >
                   <div className="aspect-[16/9] relative overflow-hidden">
                     <img
@@ -836,7 +975,7 @@ export default function AcademyDashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )))}
           </div>
         )}
 
@@ -912,8 +1051,8 @@ export default function AcademyDashboard() {
                           </div>
                         </button>
 
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-                          <div className="flex flex-col gap-1 px-2 pb-3">
+                        <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100 mt-1' : 'grid-rows-[0fr] opacity-0'}`}>
+                          <div className="overflow-hidden flex flex-col gap-1 px-2 pb-3">
                             {(module.lessons || []).map((lesson, lIdx) => {
                               const isActive = activeLesson?.id === lesson.id;
                               return (
@@ -982,6 +1121,16 @@ export default function AcademyDashboard() {
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                     Selecciona una lección
                   </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+                    Elige un módulo y una lección del panel lateral para comenzar.
+                  </p>
+                  <button
+                    onClick={() => navigate('/dashboard/academia')}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-500/20"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Volver a Cursos
+                  </button>
                 </div>
               ) : (
                 <>
@@ -999,7 +1148,7 @@ export default function AcademyDashboard() {
                             className="w-full h-full border-0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             referrerPolicy="strict-origin-when-cross-origin"
-                            sandbox="allow-scripts allow-same-origin allow-presentation"
+                            sandbox="allow-presentation"
                             allowFullScreen
                           />
                         );
@@ -1076,7 +1225,7 @@ export default function AcademyDashboard() {
                                   const filename = await uploadToAcademyR2(file, 'videos');
                                   setEditVideoPath(filename);
                                 } catch (error) {
-                                  alert(error instanceof Error ? error.message : "Error al subir video");
+                                  toast.error(error instanceof Error ? error.message : "Error al subir video");
                                 } finally {
                                   setIsUploadingEditVideo(false);
                                 }
@@ -1113,7 +1262,7 @@ export default function AcademyDashboard() {
                                   const filename = await uploadToAcademyR2(file, 'thumbnails');
                                   setEditThumbnailUrl(filename);
                                 } catch (error) {
-                                  alert(error instanceof Error ? error.message : "Error al subir miniatura");
+                                  toast.error(error instanceof Error ? error.message : "Error al subir miniatura");
                                 } finally {
                                   setIsUploadingEditThumb(false);
                                 }
@@ -1194,10 +1343,33 @@ export default function AcademyDashboard() {
                       </div>
                     ) : (
                       <>
+                        <div className="flex items-center justify-between mb-4">
+                          <button
+                            onClick={() => navigate(`/dashboard/academia?course=${selectedCourse?.id}`)}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors active:scale-95"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                            Volver a Cursos
+                          </button>
+                          <span className="text-xs text-slate-400">{modules.reduce((acc, m) => acc + m.lessons.length, 0)} lecciones</span>
+                        </div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">{activeLesson.title}</h2>
                         <p className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line">
                           {activeLesson.description || ''}
                         </p>
+                        <div className="mt-6 flex items-center gap-3">
+                          <button
+                            onClick={markAsCompleted}
+                            className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                              activeLesson.is_completed
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
+                            }`}
+                          >
+                            <CheckCircleIcon className="w-5 h-5" />
+                            {activeLesson.is_completed ? 'Completada' : 'Marcar como completada'}
+                          </button>
+                        </div>
                       </>
                     )}
 
@@ -1222,18 +1394,32 @@ export default function AcademyDashboard() {
         )}
       </div>
 
+      {/* Botón flotante para índice de lecciones en mobile */}
+      {view === 'lessons' && (
+        <button
+          onClick={() => {
+            const sidebar = document.querySelector('.lg\\:w-\\[380px\\]');
+            if (sidebar) sidebar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          className="lg:hidden fixed bottom-6 right-6 z-50 min-w-[56px] min-h-[56px] bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-600/40 flex items-center justify-center active:scale-90 transition-transform"
+          title="Ver índice de lecciones"
+        >
+          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+      )}
+
       {/* MODAL AJUSTES ACADEMIA */}
       {isAcademySettingsModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg overflow-y-auto rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300 custom-scrollbar">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-              <h2 className="text-xl font-bold">Ajustes de la Academia</h2>
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-lg sm:text-xl font-bold">Ajustes de la Academia</h2>
               <button onClick={() => setIsAcademySettingsModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveAcademySettings} className="p-6 space-y-6">
+            <form onSubmit={handleSaveAcademySettings} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Título de la Academia</label>
                 <input
@@ -1303,17 +1489,17 @@ export default function AcademyDashboard() {
       {isCourseModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300 custom-scrollbar">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-              <h2 className="text-xl font-bold">{editingCourseId ? 'Editar Curso' : 'Crear Nuevo Curso'}</h2>
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-lg sm:text-xl font-bold">{editingCourseId ? 'Editar Curso' : 'Crear Nuevo Curso'}</h2>
               <button onClick={() => {
                 setIsCourseModalOpen(false);
                 setEditingCourseId(null);
-              }} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+              }} className="p-3 min-w-[44px] min-h-[44px] hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors flex items-center justify-center">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveCourse} className="p-6 space-y-6">
+            <form onSubmit={handleSaveCourse} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-500">Título del Curso</label>
                 <input

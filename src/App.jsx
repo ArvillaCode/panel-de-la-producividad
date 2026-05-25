@@ -12,7 +12,7 @@ import AdminConfig from './pages/admin/AdminConfig';
 import AdminReleases from './pages/admin/AdminReleases';
 import AdminLogs from './pages/admin/AdminLogs';
 import ReleaseHistory from './pages/ReleaseHistory';
-import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { ToastProvider } from './context/ToastContext';
 import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
@@ -29,7 +29,7 @@ import './App.css';
 const DomainRestrictedRoute = ({ children, appOnly = false }) => {
   const isAppDomain = window.location.hostname.includes('app.') || 
                       window.location.hostname === 'localhost' || 
-                      window.location.hostname === '51.79.68.249'; // Permitir acceso desde la IP de Coolify
+                      window.location.hostname.startsWith('51.79.68.'); // Permitir acceso desde Coolify
   if (appOnly && !isAppDomain) return <Navigate to="/" replace />;
   return children;
 };
@@ -63,7 +63,7 @@ const Home = () => {
   const { isAuthenticated, profile, isAdmin, loading } = useAuth();
   const isAppDomain = window.location.hostname.includes('app.') || 
                       window.location.hostname === 'localhost' ||
-                      window.location.hostname === '51.79.68.249';
+                      window.location.hostname.startsWith('51.79.68.');
 
   if (loading) return <div className="min-h-screen bg-[#020203] flex items-center justify-center"><div className="premium-spinner"></div></div>;
   if (!isAppDomain) return <LandingPage />;

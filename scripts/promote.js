@@ -16,7 +16,11 @@ env.split('\n').forEach(line => {
 const supabase = createClient(envVars.VITE_SUPABASE_URL, envVars.VITE_SUPABASE_ANON_KEY);
 
 async function promoteAdmin() {
-  const email = 'gabriel.au2023@gmail.com';
+  const email = process.env.ADMIN_EMAIL;
+  if (!email) {
+    console.error('ADMIN_EMAIL environment variable is required');
+    process.exit(1);
+  }
   
   const { data: users, error: fetchError } = await supabase
     .from('profiles')

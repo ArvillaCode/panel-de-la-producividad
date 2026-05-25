@@ -135,10 +135,16 @@ const AgentPanel = () => {
     if (typeof modalSetter === 'function') modalSetter(true);
   };
 
+  const isValidHttpsUrl = (url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'https:';
+    } catch { return false; }
+  };
+
   const handleAgentClick = async (agent) => {
-    // Abrir chat
-    if (agent.chatLink) {
-      window.open(agent.chatLink, '_blank');
+    if (agent.chatLink && isValidHttpsUrl(agent.chatLink)) {
+      window.open(agent.chatLink, '_blank', 'noopener,noreferrer');
       
       // Incrementar interacciones en Supabase (silenciosamente)
       try {

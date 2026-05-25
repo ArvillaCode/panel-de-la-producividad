@@ -40,8 +40,21 @@ videos-clases/
 *.zip
 *.mov
 *.avi
+*.webm
 dist/
 build/
 
 .vercel
 .env*.local
+
+# Scratch / Dev scripts
+scratch/
+cors_r2.json
+
+# Workers
+workers/node_modules/
+workers/.wrangler/
+
+# MCP local tools
+mcp-supabase-custom/node_modules/
+mcp-supabase-custom/.env

@@ -6,14 +6,26 @@ type ChatMessage = {
   content: string
 }
 
+const ALLOWED_MODELS = new Set([
+  'deepseek/deepseek-chat',
+  'deepseek/deepseek-reasoner',
+  'google/gemini-2.5-flash',
+  'google/gemini-2.5-pro',
+  'anthropic/claude-3.5-sonnet',
+  'openrouter/free',
+  'meta-llama/llama-3-8b-instruct:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-2-9b-it:free'
+])
+
 const DEFAULT_MODEL = 'google/gemini-2.5-flash'
 const MAX_HISTORY = 12
 const MAX_CONTENT_CHARS = 4000
 const FALLBACK_MODEL = 'google/gemini-2.5-flash'
 
-// Configuración de Rate Limiting en memoria para evitar DoS financiero en OpenRouter
-const RATE_LIMIT_WINDOW_MS = 60000 // 1 minuto
-const MAX_REQUESTS_PER_WINDOW = 15 // 15 chats por minuto
+// Configuración de Rate Limiting: memoria + base de datos para evitar DoS financiero en OpenRouter
+const RATE_LIMIT_WINDOW_MS = 60000
+const MAX_REQUESTS_PER_WINDOW = 15
 const userRequestCounts = new Map<string, { count: number; resetTime: number }>()
 
 const isRateLimited = (userId: string): boolean => {
@@ -48,8 +60,11 @@ const getAllowedOrigins = () => {
   return configured.length > 0 ? configured : defaultAllowedOrigins
 }
 
+const sanitizeOrigin = (origin: string): string =>
+  origin.replace(/[\r\n]/g, '').trim()
+
 const getCorsHeaders = (req: Request) => {
-  const origin = req.headers.get('Origin') || ''
+  const origin = sanitizeOrigin(req.headers.get('Origin') || '')
   const allowedOrigins = getAllowedOrigins()
   const allowOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
 
@@ -262,7 +277,12 @@ Deno.serve(async (req) => {
       return jsonResponse(req, 403, { error: 'assistant_disabled' })
     }
 
-    const body = await req.json().catch(() => ({}))
+    const MAX_BODY_BYTES = 65536
+    const textBody = await req.text()
+    if (textBody.length > MAX_BODY_BYTES) {
+      return jsonResponse(req, 413, { error: 'payload_too_large' })
+    }
+    const body = JSON.parse(textBody)
     const history = cleanMessages(body?.messages)
 
     if (history.length === 0) {
@@ -277,7 +297,8 @@ Deno.serve(async (req) => {
       agents: visibleAgents
     })
 
-    const model = String(config?.ai_model || DEFAULT_MODEL).replace(/['"]/g, '').trim() || DEFAULT_MODEL
+    const rawModel = String(config?.ai_model || DEFAULT_MODEL).replace(/['"]/g, '').trim() || DEFAULT_MODEL
+    const model = ALLOWED_MODELS.has(rawModel) ? rawModel : DEFAULT_MODEL
     const messages = [
       { role: 'system', content: systemInstruction },
       ...history
@@ -287,7 +308,7 @@ Deno.serve(async (req) => {
     try {
       text = await callOpenRouter({
         apiKey: openRouterKey,
-        origin: req.headers.get('Origin') || '',
+        origin: sanitizeOrigin(req.headers.get('Origin') || ''),
         model,
         messages
       })
@@ -297,7 +318,7 @@ Deno.serve(async (req) => {
 
       text = await callOpenRouter({
         apiKey: openRouterKey,
-        origin: req.headers.get('Origin') || '',
+        origin: sanitizeOrigin(req.headers.get('Origin') || ''),
         model: FALLBACK_MODEL,
         messages
       })

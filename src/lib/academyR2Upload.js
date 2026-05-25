@@ -76,13 +76,13 @@ export async function uploadToAcademyR2(file, subfolder) {
   return key;
 }
 
-export const ACADEMY_MEDIA_WORKER_URL =
-  import.meta.env.VITE_ACADEMY_MEDIA_URL ||
-  'https://rough-silence-cf74.arvilladigital12.workers.dev/?key=';
-
 export function academyMediaUrl(path) {
   if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const base = ACADEMY_MEDIA_WORKER_URL.split('?')[0];
-  return `${base}?key=${path}`;
+  const mediaWorkerUrl = import.meta.env.VITE_ACADEMY_MEDIA_URL;
+  if (!mediaWorkerUrl) {
+    console.warn('VITE_ACADEMY_MEDIA_URL not configured');
+    return '';
+  }
+  const base = mediaWorkerUrl.split('?')[0];
+  return `${base}?key=${encodeURIComponent(path)}`;
 }

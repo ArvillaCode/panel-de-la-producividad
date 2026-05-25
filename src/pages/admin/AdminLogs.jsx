@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Activity, 
-  Clock, 
-  User, 
-  Search, 
-  Filter, 
-  Trash2, 
+import {
+  Activity,
+  Clock,
+  User,
+  Search,
+  Filter,
   Download,
   AlertCircle,
   CheckCircle2,
@@ -47,13 +46,18 @@ const AdminLogs = () => {
     if (logs.length === 0) return;
     
     const headers = ['ID', 'Accion', 'Usuario', 'Email', 'Entidad', 'Detalles', 'Fecha'];
+    const sanitizeCsv = (val) => {
+      const str = String(val || '');
+      if (/^[=+\-@]/.test(str)) return `'${str}`;
+      return str;
+    };
     const rows = filteredLogs.map(log => [
       log.id,
-      log.action,
-      log.profiles?.name || 'Sistema',
-      log.profiles?.email || '',
-      log.entity || '',
-      JSON.stringify(log.details || {}).replace(/,/g, ';'),
+      sanitizeCsv(log.action),
+      sanitizeCsv(log.profiles?.name || 'Sistema'),
+      sanitizeCsv(log.profiles?.email || ''),
+      sanitizeCsv(log.entity || ''),
+      sanitizeCsv(JSON.stringify(log.details || {}).replace(/,/g, ';')),
       new Date(log.created_at).toISOString()
     ]);
     

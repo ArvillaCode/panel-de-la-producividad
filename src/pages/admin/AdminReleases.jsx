@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle, Github } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';

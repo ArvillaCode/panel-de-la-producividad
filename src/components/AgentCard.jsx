@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Heart, Star, Shield, Zap, Sparkles } from 'lucide-react';
+import { MessageCircle, Heart } from 'lucide-react';
 import Avatar from './Avatar';
 import AgentRating from './user/AgentRating';
 import { useAuth } from '../hooks/useAuth';

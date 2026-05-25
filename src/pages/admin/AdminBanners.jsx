@@ -51,6 +51,13 @@ const AdminBanners = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Tipo de archivo no permitido. Usa JPG, PNG, WebP o GIF.');
+      e.target.value = '';
+      return;
+    }
+
     if (file.size > 200 * 1024) {
       toast.warning('La imagen supera los 200KB recomendados. Podría afectar el tiempo de carga.');
     }
@@ -85,6 +92,10 @@ const AdminBanners = () => {
     e.preventDefault();
     if (!formData.image_url) {
       return toast.error('La imagen es obligatoria');
+    }
+
+    if (formData.link_url && !formData.link_url.startsWith('https://')) {
+      return toast.error('El enlace debe ser una URL HTTPS segura.');
     }
 
     const { error } = await supabase
@@ -179,7 +190,7 @@ const AdminBanners = () => {
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                     <button 
-                      onClick={() => window.open(banner.image_url, '_blank')}
+                      onClick={() => { const u = banner.image_url; if (u && u.startsWith('https://')) window.open(u, '_blank', 'noopener,noreferrer'); }}
                       className="p-3 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-white/20 transition-all"
                     >
                       <Eye className="w-5 h-5" />
@@ -283,10 +294,14 @@ const AdminBanners = () => {
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Enlace de Destino (Opcional)</label>
                 <div className="relative">
                   <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input 
+                    <input 
                     type="url" 
                     value={formData.link_url} 
-                    onChange={e => setFormData({...formData, link_url: e.target.value})} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val && !val.startsWith('http://') && !val.startsWith('https://')) return;
+                      setFormData({...formData, link_url: val});
+                    }} 
                     className="premium-input w-full pl-12" 
                     placeholder="https://tu-oferta.com" 
                   />

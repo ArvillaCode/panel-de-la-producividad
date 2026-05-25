@@ -1,8 +1,7 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
 import { Plus, Trash2, Save, ArrowLeft, Play, X } from 'lucide-react';
+import { useToast } from '../../../../context/ToastContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../../lib/academyR2Upload.js';
 
@@ -23,6 +22,7 @@ export default function LessonCreator() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Form State
   const [title, setTitle] = useState('');
@@ -107,7 +107,7 @@ export default function LessonCreator() {
 
   const handleCreateCourse = async () => {
     if (!newCourseName) {
-      alert("Ingresa un nombre para el curso");
+      toast.error("Ingresa un nombre para el curso");
       return;
     }
 
@@ -123,7 +123,7 @@ export default function LessonCreator() {
 
       if (error) {
         console.error("Error creating course:", error);
-        alert(`Error al crear curso: ${error.message}`);
+        toast.error(`Error al crear curso: ${error.message}`);
         return;
       }
 
@@ -135,13 +135,13 @@ export default function LessonCreator() {
       }
     } catch (error: any) {
       console.error(error);
-      alert(`Error crítico: ${error.message}`);
+      toast.error(`Error crítico: ${error.message}`);
     }
   };
 
   const handleCreateModule = async () => {
     if (!newModuleName || !courseId) {
-      alert("Selecciona un curso e ingresa un nombre para el módulo");
+      toast.error("Selecciona un curso e ingresa un nombre para el módulo");
       return;
     }
 
@@ -157,7 +157,7 @@ export default function LessonCreator() {
 
       if (error) {
         console.error("Error creating module:", error);
-        alert(`Error al crear módulo: ${error.message}`);
+        toast.error(`Error al crear módulo: ${error.message}`);
         return;
       }
 
@@ -169,7 +169,7 @@ export default function LessonCreator() {
       }
     } catch (error: any) {
       console.error(error);
-      alert(`Error crítico: ${error.message}`);
+      toast.error(`Error crítico: ${error.message}`);
     }
   };
 
@@ -180,7 +180,7 @@ export default function LessonCreator() {
       return filename;
     } catch (error: any) {
       console.error("Error en uploadFileToR2:", error);
-      alert(error?.message || 'Error de subida. Verifica VITE_R2_PRESIGN_URL y el Worker.');
+      toast.error(error?.message || 'Error de subida. Verifica VITE_R2_PRESIGN_URL y el Worker.');
       throw error;
     }
   };
@@ -278,7 +278,7 @@ export default function LessonCreator() {
       setFileToUpload(null);
     } catch (err) {
       console.error("Error subiendo video:", err);
-      alert("Error al subir el video. Inténtalo de nuevo.");
+      toast.error("Error al subir el video. Inténtalo de nuevo.");
     } finally {
       setIsUploading(false);
     }
@@ -288,6 +288,31 @@ export default function LessonCreator() {
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 font-sans">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         
+        {/* Breadcrumb */}
+        <nav className="mb-4 flex items-center gap-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400" aria-label="Breadcrumb">
+          <Link
+            to="/admin/dashboard"
+            className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span className="font-semibold">Admin</span>
+          </Link>
+
+          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+
+          <Link
+            to="/dashboard/academia"
+            className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            <span className="font-semibold">Academia</span>
+          </Link>
+
+          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+
+          <span className="font-semibold text-blue-600 dark:text-blue-400">Admin</span>
+        </nav>
+
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -301,11 +326,11 @@ export default function LessonCreator() {
             >
               <Plus className="w-4 h-4" /> Nuevo Curso
             </button>
+            <Link to="/dashboard/academia" className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 rounded-xl hover:bg-blue-100 transition-colors">
+              <Play className="w-4 h-4" /> Vista Academia
+            </Link>
             <Link to="/admin/dashboard" className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:text-blue-600 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Panel Maestro
-            </Link>
-            <Link to="/dashboard/academia" className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 rounded-xl hover:bg-blue-100 transition-colors">
-              <Play className="w-4 h-4" /> Vista Usuario
             </Link>
           </div>
         </div>
@@ -522,7 +547,7 @@ export default function LessonCreator() {
               <button
                 type="button"
                 onClick={() => {
-                  if(confirm("¿Estás seguro de cancelar? Se perderán los datos ingresados no guardados.")) {
+                  if(window.confirm("¿Estás seguro de cancelar? Se perderán los datos ingresados no guardados.")) {
                     setTitle('');
                     setDescription('');
                     setCourseId('');
