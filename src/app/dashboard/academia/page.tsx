@@ -629,7 +629,7 @@ export default function AcademyDashboard() {
         {/* BREADCRUMB */}
         <nav className="mb-4 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400 overflow-x-auto flex-nowrap scrollbar-hide" aria-label="Breadcrumb">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/')}
             className="inline-flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -720,11 +720,11 @@ export default function AcademyDashboard() {
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link
-              to="/"
+              to={isAdmin ? "/admin/dashboard" : "/"}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Ir al Inicio
+              {isAdmin ? 'Panel Maestro' : 'Ir al Inicio'}
             </Link>
 
             {isAdmin && (
