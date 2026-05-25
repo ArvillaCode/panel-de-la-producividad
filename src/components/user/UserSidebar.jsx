@@ -1,23 +1,5 @@
 import React from 'react';
-import {
-  Grid,
-  Heart,
-  Bell,
-  User,
-  Lock,
-  Sun,
-  Moon,
-  Settings,
-  LogOut,
-  MessageSquare,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
-  Shield,
-  ShieldCheck,
-  Home,
-  GraduationCap
-} from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -83,7 +65,7 @@ const UserSidebar = ({
                 {profile?.name || user?.email?.split('@')[0]}
               </h3>
               <div className="flex items-center gap-2 mt-1">
-                <Shield className="w-3 h-3 text-neon-teal" />
+                <LucideIcons.Shield className="w-3 h-3 text-neon-teal" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">
                   {profile?.role === 'admin' ? 'Core Admin' : 'Elite User'}
                 </span>
@@ -106,7 +88,7 @@ const UserSidebar = ({
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${currentActiveTab === 'Todos' && location.pathname === '/' ? 'bg-neon-teal text-deep-dark shadow-xl shadow-neon-teal/20 scale-[1.02]' : 'text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <Grid className={`w-5 h-5 ${currentActiveTab === 'Todos' && location.pathname === '/' ? 'text-deep-dark' : 'text-neon-teal'} group-hover:scale-110 group-hover:rotate-12 transition-all flex-shrink-0`} />
+            <LucideIcons.Grid className={`w-5 h-5 ${currentActiveTab === 'Todos' && location.pathname === '/' ? 'text-deep-dark' : 'text-neon-teal'} group-hover:scale-110 group-hover:rotate-12 transition-all flex-shrink-0`} />
             {(!isCollapsed || isMobile) && <span className="italic">Explorar</span>}
           </button>
 
@@ -116,7 +98,7 @@ const UserSidebar = ({
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 group ${currentActiveTab === 'Favoritos' && location.pathname === '/' ? 'bg-red-500 text-white shadow-xl shadow-red-500/20 scale-[1.02]' : 'text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <Heart className={`w-5 h-5 ${currentActiveTab === 'Favoritos' && location.pathname === '/' ? 'text-white' : 'text-red-500'} group-hover:scale-110 transition-all flex-shrink-0`} />
+            <LucideIcons.Heart className={`w-5 h-5 ${currentActiveTab === 'Favoritos' && location.pathname === '/' ? 'text-white' : 'text-red-500'} group-hover:scale-110 transition-all flex-shrink-0`} />
             {(!isCollapsed || isMobile) && <span className="italic">Favoritos</span>}
           </button>
 
@@ -130,7 +112,7 @@ const UserSidebar = ({
               }`}
             >
               <div className="relative">
-                <GraduationCap className={`w-5 h-5 ${location.pathname.startsWith('/dashboard/academia') ? 'text-white' : 'text-blue-500'} group-hover:scale-110 group-hover:-rotate-12 transition-all flex-shrink-0`} />
+                <LucideIcons.GraduationCap className={`w-5 h-5 ${location.pathname.startsWith('/dashboard/academia') ? 'text-white' : 'text-blue-500'} group-hover:scale-110 group-hover:-rotate-12 transition-all flex-shrink-0`} />
                 {profile?.role === 'admin' && (
                   <div className="absolute -top-1 -right-1 w-2 h-2 bg-neon-teal rounded-full animate-pulse shadow-[0_0_8px_rgba(0,229,255,0.6)]"></div>
                 )}
@@ -145,7 +127,7 @@ const UserSidebar = ({
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group relative`}
           >
             <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4'}`}>
-              <Sparkles className="w-5 h-5 text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-all flex-shrink-0" />
+              <LucideIcons.Sparkles className="w-5 h-5 text-amber-500 group-hover:scale-110 group-hover:rotate-12 transition-all flex-shrink-0" />
               {(!isCollapsed || isMobile) && <span className="italic">Bitácora</span>}
             </div>
             {(!isCollapsed || isMobile) && <ReleaseNotesBadge />}
@@ -162,7 +144,7 @@ const UserSidebar = ({
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'justify-between px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >
             <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4'}`}>
-              <Bell className={`w-5 h-5 text-purple-500 ${unreadCount > 0 ? 'animate-push-bell' : ''} group-hover:scale-110 transition-all flex-shrink-0`} />
+              <LucideIcons.Bell className={`w-5 h-5 text-purple-500 ${unreadCount > 0 ? 'animate-push-bell' : ''} group-hover:scale-110 transition-all flex-shrink-0`} />
               {(!isCollapsed || isMobile) && <span className="italic">Alertas</span>}
             </div>
             {(!isCollapsed || isMobile) && unreadCount > 0 && (
@@ -177,7 +159,7 @@ const UserSidebar = ({
             title="Sugerir Agente"
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >
-            <MessageSquare className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-all flex-shrink-0" />
+            <LucideIcons.MessageSquare className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-all flex-shrink-0" />
             {(!isCollapsed || isMobile) && <span className="italic">Propuestas</span>}
           </button>
         </nav>
@@ -192,7 +174,7 @@ const UserSidebar = ({
             title="Ajustes de Interfaz"
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all duration-500 group`}
           >
-            <Settings className="w-5 h-5 text-slate-400 dark:text-gray-400 group-hover:rotate-90 transition-transform duration-700 flex-shrink-0" />
+            <LucideIcons.Settings className="w-5 h-5 text-slate-400 dark:text-gray-400 group-hover:rotate-90 transition-transform duration-700 flex-shrink-0" />
             {(!isCollapsed || isMobile) && <span className="italic">Configurar</span>}
           </button>
 
@@ -202,7 +184,7 @@ const UserSidebar = ({
               title="Panel Administrativo"
               className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-4'} py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest bg-neon-teal/5 text-neon-teal border border-neon-teal/10 hover:bg-neon-teal/10 transition-all duration-500 group`}
             >
-              <ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-all flex-shrink-0" />
+              <LucideIcons.ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-all flex-shrink-0" />
               {(!isCollapsed || isMobile) && <span className="italic">Master Admin</span>}
             </button>
           )}
@@ -217,7 +199,7 @@ const UserSidebar = ({
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-5'} py-4 rounded-2xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-500 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/10 group border border-blue-500/20 backdrop-blur-md`}
             title="Ir a Inicio"
           >
-            <Home className="w-5 h-5 group-hover:-translate-x-1 transition-transform flex-shrink-0" />
+            <LucideIcons.Home className="w-5 h-5 group-hover:-translate-x-1 transition-transform flex-shrink-0" />
             {(!isCollapsed || isMobile) && <span className="italic">Ir a Inicio</span>}
           </button>
 
@@ -226,7 +208,7 @@ const UserSidebar = ({
             className={`w-full flex items-center ${isCollapsed && !isMobile ? 'justify-center' : 'gap-4 px-5'} py-4 rounded-2xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-500 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/10 group border border-red-500/20 backdrop-blur-md`}
             title="Cerrar Sesión"
           >
-            <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform flex-shrink-0" />
+            <LucideIcons.LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform flex-shrink-0" />
             {(!isCollapsed || isMobile) && <span className="italic">Cerrar Sesión</span>}
           </button>
 
@@ -237,10 +219,10 @@ const UserSidebar = ({
               title={isCollapsed ? "Expandir" : "Contraer"}
             >
               {isCollapsed ? (
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <LucideIcons.ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               ) : (
                 <div className="flex items-center gap-2">
-                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                  <LucideIcons.ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                   <span className="text-[8px] font-black uppercase tracking-[0.3em]">Minimizar</span>
                 </div>
               )}

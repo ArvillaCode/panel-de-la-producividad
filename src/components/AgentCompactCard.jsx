@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Heart } from 'lucide-react';
+import { MessageCircle, Heart, Shield, Star, Zap } from 'lucide-react';
 import Avatar from './Avatar';
 
 const AgentCompactCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0, onChatClick }) => {
