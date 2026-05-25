@@ -928,16 +928,25 @@ export default function AcademyDashboard() {
                   }}
                   className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2 active:scale-[0.98] active:shadow-md"
                 >
-                  <div className="aspect-[16/9] relative overflow-hidden">
-                    <img
-                      src={course.thumbnail_url?.startsWith('http') ? course.thumbnail_url : academyMediaUrl(course.thumbnail_url)}
-                      alt={course.title}
-                      onError={(e) => {
-                        // Fallback elegante
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
-                      }}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
+                    <div className="aspect-[16/9] relative overflow-hidden">
+                      {(() => {
+                        const src = course.thumbnail_url?.startsWith('http')
+                          ? course.thumbnail_url
+                          : academyMediaUrl(course.thumbnail_url);
+                        const fallback = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
+                        return (
+                          <img
+                            src={src || fallback}
+                            alt={course.title}
+                            onError={(e) => {
+                              if ((e.target as HTMLImageElement).src !== fallback) {
+                                (e.target as HTMLImageElement).src = fallback;
+                              }
+                            }}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        );
+                      })()}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
                     <div className="absolute top-4 left-4">
                       <span className={`px-3 py-1 ${CATEGORY_COLORS[course.category] || 'bg-slate-600'} backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg`}>

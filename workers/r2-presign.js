@@ -138,11 +138,81 @@ function validateUpload({ key, contentType, size }, env) {
 export default {
   async fetch(request, env) {
     const corsHeaders = getCorsHeaders(request, env);
+    const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
+    // --- GET: servir archivos de academia (media) ---
+    if (request.method === 'GET') {
+      const key = url.searchParams.get('key');
+      if (!key) {
+        return jsonResponse(request, env, 400, { error: 'missing_key' });
+      }
+
+      // Validar que el key sea de las carpetas permitidas
+      const keyMatch = key.match(/^academy\/([a-z]+)\/[A-Za-z0-9._-]+$/);
+      if (!keyMatch || !ALLOWED_FOLDERS.has(keyMatch[1])) {
+        return jsonResponse(request, env, 400, { error: 'invalid_key' });
+      }
+
+      try {
+        requireEnv(env);
+      } catch (error) {
+        console.error('[R2_MEDIA] Missing configuration:', error);
+        return jsonResponse(request, env, 500, { error: 'server_not_configured' });
+      }
+
+      const r2Url = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/${key}`;
+
+      const aws = new AwsClient({
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY
+      });
+
+      try {
+        const signed = await aws.sign(
+          new Request(r2Url, { method: 'GET' }),
+          { aws: { signQuery: true, expires: 3600 } }
+        );
+
+        const mediaRes = await fetch(signed.url);
+
+        if (!mediaRes.ok) {
+          return jsonResponse(request, env, mediaRes.status === 404 ? 404 : 502, { error: 'fetch_failed' });
+        }
+
+        const contentDisposition = 'inline';
+        const responseHeaders = new Headers({
+          ...corsHeaders,
+          'Content-Type': mediaRes.headers.get('Content-Type') || 'application/octet-stream',
+          'Content-Disposition': contentDisposition,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Accept-Ranges': 'bytes'
+        });
+
+        // Para videos, soportar range requests
+        if (request.headers.has('Range')) {
+          responseHeaders.set('Content-Range', mediaRes.headers.get('Content-Range') || '');
+          responseHeaders.set('Accept-Ranges', 'bytes');
+          return new Response(mediaRes.body, {
+            status: mediaRes.status,
+            headers: responseHeaders
+          });
+        }
+
+        return new Response(mediaRes.body, {
+          status: 200,
+          headers: responseHeaders
+        });
+      } catch (error) {
+        console.error('[R2_MEDIA] Fetch failed:', error);
+        return jsonResponse(request, env, 500, { error: 'fetch_failed' });
+      }
+    }
+
+    // --- POST: firmar subidas ---
     if (request.method !== 'POST') {
       return jsonResponse(request, env, 405, { error: 'method_not_allowed' });
     }
@@ -177,11 +247,11 @@ export default {
       secretAccessKey: env.R2_SECRET_ACCESS_KEY
     });
 
-    const url = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/${key}`;
+    const presignUrl = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/${key}`;
 
     try {
       const signed = await aws.sign(
-        new Request(url, {
+        new Request(presignUrl, {
           method: 'PUT',
           headers: { 'Content-Type': contentType }
         }),
