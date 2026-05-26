@@ -16,7 +16,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://app.upfunnel.click',
   'http://localhost:5173'
 ];
-const ALLOWED_FOLDERS = new Set(['videos', 'thumbnails', 'courses']);
+const ALLOWED_FOLDERS = new Set(['videos', 'thumbnails', 'courses', 'banners']);
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
@@ -119,7 +119,7 @@ function validateUpload({ key, contentType, size }, env) {
 
   const folder = match[1];
   const normalizedType = String(contentType || 'application/octet-stream').toLowerCase();
-  const isImageFolder = folder === 'thumbnails' || folder === 'courses';
+  const isImageFolder = folder === 'thumbnails' || folder === 'courses' || folder === 'banners';
   const validType = isImageFolder ? IMAGE_TYPES.has(normalizedType) : VIDEO_TYPES.has(normalizedType);
 
   if (!validType) {

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const ALLOWED_SUBFOLDERS = new Set(['videos', 'thumbnails', 'courses']);
+const ALLOWED_SUBFOLDERS = new Set(['videos', 'thumbnails', 'courses', 'banners']);
 const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
 
 function sanitizeFilename(name) {
@@ -90,7 +90,7 @@ export function academyMediaUrl(path) {
   }
 
   const cleanPath = rawPath.replace(/^\/+/, '');
-  const normalizedPath = /^(videos|thumbnails|courses)\//.test(cleanPath)
+  const normalizedPath = /^(videos|thumbnails|courses|banners)\//.test(cleanPath)
     ? `academy/${cleanPath}`
     : cleanPath;
 

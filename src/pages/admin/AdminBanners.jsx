@@ -15,6 +15,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { uploadToAcademyR2, academyMediaUrl } from '../../lib/academyR2Upload';
 
 const AdminBanners = () => {
   const { toast } = useToast();
@@ -22,6 +23,7 @@ const AdminBanners = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [formData, setFormData] = useState({
     image_url: '',
     link_url: '',
@@ -47,6 +49,16 @@ const AdminBanners = () => {
     setLoading(false);
   };
 
+  const convertToDirectImageUrl = (url) => {
+    if (!url) return '';
+    const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+    const driveMatch = url.match(driveRegex);
+    if (driveMatch && driveMatch[1]) {
+      return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+    }
+    return url;
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -58,31 +70,26 @@ const AdminBanners = () => {
       return;
     }
 
-    if (file.size > 200 * 1024) {
-      toast.warning('La imagen supera los 200KB recomendados. Podría afectar el tiempo de carga.');
+    // Límite estricto de 2MB
+    const maxSizeBytes = 2 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      toast.error('La imagen supera el límite máximo permitido de 2MB.');
+      e.target.value = '';
+      return;
     }
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `banner-${Date.now()}.${fileExt}`;
-      const filePath = `banners/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
+      // Subir a Cloudflare R2
+      const remotePath = await uploadToAcademyR2(file, 'banners');
+      const publicUrl = academyMediaUrl(remotePath);
 
       setFormData({ ...formData, image_url: publicUrl });
-      toast.success('Imagen cargada correctamente');
+      setImageError(false); // Limpiar error de validación
+      toast.success('Imagen cargada correctamente en Cloudflare R2');
     } catch (err) {
-      console.error('Detailed Supabase Storage Error:', err);
-      toast.error('Error al subir: ' + (err.message || 'Error desconocido de storage'));
+      console.error('Detailed Cloudflare R2 Error:', err);
+      toast.error('Error al subir a R2: ' + (err.message || 'Error desconocido de storage'));
     } finally {
       setIsUploading(false);
     }
@@ -91,7 +98,8 @@ const AdminBanners = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.image_url) {
-      return toast.error('La imagen es obligatoria');
+      setImageError(true);
+      return toast.error('El diseño del banner (imagen o URL) es obligatorio.');
     }
 
     if (formData.link_url && !formData.link_url.startsWith('https://')) {
@@ -109,6 +117,7 @@ const AdminBanners = () => {
       toast.success('Banner creado exitosamente');
       setShowModal(false);
       setFormData({ image_url: '', link_url: '', is_active: true });
+      setImageError(false);
       fetchBanners();
     }
   };
@@ -259,10 +268,14 @@ const AdminBanners = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Drag & Drop Area */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Diseño del Banner</label>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Diseño del Banner (Obligatorio)</label>
                 <div 
                   className={`relative group h-48 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-4 overflow-hidden ${
-                    formData.image_url ? 'border-neon-teal bg-neon-teal/5' : 'border-white/10 hover:border-white/20'
+                    formData.image_url 
+                      ? 'border-neon-teal bg-neon-teal/5' 
+                      : imageError 
+                        ? 'border-red-500 bg-red-500/5 animate-pulse animate-duration-1000' 
+                        : 'border-white/10 hover:border-white/20'
                   }`}
                 >
                   {formData.image_url ? (
@@ -286,6 +299,38 @@ const AdminBanners = () => {
                       </div>
                       <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleFileUpload} />
                     </>
+                  )}
+                </div>
+
+                {/* Campo Alternativo para Pegar URL de Imagen */}
+                <div className="space-y-1.5 mt-4">
+                  <div className="relative group">
+                    <ImageIcon className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+                      imageError ? 'text-red-400' : 'text-gray-500 group-focus-within:text-neon-teal'
+                    }`} />
+                    <input 
+                      type="url" 
+                      value={formData.image_url && !formData.image_url.startsWith('blob:') && !formData.image_url.startsWith('data:') && !formData.image_url.includes('key=') ? formData.image_url : ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const converted = convertToDirectImageUrl(val);
+                        setFormData({...formData, image_url: converted});
+                        if (converted) {
+                          setImageError(false); // Limpiar error al pegar URL válida
+                        }
+                      }} 
+                      className={`premium-input w-full pl-12 transition-all ${
+                        imageError ? '!border-red-500/50 focus:!border-red-500/80 focus:ring-red-500/20' : ''
+                      }`} 
+                      placeholder="O pega la URL de la imagen directamente" 
+                    />
+                  </div>
+                  
+                  {/* Alerta de Error Visual */}
+                  {imageError && (
+                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider ml-2 animate-in fade-in duration-300">
+                      ⚠ El diseño del banner (imagen física o URL de imagen) es obligatorio.
+                    </p>
                   )}
                 </div>
               </div>

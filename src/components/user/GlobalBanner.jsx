@@ -15,6 +15,7 @@ const GlobalBanner = () => {
   const [banner, setBanner] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   const [hasShown, setHasShown] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -63,9 +64,9 @@ const GlobalBanner = () => {
     setIsVisible(false);
   };
 
-  // REGLA DE ORO: Si no hay banner o no debe ser visible, NO RENDERIZAR NADA.
+  // REGLA DE ORO: Si no hay banner, no debe ser visible o hay un error de imagen, NO RENDERIZAR NADA.
   // Esto evita que el div "fixed inset-0" bloquee los clics.
-  if (!isAuthenticated || !isVisible || !banner) return null;
+  if (!isAuthenticated || !isVisible || !banner || imageError) return null;
 
   return (
     <div 
@@ -82,6 +83,10 @@ const GlobalBanner = () => {
             src={banner.image_url} 
             alt="Promoción Especial" 
             className="w-full h-full object-cover"
+            onError={() => {
+              console.error('[BANNER] Error al cargar la imagen promocional:', banner.image_url);
+              setImageError(true);
+            }}
           />
           
           {/* Close Button */}
