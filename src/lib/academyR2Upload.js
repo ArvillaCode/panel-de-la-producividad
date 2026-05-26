@@ -23,7 +23,46 @@ export async function uploadToAcademyR2(file, subfolder) {
   }
 
   if (!file || file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
-    throw new Error('Archivo invalido o demasiado grande.');
+    throw new Error('Archivo inválido o demasiado grande.');
+  }
+
+  // Resolver e inferir Content-Type correcto por extensión si es genérico
+  let contentType = file.type || 'application/octet-stream';
+  if (!contentType || contentType === 'application/octet-stream') {
+    const extension = String(file.name || '').split('.').pop().toLowerCase();
+    const extensionMap = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'webp': 'image/webp',
+      'gif': 'image/gif',
+      'mp4': 'video/mp4',
+      'webm': 'video/webm',
+      'mov': 'video/quicktime',
+      'qt': 'video/quicktime'
+    };
+    if (extensionMap[extension]) {
+      contentType = extensionMap[extension];
+    }
+  }
+
+  // Validaciones del tipo de archivo en el cliente según la subcarpeta
+  const isImageFolder = subfolder === 'thumbnails' || subfolder === 'courses' || subfolder === 'banners';
+  const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+  const allowedVideoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+
+  if (isImageFolder) {
+    if (!allowedImageTypes.has(contentType)) {
+      throw new Error(
+        `Formato de imagen no permitido: ${contentType}. Sube un archivo JPG, PNG, WebP o GIF válido.`
+      );
+    }
+  } else if (subfolder === 'videos') {
+    if (!allowedVideoTypes.has(contentType)) {
+      throw new Error(
+        `Formato de video no permitido: ${contentType}. Sube un archivo de video MP4, WebM o MOV válido.`
+      );
+    }
   }
 
   const presignEndpoint = import.meta.env.VITE_R2_PRESIGN_URL;
@@ -48,14 +87,33 @@ export async function uploadToAcademyR2(file, subfolder) {
     },
     body: JSON.stringify({
       key,
-      contentType: file.type || 'application/octet-stream',
+      contentType,
       size: file.size
     }),
   });
 
   if (!presignRes.ok) {
-    const detail = await presignRes.text().catch(() => '');
-    throw new Error(detail || `No se pudo obtener URL de subida (${presignRes.status})`);
+    let errorMsg = `No se pudo obtener la URL de subida del servidor (${presignRes.status})`;
+    try {
+      const detailText = await presignRes.text();
+      try {
+        const detail = JSON.parse(detailText);
+        if (detail.error === 'invalid_content_type') {
+          errorMsg = 'El tipo de archivo no está permitido en el servidor de almacenamiento. Sube un archivo de video (MP4/WebM) o imagen (JPG/PNG/WebP) válido.';
+        } else if (detail.error) {
+          errorMsg = detail.error;
+        }
+      } catch {
+        if (detailText.includes('invalid_content_type')) {
+          errorMsg = 'El tipo de archivo no está permitido en el servidor de almacenamiento. Sube un archivo de video (MP4/WebM) o imagen (JPG/PNG/WebP) válido.';
+        } else if (detailText) {
+          errorMsg = detailText;
+        }
+      }
+    } catch (err) {
+      // Ignorar errores leyendo cuerpo
+    }
+    throw new Error(errorMsg);
   }
 
   const { uploadUrl } = await presignRes.json();
@@ -65,12 +123,14 @@ export async function uploadToAcademyR2(file, subfolder) {
 
   const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    headers: { 'Content-Type': contentType },
     body: file,
   });
 
   if (!uploadRes.ok) {
-    throw new Error(`Error al subir el archivo (${uploadRes.status})`);
+    throw new Error(
+      `Error al subir el archivo al almacenamiento (${uploadRes.status}). Verifica tu conexión o intenta con un archivo más liviano.`
+    );
   }
 
   return key;

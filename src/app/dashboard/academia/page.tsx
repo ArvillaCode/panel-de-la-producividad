@@ -1230,7 +1230,7 @@ export default function AcademyDashboard() {
                             className="w-full h-full border-0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             referrerPolicy="strict-origin-when-cross-origin"
-                            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                            sandbox="allow-scripts allow-same-origin allow-popups"
                             allowFullScreen
                           />
                         );
@@ -1293,6 +1293,17 @@ export default function AcademyDashboard() {
                       );
                     })()}
                   </div>
+                  
+                  {/* Alerta amigable para Google Drive */}
+                  {activeLesson && activeLesson.video_path && (activeLesson.video_path.includes('drive.google.com') || activeLesson.video_path.includes('docs.google.com')) && (
+                    <div className="mt-3 p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl text-xs flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                      <span className="text-sm shrink-0">💡</span>
+                      <span className="leading-relaxed">
+                        <strong>Tip de Google Drive:</strong> Si visualizas un error de acceso o la pantalla negra en el reproductor, asegúrate de compartir el archivo en tu Drive de forma pública como <strong>"Cualquier persona con el enlace puede ver"</strong>.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 lg:p-8 shadow-sm border border-slate-200 dark:border-slate-800 relative">
                     {isEditMode ? (
                       <div className="space-y-4 animate-in fade-in duration-300">

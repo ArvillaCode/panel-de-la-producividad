@@ -271,7 +271,7 @@ export default function LessonCreator() {
       setFileToUpload(null);
     } catch (err) {
       console.error("Error subiendo video:", err);
-      toast.error("Error al subir el video. Inténtalo de nuevo.");
+      // El error ya fue mostrado en un toast detallado por uploadFileToR2
     } finally {
       setIsUploading(false);
     }
