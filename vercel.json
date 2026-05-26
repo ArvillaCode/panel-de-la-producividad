@@ -1,4 +1,15 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; connect-src 'self' https://krtthtzljlyewlngaklo.supabase.co https://*.supabase.co wss://*.supabase.co https://*.workers.dev https://api.github.com https://openrouter.ai; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; frame-src 'self' https://www.youtube.com https://player.vimeo.com https://drive.google.com https://assets.cdn.filesafe.space https://*.filesafe.space; object-src 'none'; base-uri 'self';"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
