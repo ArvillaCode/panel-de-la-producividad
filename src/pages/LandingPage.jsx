@@ -445,7 +445,7 @@ const LandingHeader = ({ activeSection, onNavigate, mobileOpen, setMobileOpen })
             height={48}
             aria-hidden="true"
             className="h-10 md:h-11 w-auto object-contain brightness-0 invert"
-            fetchPriority="high"
+            fetchpriority="high"
           />
           <span className="ml-3 text-xl md:text-2xl font-black tracking-tighter italic text-white truncate">
             {BRANDING.name}

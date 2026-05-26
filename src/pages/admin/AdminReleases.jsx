@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Info, Sparkles, CheckCircle, ShieldCheck, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle,
+  Edit2,
+  Eye,
+  EyeOff,
+  Github,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  X
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import AdminLayout from '../../components/admin/AdminLayout';
 
 const typeOptions = [
   { value: 'improvement', label: 'Mejora', icon: CheckCircle, color: 'text-blue-400' },
@@ -183,8 +196,8 @@ const AdminReleases = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#030712] text-[#f8fafc] p-6 md:p-12 selection:bg-blue-500/30">
-      <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <AdminLayout currentPage="releases">
+      <div className="max-w-7xl mx-auto text-[#f8fafc] selection:bg-blue-500/30 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
           <div className="flex flex-col gap-4">
             <button
@@ -477,7 +490,7 @@ const AdminReleases = () => {
           </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

@@ -1,0 +1,33 @@
+name: Private Release Note
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-private-release-note:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate auto-release secrets
+        env:
+          AUTO_RELEASE_URL: ${{ secrets.AUTO_RELEASE_URL }}
+          AUTO_RELEASE_TOKEN: ${{ secrets.AUTO_RELEASE_TOKEN }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$AUTO_RELEASE_URL" ] || [ -z "$AUTO_RELEASE_TOKEN" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Configura AUTO_RELEASE_URL, AUTO_RELEASE_TOKEN y SUPABASE_ANON_KEY en los secrets del repositorio."
+            exit 1
+          fi
+
+      - name: Save private release note in Upfunnel
+        env:
+          AUTO_RELEASE_URL: ${{ secrets.AUTO_RELEASE_URL }}
+          AUTO_RELEASE_TOKEN: ${{ secrets.AUTO_RELEASE_TOKEN }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          curl --fail-with-body --request POST "$AUTO_RELEASE_URL" \
+            --header "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            --header "X-Auto-Release-Token: ${AUTO_RELEASE_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data-binary "@${GITHUB_EVENT_PATH}"

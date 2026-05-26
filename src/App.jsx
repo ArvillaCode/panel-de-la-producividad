@@ -23,12 +23,15 @@ import AdminBanners from './pages/admin/AdminBanners';
 import GlobalBanner from './components/user/GlobalBanner';
 import AcademiaPage from './app/dashboard/academia/page';
 import LessonCreator from './app/dashboard/academia/admin/page';
+import PendingApproval from './pages/PendingApproval';
 import './App.css';
 
 // 1. Componente de Restricción de Dominio (Restaurado)
 const DomainRestrictedRoute = ({ children, appOnly = false }) => {
   const isAppDomain = window.location.hostname.includes('app.') || 
-                      window.location.hostname === 'localhost' || 
+                      window.location.hostname === 'localhost' ||
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.hostname === '::1' ||
                       window.location.hostname.startsWith('51.79.68.'); // Permitir acceso desde Coolify
   if (appOnly && !isAppDomain) return <Navigate to="/" replace />;
   return children;
@@ -54,6 +57,10 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
+  if (!adminOnly && !isAdmin && profile && (profile.is_approved !== true || profile.status !== 'active')) {
+    return <Navigate to="/dashboard/espera-aprobacion" replace />;
+  }
+
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   return children;
 };
@@ -63,12 +70,18 @@ const Home = () => {
   const { isAuthenticated, profile, isAdmin, loading } = useAuth();
   const isAppDomain = window.location.hostname.includes('app.') || 
                       window.location.hostname === 'localhost' ||
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.hostname === '::1' ||
                       window.location.hostname.startsWith('51.79.68.');
 
   if (loading) return <div className="min-h-screen bg-[#020203] flex items-center justify-center"><div className="premium-spinner"></div></div>;
   if (!isAppDomain) return <LandingPage />;
 
   if (isAuthenticated) {
+    if (!isAdmin && profile && (profile.is_approved !== true || profile.status !== 'active')) {
+      return <PendingApproval />;
+    }
+
     return <AgentPanel />;
   }
 
@@ -111,6 +124,7 @@ function App() {
               <Route path="/politicas" element={<Policies />} />
               <Route path="/privacidad" element={<Privacy />} />
               <Route path="/soporte" element={<Support />} />
+              <Route path="/dashboard/espera-aprobacion" element={<PendingApproval />} />
 
               {/* Academia */}
               <Route path="/dashboard/academia" element={<ProtectedRoute><AcademiaPage /></ProtectedRoute>} />

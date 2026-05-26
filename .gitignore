@@ -49,6 +49,7 @@ build/
 
 # Scratch / Dev scripts
 scratch/
+.codex-tmp/
 cors_r2.json
 
 # Workers

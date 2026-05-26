@@ -64,6 +64,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     if (path === '/admin/releases') return 'releases';
     if (path === '/admin/logs') return 'logs';
     if (path === '/admin/matchmaker-config') return 'matchmaker-config';
+    if (path === '/admin/banners') return 'banners';
     if (path.startsWith('/dashboard/academia')) return 'academia';
     return 'dashboard';
   };

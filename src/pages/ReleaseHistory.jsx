@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { X, Sparkles, CheckCircle, AlertTriangle, ShieldCheck, Calendar, ChevronRight, Info, Shield } from 'lucide-react';
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  ChevronRight,
+  Info,
+  Shield,
+  ShieldCheck,
+  Sparkles
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useReleaseNotes } from '../hooks/useReleaseNotes';
 import ReleaseNotesModal from '../components/user/ReleaseNotesModal';
