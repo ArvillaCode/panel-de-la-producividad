@@ -141,10 +141,17 @@ export function academyMediaUrl(path) {
   if (!rawPath) return '';
 
   if (/^(https?:|blob:|data:)/i.test(rawPath)) {
-    // Si es una URL de Google Drive, la convertimos a formato directo de descarga para evitar CORS/500
+    // Si es una URL de Google Drive, la convertimos a formato directo de descarga o miniatura para evitar CORS/500
     if (rawPath.includes('drive.google.com') || rawPath.includes('docs.google.com')) {
       const match = rawPath.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || rawPath.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
+        // Si no tiene una extensión de video obvia, asumimos que es una imagen y usamos
+        // el endpoint público de thumbnails de Drive. Este endpoint no requiere cookies de terceros
+        // y funciona 100% de las veces en etiquetas <img> sin lanzar 403 por bloqueo de Chrome.
+        const isVideo = /\.(mp4|webm|mov|qt)(?:[?#]|$)/i.test(rawPath);
+        if (!isVideo) {
+          return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+        }
         return `https://docs.google.com/uc?export=download&id=${match[1]}`;
       }
     }

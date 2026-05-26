@@ -193,7 +193,7 @@ export const AuthProvider = ({ children }) => {
           .single();
 
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
         );
 
         const result = await Promise.race([fetchPromise, timeoutPromise]);
@@ -323,7 +323,7 @@ export const AuthProvider = ({ children }) => {
       timer = setTimeout(() => {
         console.warn('[AUTH] Safety timeout: forzando loading=false para evitar spinner infinito');
         setLoading(false);
-      }, 2500); // 2.5 segundos de margen
+      }, 8000); // 8 segundos de margen
     }
     return () => clearTimeout(timer);
   }, [loading]);
@@ -378,11 +378,11 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // FAIL-SAFE CORTACIRCUITOS: Timeout de liberación forzada de 2 segundos para INITIAL_SESSION/SIGNED_IN
+      // FAIL-SAFE CORTACIRCUITOS: Timeout de liberación forzada de 8 segundos para INITIAL_SESSION/SIGNED_IN
       const escapeTimeout = setTimeout(() => {
-        console.warn(`[AUTH] FAIL-SAFE ACTIVADO: Forzando liberación de interfaz tras 2 segundos en evento: ${event}`);
+        console.warn(`[AUTH] FAIL-SAFE ACTIVADO: Forzando liberación de interfaz tras 8 segundos en evento: ${event}`);
         setLoading(false);
-      }, 2000);
+      }, 8000);
 
       try {
         console.log(`[AUTH] Evento auth: ${event}`);
