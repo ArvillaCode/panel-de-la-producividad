@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase.js';
 import { useAuth } from '../../../hooks/useAuth.jsx';
 import { useToast } from '../../../context/ToastContext';
@@ -14,7 +14,8 @@ import {
   Trash2,
   Lock,
   Pencil,
-  Settings
+  Settings,
+  Gem
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
@@ -30,6 +31,9 @@ interface Lesson {
   materiales?: any[];
   is_visible: boolean;
   thumbnail_url?: string;
+  video_url?: string;
+  thumb_url?: string;
+  module_id?: string;
 }
 
 interface Module {
@@ -45,6 +49,8 @@ interface Course {
   thumbnail_url: string;
   category: string;
   is_premium: boolean;
+  is_published?: boolean;
+  slug?: string;
 }
 
 // --- CONSTANTES GLOBALES ---
@@ -59,6 +65,34 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const ACADEMY_CATEGORIES = ["General", "Inteligencia Artificial", "Automatización", "Marketing", "Ventas", "Estrategia"];
+
+function parseLessonMaterials(materiales: unknown) {
+  if (Array.isArray(materiales)) return materiales;
+  if (typeof materiales !== 'string') return [];
+
+  try {
+    const parsed = JSON.parse(materiales);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function formatAcademyLesson(lesson: any): Lesson {
+  const videoPath = String(lesson.video_path || '').trim();
+  const thumbnailUrl = String(lesson.thumbnail_url || '').trim();
+
+  return {
+    ...lesson,
+    video_path: videoPath,
+    thumbnail_url: thumbnailUrl,
+    materiales: parseLessonMaterials(lesson.materiales),
+    is_completed: false,
+    duration: "Video",
+    video_url: academyMediaUrl(videoPath),
+    thumb_url: academyMediaUrl(thumbnailUrl)
+  };
+}
 
 // --- HELPER PARA DETECTAR Y OBTENER URL DE INCRUSTACIÓN (GOOGLE DRIVE, YOUTUBE, VIMEO) ---
 function getEmbedUrl(url: string) {
@@ -89,6 +123,14 @@ function getEmbedUrl(url: string) {
   }
 
   return null;
+}
+
+function isHttpUrl(url: string) {
+  return /^https?:\/\//i.test(String(url || '').trim());
+}
+
+function looksLikeDirectVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v)(?:[?#]|$)/i.test(String(url || '').trim());
 }
 
 export default function AcademyDashboard() {
@@ -147,6 +189,14 @@ export default function AcademyDashboard() {
   const requestConfirm = (message: string, onConfirm: () => void) => {
     setConfirmDialog({ isOpen: true, message, onConfirm });
   };
+
+  const filteredCourses = useMemo(() => (
+    courses.filter((course) => {
+      if (course.slug === 'global-academy-settings') return false;
+      if (showOnlyPremium) return course.is_premium;
+      return selectedCategory === 'Todas' || course.category === selectedCategory;
+    })
+  ), [courses, selectedCategory, showOnlyPremium]);
 
   const handleSaveAcademySettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -385,13 +435,21 @@ export default function AcademyDashboard() {
     const fetchCoursesData = async () => {
       try {
         setIsLoading(true);
-        const { data: coursesData, error: coursesError } = await supabase
+        let query = supabase
           .from('academy_courses')
           .select('*')
           .order('created_at', { ascending: false });
 
+        if (!isAdmin) {
+          query = query.or('is_published.is.true,is_published.is.null');
+        }
+
+        const { data: coursesData, error: coursesError } = await query;
+
         if (!coursesError && coursesData) {
           setCourses(coursesData);
+        } else if (coursesError) {
+          throw coursesError;
         }
       } catch (error) {
         console.error("Error loading courses:", error);
@@ -429,93 +487,100 @@ export default function AcademyDashboard() {
       if (!selectedCourse) return;
       try {
         setIsLoading(true);
-        let query = supabase
+        setModules([]);
+        setActiveLesson(null);
+        setVideoError(false);
+
+        const { data: modulesData, error: modulesError } = await supabase
           .from('academy_modules')
-          .select(`
-            id, title,
-            academy_lessons ( id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url )
-          `)
-          .eq('course_id', selectedCourse.id);
-
-        const { data, error } = await query
+          .select('id, title, order_index, created_at')
+          .eq('course_id', selectedCourse.id)
           .order('order_index', { ascending: true })
-          .order('order_index', { referencedTable: 'academy_lessons', ascending: true });
+          .order('created_at', { ascending: true });
 
-        if (!error && data) {
-          const modulesMap = new Map();
+        if (modulesError) throw modulesError;
 
-          data.forEach((mod: any) => {
-            const existing = modulesMap.get(mod.title);
-            const lessons = (mod.academy_lessons || []).map((lesson: any) => {
-              let parsedMateriales = [];
-              if (Array.isArray(lesson.materiales)) {
-                parsedMateriales = lesson.materiales;
-              } else if (typeof lesson.materiales === 'string') {
-                try {
-                  const parsed = JSON.parse(lesson.materiales);
-                  if (Array.isArray(parsed)) parsedMateriales = parsed;
-                } catch {}
-              }
+        const moduleIds = (modulesData || []).map((mod: any) => mod.id);
+        const lessonsById = new Map<string, any>();
 
-              return {
-                ...lesson,
-                materiales: parsedMateriales,
-                is_completed: false,
-                duration: "Video",
-                video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
-                thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
-              };
-            });
+        if (moduleIds.length > 0) {
+          const { data: lessonsByModule, error: lessonsByModuleError } = await supabase
+            .from('academy_lessons')
+            .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id')
+            .in('module_id', moduleIds)
+            .order('order_index', { ascending: true });
 
-            if (existing) {
-              existing.lessons = [...existing.lessons, ...lessons];
-            } else {
-              modulesMap.set(mod.title, {
-                id: mod.id,
-                title: mod.title,
-                lessons: lessons
-              });
-            }
+          if (lessonsByModuleError) throw lessonsByModuleError;
+          (lessonsByModule || []).forEach((lesson: any) => lessonsById.set(String(lesson.id), lesson));
+        }
+
+        const { data: lessonsByCourse, error: lessonsByCourseError } = await supabase
+          .from('academy_lessons')
+          .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id')
+          .eq('course_id', selectedCourse.id)
+          .order('order_index', { ascending: true });
+
+        if (lessonsByCourseError) throw lessonsByCourseError;
+        (lessonsByCourse || []).forEach((lesson: any) => lessonsById.set(String(lesson.id), lesson));
+
+        const visibleLessons = Array.from(lessonsById.values())
+          .filter((lesson: any) => isAdmin || lesson.is_visible !== false)
+          .map(formatAcademyLesson);
+
+        const lessonsByModuleId = new Map<string, Lesson[]>();
+        visibleLessons.forEach((lesson) => {
+          const moduleId = lesson.module_id ? String(lesson.module_id) : '';
+          if (!moduleId) return;
+          const moduleLessons = lessonsByModuleId.get(moduleId) || [];
+          moduleLessons.push(lesson);
+          lessonsByModuleId.set(moduleId, moduleLessons);
+        });
+
+        const formattedModules: Module[] = (modulesData || []).map((mod: any) => ({
+          id: mod.id,
+          title: mod.title,
+          lessons: lessonsByModuleId.get(String(mod.id)) || []
+        }));
+
+        const knownModuleIds = new Set(moduleIds.map(String));
+        const orphanLessons = visibleLessons.filter((lesson) => !lesson.module_id || !knownModuleIds.has(String(lesson.module_id)));
+        if (orphanLessons.length > 0) {
+          formattedModules.push({
+            id: `course-${selectedCourse.id}-content`,
+            title: 'Contenido del curso',
+            lessons: orphanLessons
           });
+        }
 
-          const formattedModules = Array.from(modulesMap.values()).map(mod => ({
-            ...mod,
-            lessons: mod.lessons.filter((l: any) => isAdmin || l.is_visible !== false)
-              .map((lesson: any) => ({
-                ...lesson,
-                video_url: lesson.video_path ? academyMediaUrl(lesson.video_path) : '',
-                thumb_url: lesson.thumbnail_url ? academyMediaUrl(lesson.thumbnail_url) : ''
-              }))
-          }));
+        setModules(formattedModules);
 
-          setModules(formattedModules);
+        // Auto-seleccionar lección desde la URL
+        const params = new URLSearchParams(location.search);
+        const lessonIdFromUrl = params.get('lesson');
+        let foundLesson = null;
+        let foundModuleId = null;
 
-          // Auto-seleccionar lección desde la URL
-          const params = new URLSearchParams(location.search);
-          const lessonIdFromUrl = params.get('lesson');
-          let foundLesson = null;
-          let foundModuleId = null;
-
-          if (lessonIdFromUrl) {
-            for (const mod of formattedModules) {
-              const matchedLes = mod.lessons.find(l => String(l.id) === lessonIdFromUrl);
-              if (matchedLes) {
-                foundLesson = matchedLes;
-                foundModuleId = mod.id;
-                break;
-              }
+        if (lessonIdFromUrl) {
+          for (const mod of formattedModules) {
+            const matchedLes = mod.lessons.find(l => String(l.id) === lessonIdFromUrl);
+            if (matchedLes) {
+              foundLesson = matchedLes;
+              foundModuleId = mod.id;
+              break;
             }
           }
+        }
 
-          if (foundLesson) {
-            setActiveLesson(foundLesson);
-            setExpandedModules({ [foundModuleId!]: true });
-          } else if (formattedModules[0]?.lessons.length > 0) {
-            setActiveLesson(formattedModules[0].lessons[0]);
-            setExpandedModules({ [formattedModules[0].id]: true });
-          } else {
-            setActiveLesson(null);
-          }
+        const firstModuleWithLessons = formattedModules.find((mod) => mod.lessons.length > 0);
+        if (foundLesson) {
+          setActiveLesson(foundLesson);
+          setExpandedModules({ [foundModuleId!]: true });
+        } else if (firstModuleWithLessons) {
+          setActiveLesson(firstModuleWithLessons.lessons[0]);
+          setExpandedModules({ [firstModuleWithLessons.id]: true });
+        } else {
+          setActiveLesson(null);
+          setExpandedModules({});
         }
       } catch (error) {
         console.error("Error loading lessons:", error);
@@ -858,11 +923,11 @@ export default function AcademyDashboard() {
         {/* FILTROS POR CATEGORÍA */}
         {view === 'courses' && (
           <div className="mb-10 relative">
-            <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar"
-              style={{ maskImage: 'linear-gradient(to right, transparent 8px, black 28px, black calc(100% - 28px), transparent calc(100% - 8px))', WebkitMaskImage: 'linear-gradient(to right, transparent 8px, black 28px, black calc(100% - 28px), transparent calc(100% - 8px))' }}>
+            <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar scroll-px-1"
+              style={{ maskImage: 'linear-gradient(to right, black 0, black calc(100% - 28px), transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 0, black calc(100% - 28px), transparent 100%)' }}>
             <button
               onClick={() => { setSelectedCategory('Todas'); setShowOnlyPremium(false); }}
-              className={`px-6 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
+              className={`shrink-0 px-6 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
                 ${(selectedCategory === 'Todas' && !showOnlyPremium)
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                   : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-800 hover:border-blue-400'
@@ -873,13 +938,13 @@ export default function AcademyDashboard() {
 
             <button
               onClick={() => { setShowOnlyPremium(true); setSelectedCategory('Todas'); }}
-              className={`px-6 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2
+              className={`shrink-0 px-6 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2
                 ${showOnlyPremium
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-600/20'
                   : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800'
                 }`}
             >
-              <span>💎</span> Cursos Premium
+              <Gem className="w-4 h-4" /> Cursos Premium
             </button>
 
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-2 shrink-0" />
@@ -888,7 +953,7 @@ export default function AcademyDashboard() {
               <button
                 key={cat}
                 onClick={() => { setSelectedCategory(cat); setShowOnlyPremium(false); }}
-                className={`px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
+                className={`shrink-0 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap
                   ${(selectedCategory === cat && !showOnlyPremium)
                     ? `${CATEGORY_COLORS[cat] || 'bg-blue-600'} text-white shadow-lg`
                     : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-800 hover:border-blue-400'
@@ -916,11 +981,7 @@ export default function AcademyDashboard() {
                 </div>
               ))
             ) : (
-            courses.filter(c => {
-                if (c.slug === 'global-academy-settings') return false;
-                if (showOnlyPremium) return c.is_premium;
-                return selectedCategory === 'Todas' || c.category === selectedCategory;
-              }).map((course) => (
+            filteredCourses.map((course) => (
                 <div
                   key={course.id}
                   onClick={() => {
@@ -930,9 +991,7 @@ export default function AcademyDashboard() {
                 >
                     <div className="aspect-[16/9] relative overflow-hidden">
                       {(() => {
-                        const src = course.thumbnail_url?.startsWith('http')
-                          ? course.thumbnail_url
-                          : academyMediaUrl(course.thumbnail_url);
+                        const src = academyMediaUrl(course.thumbnail_url);
                         const fallback = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
                         return (
                           <img
@@ -1147,30 +1206,57 @@ export default function AcademyDashboard() {
                     {(() => {
                       const finalUrl = activeLesson.video_url || academyMediaUrl(activeLesson.video_path);
                       const embedUrl = getEmbedUrl(finalUrl);
+                      const isExternalVideo = isHttpUrl(activeLesson.video_path || '');
+                      const shouldFrameExternalUrl = isExternalVideo && !looksLikeDirectVideoUrl(finalUrl);
 
-                      if (embedUrl) {
+                      if (!finalUrl) {
+                        return (
+                          <div className="flex flex-col items-center justify-center p-8 bg-slate-900/90 rounded-2xl w-full h-full text-center">
+                            <span className="text-3xl mb-3">⚠</span>
+                            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Medio sin configurar</h4>
+                            <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                              Esta lección no tiene una URL directa o la URL de medios de la academia no está configurada en el despliegue.
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      if (embedUrl || shouldFrameExternalUrl) {
                         return (
                           <iframe
                             key={activeLesson.id}
                             title={activeLesson.title || 'Video de la leccion'}
-                            src={embedUrl}
+                            src={embedUrl || finalUrl}
                             className="w-full h-full border-0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             referrerPolicy="strict-origin-when-cross-origin"
-                            sandbox="allow-presentation"
+                            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
                             allowFullScreen
                           />
                         );
                       }
 
                       if (videoError) {
+                        const isExternalVideo = isHttpUrl(activeLesson.video_path || '');
                         return (
                           <div className="flex flex-col items-center justify-center p-8 bg-slate-900/90 rounded-2xl w-full h-full text-center">
                             <span className="text-3xl mb-3">⚠️</span>
                             <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-2">Video no encontrado</h4>
                             <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-                              El archivo multimedia aún no se ha subido o no existe en el balde de Cloudflare. Edita la lección para vincular el archivo correcto.
+                              {isExternalVideo
+                                ? 'La URL externa no respondió como un video reproducible. Revisa que sea un enlace público directo al archivo o a un reproductor compatible.'
+                                : 'El archivo multimedia aún no se ha subido o no existe en el balde de Cloudflare. Edita la lección para vincular el archivo correcto.'}
                             </p>
+                            {activeLesson.video_path && (
+                              <a
+                                href={activeLesson.video_path}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-4 text-xs font-bold text-blue-300 hover:text-blue-200 underline underline-offset-4"
+                              >
+                                Abrir enlace original
+                              </a>
+                            )}
                           </div>
                         );
                       }
@@ -1180,11 +1266,17 @@ export default function AcademyDashboard() {
                           key={activeLesson.id}
                           src={finalUrl}
                           preload="metadata"
-                          poster={activeLesson.thumb_url || (activeLesson.thumbnail_url ? (activeLesson.thumbnail_url.startsWith('http') ? activeLesson.thumbnail_url : academyMediaUrl(activeLesson.thumbnail_url)) : '')}
+                          poster={activeLesson.thumb_url || academyMediaUrl(activeLesson.thumbnail_url)}
                           controls
                           controlsList="nodownload"
                           className="w-full h-full object-contain"
-                          onError={() => setVideoError(true)}
+                          onError={(e) => {
+                            console.error('[ACADEMY_VIDEO_ERROR]', {
+                              src: e.currentTarget.currentSrc || e.currentTarget.src,
+                              original: activeLesson.video_path
+                            });
+                            setVideoError(true);
+                          }}
                           onTimeUpdate={(e) => {
                             const video = e.currentTarget;
                             // Guardar el segundo actual en localStorage
@@ -1468,7 +1560,7 @@ export default function AcademyDashboard() {
 
               {academySettingsForm.logo && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center">
-                  <img src={academySettingsForm.logo} alt="Preview Logo" className="max-h-16 object-contain" />
+                  <img src={academyMediaUrl(academySettingsForm.logo)} alt="Preview Logo" className="max-h-16 object-contain" />
                 </div>
               )}
 
@@ -1584,7 +1676,7 @@ export default function AcademyDashboard() {
                   <div className={`p-8 border-2 border-dashed rounded-3xl text-center transition-all ${courseForm.thumbnail_url ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}>
                     {courseForm.thumbnail_url ? (
                       <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
-                        <img src={courseForm.thumbnail_url.startsWith('http') ? courseForm.thumbnail_url : academyMediaUrl(courseForm.thumbnail_url)} className="w-full h-full object-cover" />
+                        <img src={academyMediaUrl(courseForm.thumbnail_url)} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <ImageIcon className="w-8 h-8 text-white" />
                         </div>

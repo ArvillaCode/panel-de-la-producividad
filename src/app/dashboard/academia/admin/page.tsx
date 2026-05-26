@@ -64,21 +64,14 @@ export default function LessonCreator() {
     try {
       const { data, error } = await supabase
         .from('academy_courses')
-        .select('id, title')
-        .order('created_at', { ascending: true });
+        .select('id, title, category, slug, is_published')
+        .order('created_at', { ascending: false });
 
+      if (error) throw error;
       if (data) {
-        // Deduplicar cursos por título para evitar confusiones
-        const uniqueCourses: any[] = [];
-        const seenTitles = new Set();
-        data.forEach(c => {
-          if (!seenTitles.has(c.title)) {
-            seenTitles.add(c.title);
-            uniqueCourses.push(c);
-          }
-        });
-        setCourses(uniqueCourses);
-        if (uniqueCourses.length > 0) setCourseId(uniqueCourses[0].id);
+        const visibleCourses = data.filter((course: any) => course.slug !== 'global-academy-settings');
+        setCourses(visibleCourses);
+        if (visibleCourses.length > 0) setCourseId(visibleCourses[0].id);
       }
     } catch (error) {
       console.error(error);
@@ -389,7 +382,11 @@ export default function LessonCreator() {
                   ) : (
                     <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
                       {courses.length === 0 && <option value="">No hay cursos</option>}
-                      {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}{c.category ? ` - ${c.category}` : ''}{c.is_published === false ? ' (oculto)' : ''}
+                        </option>
+                      ))}
                     </select>
                   )}
                 </div>
@@ -531,7 +528,7 @@ export default function LessonCreator() {
                   }} className="hidden" id="thumb-input" />
                   <label htmlFor="thumb-input" className="cursor-pointer">
                     {thumbnailUrl ? (
-                      <img src={thumbnailUrl.startsWith('http') ? thumbnailUrl : academyMediaUrl(thumbnailUrl)} className="w-full aspect-video object-cover rounded-lg" />
+                      <img src={academyMediaUrl(thumbnailUrl)} className="w-full aspect-video object-cover rounded-lg" />
                     ) : (
                       <div className="py-4 text-slate-400">Click para subir JPG/PNG</div>
                     )}

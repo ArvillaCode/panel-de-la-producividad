@@ -77,12 +77,28 @@ export async function uploadToAcademyR2(file, subfolder) {
 }
 
 export function academyMediaUrl(path) {
-  if (!path) return '';
+  const rawPath = String(path || '').trim();
+  if (!rawPath) return '';
+
+  if (/^(https?:|blob:|data:)/i.test(rawPath)) {
+    return rawPath;
+  }
+
+  if (rawPath.startsWith('?')) {
+    const key = new URLSearchParams(rawPath).get('key');
+    return key ? academyMediaUrl(key) : '';
+  }
+
+  const cleanPath = rawPath.replace(/^\/+/, '');
+  const normalizedPath = /^(videos|thumbnails|courses)\//.test(cleanPath)
+    ? `academy/${cleanPath}`
+    : cleanPath;
+
   const mediaWorkerUrl = import.meta.env.VITE_ACADEMY_MEDIA_URL;
   if (!mediaWorkerUrl) {
     console.warn('VITE_ACADEMY_MEDIA_URL not configured');
     return '';
   }
   const base = mediaWorkerUrl.split('?')[0];
-  return `${base}?key=${encodeURIComponent(path)}`;
+  return `${base}?key=${encodeURIComponent(normalizedPath)}`;
 }
