@@ -52,7 +52,7 @@ const AgentCard = ({ agent, isFavorite, onToggleFavorite, animationDelay = 0, on
         animationFillMode: 'both' 
       }}
     >
-      <div className="absolute top-3 right-3 z-10 flex gap-2">
+      <div className="absolute top-3 right-3 z-30 flex gap-2 pointer-events-auto">
         <button
           onClick={(e) => {
             e.stopPropagation();

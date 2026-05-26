@@ -102,7 +102,7 @@ function getEmbedUrl(url: string) {
   if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
     const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      return `https://drive.google.com/file/d/${match[1]}/preview`;
+      return `https://drive.google.com/embed?id=${match[1]}`;
     }
   }
 

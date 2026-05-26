@@ -81,6 +81,13 @@ export function academyMediaUrl(path) {
   if (!rawPath) return '';
 
   if (/^(https?:|blob:|data:)/i.test(rawPath)) {
+    // Si es una URL de Google Drive, la convertimos a formato directo de descarga para evitar CORS/500
+    if (rawPath.includes('drive.google.com') || rawPath.includes('docs.google.com')) {
+      const match = rawPath.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || rawPath.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://docs.google.com/uc?export=download&id=${match[1]}`;
+      }
+    }
     return rawPath;
   }
 
