@@ -213,7 +213,7 @@ const AdminConfig = () => {
         .maybeSingle();
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout de conexión con Supabase')), 2000)
+        setTimeout(() => reject(new Error('Timeout de conexión con Supabase')), 10000)
       );
 
       const { data, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise]);
