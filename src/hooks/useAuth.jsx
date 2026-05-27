@@ -182,130 +182,165 @@ export const AuthProvider = ({ children }) => {
       const currentUser = session.user;
       setUser(currentUser);
 
-      let profileData = null;
-      let profileError = null;
-
+      // --- ESTRATEGIA SWR (Stale-While-Revalidate) ---
+      // 1. Cargar el perfil desde la caché local de forma inmediata para 0ms de latencia percibida
+      let cachedProfile = null;
+      let hasCached = false;
       try {
-        const fetchPromise = supabase
-          .from('profiles')
-          .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
-          .eq('id', currentUser.id)
-          .single();
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-        );
-
-        const result = await Promise.race([fetchPromise, timeoutPromise]);
-        profileData = result.data;
-        profileError = result.error;
-      } catch (err) {
-        console.warn('[AUTH] Error/Timeout sincronizando perfil secundario, aplicando perfil de respaldo:', err.message);
-        profileError = { message: err.message || 'Timeout' };
-      }
-
-      if (profileError || !profileData) {
-        // Verificar de forma defensiva si es un error de autenticación (JWT caducado o token inválido en ventana normal)
-        const isAuthError = profileError && (
-          profileError.status === 401 ||
-          profileError.message?.toLowerCase().includes('jwt') ||
-          profileError.message?.toLowerCase().includes('unauthorized') ||
-          profileError.message?.toLowerCase().includes('invalid token') ||
-          profileError.message?.toLowerCase().includes('signature')
-        );
-
-        if (isAuthError) {
-          console.warn('[AUTH] Detectado token de sesión inválido o expirado en base de datos. Purgando almacenamiento y cerrando sesión...');
-          localStorage.clear();
-          sessionStorage.clear();
-          await supabase.auth.signOut();
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          window.location.href = '/login?error=SesionExpirada';
-          return;
-        }
-
-        const metadata = currentUser.user_metadata || {};
-        const fallbackProfile = {
-          id: currentUser.id,
-          email: currentUser.email,
-          name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
-          role: 'user',
-          avatar_url: metadata.avatar_url || '',
-          status: 'pending',
-          is_approved: false,
-          timezone: metadata.timezone || 'UTC',
-          start_date: metadata.start_date || null,
-          end_date: metadata.end_date || null,
-          created_at: new Date().toISOString()
-        };
-
-        const isNotFoundError = profileError && (profileError.code === 'PGRST116' || profileError.message?.includes('PGRST116') || profileError.message?.includes('no rows returned'));
-        const shouldCreateProfile = isNotFoundError || (!profileData && !profileError);
-
-        if (shouldCreateProfile) {
-          console.log('[AUTH] Perfil no encontrado en base de datos. Creando perfil básico...');
-          supabase.from('profiles').insert(fallbackProfile).then(({ error: createError }) => {
-            if (createError) console.error('[AUTH] Fallback profile creation failed:', createError.message);
-          });
-          setProfile(fallbackProfile);
-        } else {
-          console.warn('[AUTH] Error de red o timeout al recuperar perfil:', profileError);
-          const cachedProfile = localStorage.getItem(`cached_profile_${currentUser.id}`);
-          if (cachedProfile) {
-            try {
-              const parsed = JSON.parse(cachedProfile);
-              console.log('[AUTH] Cargando perfil desde caché local debido a error de red/timeout');
-              setProfile(parsed);
-              return;
-            } catch (e) {
-              console.error('[AUTH] Error parseando perfil de caché:', e);
-            }
+        const cachedStr = localStorage.getItem(`cached_profile_${currentUser.id}`);
+        if (cachedStr) {
+          cachedProfile = JSON.parse(cachedStr);
+          if (cachedProfile && cachedProfile.id === currentUser.id) {
+            setProfile(cachedProfile);
+            setLoading(false); // ¡Liberar la interfaz inmediatamente!
+            hasCached = true;
+            console.log('[AUTH] [SWR] Perfil cargado instantáneamente desde la caché local:', cachedProfile.email);
           }
-          console.warn('[AUTH] Sin caché disponible. Usando perfil temporal sin persistir en base de datos.');
-          setProfile(fallbackProfile);
         }
-        return;
-      }
-
-      // 1. Determinar estados de acceso
-      const isApproved = profileData.is_approved === true;
-      const status = profileData.status || 'pending';
-      const userIsAdmin = profileData.role === 'admin' || profileData.role === 'core_admin';
-      const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
-
-      // 2. Validación forzosa de acceso (excepto para admins)
-      if (!userIsAdmin && (status === 'rejected' || status === 'inactive' || isExpired)) {
-        let reason = 'Tu cuenta no tiene acceso permitido.';
-        if (status === 'rejected') reason = 'Tu solicitud de acceso fue denegada.';
-        if (status === 'inactive') reason = 'Tu cuenta ha sido desactivada temporalmente.';
-        if (isExpired) reason = 'Tu suscripción ha expirado. Contacta a soporte para renovar.';
-
-        console.warn(`[AUTH] Acceso denegado a ${currentUser.email}: ${reason}`);
-        setProfile(null);
-        setUser(null);
-        await supabase.auth.signOut();
-        window.location.href = `/login?error=${encodeURIComponent(reason)}`;
-        return;
-      }
-
-      // Guardar en caché local por si acaso en futuras cargas hay timeouts/problemas de red
-      try {
-        localStorage.setItem(`cached_profile_${currentUser.id}`, JSON.stringify(profileData));
       } catch (e) {
-        console.error('[AUTH] Error guardando perfil en caché:', e);
+        console.warn('[AUTH] Error leyendo perfil inicial de caché:', e);
       }
-      setProfile(profileData);
 
-      // Cargar lista si es admin
-      if (userIsAdmin) {
-        fetchUsers();
+      // 2. Realizar la petición de red a Supabase para revalidar los datos
+      const fetchProfilePromise = async () => {
+        try {
+          const fetchPromise = supabase
+            .from('profiles')
+            .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
+            .eq('id', currentUser.id)
+            .single();
+
+          // Tiempo de timeout para la petición de red (reducido a 2.5s si ya tenemos caché para no colgar el background, o 4s si no tenemos caché)
+          const timeoutMs = hasCached ? 2500 : 4000;
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile fetch timeout')), timeoutMs)
+          );
+
+          const result = await Promise.race([fetchPromise, timeoutPromise]);
+          const profileData = result.data;
+          const profileError = result.error;
+
+          if (profileError || !profileData) {
+            // Verificar si es un error de autenticación
+            const isAuthError = profileError && (
+              profileError.status === 401 ||
+              profileError.message?.toLowerCase().includes('jwt') ||
+              profileError.message?.toLowerCase().includes('unauthorized') ||
+              profileError.message?.toLowerCase().includes('invalid token') ||
+              profileError.message?.toLowerCase().includes('signature')
+            );
+
+            if (isAuthError) {
+              console.warn('[AUTH] Detectado token de sesión inválido o expirado. Cerrando sesión...');
+              localStorage.clear();
+              sessionStorage.clear();
+              await supabase.auth.signOut();
+              setUser(null);
+              setProfile(null);
+              setLoading(false);
+              window.location.href = '/login?error=SesionExpirada';
+              return;
+            }
+
+            // Si es otro error de red/timeout y no tenemos caché, usar fallback
+            if (!hasCached) {
+              const metadata = currentUser.user_metadata || {};
+              const fallbackProfile = {
+                id: currentUser.id,
+                email: currentUser.email,
+                name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
+                role: 'user',
+                avatar_url: metadata.avatar_url || '',
+                status: 'pending',
+                is_approved: false,
+                timezone: metadata.timezone || 'UTC',
+                start_date: metadata.start_date || null,
+                end_date: metadata.end_date || null,
+                created_at: new Date().toISOString()
+              };
+
+              const isNotFoundError = profileError && (profileError.code === 'PGRST116' || profileError.message?.includes('PGRST116'));
+              if (isNotFoundError) {
+                console.log('[AUTH] Perfil no encontrado. Creando perfil básico...');
+                supabase.from('profiles').insert(fallbackProfile).then(({ error: createError }) => {
+                  if (createError) console.error('[AUTH] Fallback profile creation failed:', createError.message);
+                });
+                setProfile(fallbackProfile);
+              } else {
+                setProfile(fallbackProfile);
+              }
+            }
+            return;
+          }
+
+          // Validación de acceso
+          const status = profileData.status || 'pending';
+          const userIsAdmin = profileData.role === 'admin' || profileData.role === 'core_admin';
+          const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
+
+          if (!userIsAdmin && (status === 'rejected' || status === 'inactive' || isExpired)) {
+            let reason = 'Tu cuenta no tiene acceso permitido.';
+            if (status === 'rejected') reason = 'Tu solicitud de acceso fue denegada.';
+            if (status === 'inactive') reason = 'Tu cuenta ha sido desactivada temporalmente.';
+            if (isExpired) reason = 'Tu suscripción ha expirado. Contacta a soporte para renovar.';
+
+            console.warn(`[AUTH] Acceso denegado a ${currentUser.email}: ${reason}`);
+            setProfile(null);
+            setUser(null);
+            await supabase.auth.signOut();
+            window.location.href = `/login?error=${encodeURIComponent(reason)}`;
+            return;
+          }
+
+          // Guardar en caché y actualizar estado si ha cambiado
+          localStorage.setItem(`cached_profile_${currentUser.id}`, JSON.stringify(profileData));
+          
+          // Solo actualizar el estado si los datos recibidos son distintos del caché
+          // para evitar renders innecesarios.
+          if (!hasCached || JSON.stringify(cachedProfile) !== JSON.stringify(profileData)) {
+            setProfile(profileData);
+          }
+
+          if (userIsAdmin) {
+            fetchUsers();
+          }
+
+        } catch (err) {
+          console.warn('[AUTH] Error en revalidación de perfil en segundo plano:', err.message);
+          // Si falló la red pero ya teníamos caché, no pasa nada.
+          // Si no teníamos caché, intentamos cargar el caché como fallback o usamos el perfil básico.
+          if (!hasCached) {
+            const metadata = currentUser.user_metadata || {};
+            const fallbackProfile = {
+              id: currentUser.id,
+              email: currentUser.email,
+              name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
+              role: 'role' in currentUser ? currentUser.role : 'user',
+              avatar_url: metadata.avatar_url || '',
+              status: 'pending',
+              is_approved: false,
+              timezone: metadata.timezone || 'UTC',
+              start_date: metadata.start_date || null,
+              end_date: metadata.end_date || null,
+              created_at: new Date().toISOString()
+            };
+            setProfile(fallbackProfile);
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // Si ya tenemos datos en caché, ejecutamos la revalidación en segundo plano (asíncrona y sin bloquear el hilo principal)
+      if (hasCached) {
+        fetchProfilePromise();
+      } else {
+        // Si no hay caché, esperamos el resultado para evitar parpadeos vacíos en el primer ingreso
+        await fetchProfilePromise();
       }
 
     } catch (e) {
       console.error('[AUTH] Critical sync error:', e);
-    } finally {
       setLoading(false);
     }
   }, [fetchUsers]);

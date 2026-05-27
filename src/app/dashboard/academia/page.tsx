@@ -432,9 +432,26 @@ export default function AcademyDashboard() {
   // --- INTEGRACIÓN SUPABASE ---
   // 1. Cargar cursos al montar el componente (y cuando cambie el rol de admin)
   useEffect(() => {
+    let hasCached = false;
+    try {
+      const cached = localStorage.getItem('cached_academy_courses');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCourses(parsed);
+          setIsLoading(false); // Liberar interfaz de inmediato con datos en caché
+          hasCached = true;
+        }
+      }
+    } catch (e) {
+      console.warn('[ACADEMY_CACHE] Error reading cached courses:', e);
+    }
+
     const fetchCoursesData = async () => {
       try {
-        setIsLoading(true);
+        if (!hasCached) {
+          setIsLoading(true);
+        }
         let query = supabase
           .from('academy_courses')
           .select('*')
@@ -448,6 +465,9 @@ export default function AcademyDashboard() {
 
         if (!coursesError && coursesData) {
           setCourses(coursesData);
+          try {
+            localStorage.setItem('cached_academy_courses', JSON.stringify(coursesData));
+          } catch (e) {}
         } else if (coursesError) {
           throw coursesError;
         }
@@ -485,10 +505,32 @@ export default function AcademyDashboard() {
   useEffect(() => {
     const fetchLessonsData = async () => {
       if (!selectedCourse) return;
+      
+      let hasCached = false;
       try {
-        setIsLoading(true);
-        setModules([]);
-        setActiveLesson(null);
+        const cachedKey = `cached_academy_lessons_${selectedCourse.id}`;
+        const cachedData = localStorage.getItem(cachedKey);
+        if (cachedData) {
+          const { modules: cachedModules, activeLesson: cachedActive } = JSON.parse(cachedData);
+          if (Array.isArray(cachedModules) && cachedModules.length > 0) {
+            setModules(cachedModules);
+            if (cachedActive) {
+              setActiveLesson(cachedActive);
+            }
+            setIsLoading(false); // Liberar interfaz inmediatamente con datos en caché
+            hasCached = true;
+          }
+        }
+      } catch (e) {
+        console.warn('[ACADEMY_CACHE] Error reading cached lessons:', e);
+      }
+
+      try {
+        if (!hasCached) {
+          setIsLoading(true);
+          setModules([]);
+          setActiveLesson(null);
+        }
         setVideoError(false);
 
         const { data: modulesData, error: modulesError } = await supabase
@@ -572,16 +614,30 @@ export default function AcademyDashboard() {
         }
 
         const firstModuleWithLessons = formattedModules.find((mod) => mod.lessons.length > 0);
+        let activeToSet = null;
+
         if (foundLesson) {
-          setActiveLesson(foundLesson);
+          activeToSet = foundLesson;
           setExpandedModules({ [foundModuleId!]: true });
         } else if (firstModuleWithLessons) {
-          setActiveLesson(firstModuleWithLessons.lessons[0]);
+          activeToSet = firstModuleWithLessons.lessons[0];
           setExpandedModules({ [firstModuleWithLessons.id]: true });
         } else {
-          setActiveLesson(null);
+          activeToSet = null;
           setExpandedModules({});
         }
+
+        setActiveLesson(activeToSet);
+
+        // Guardar en caché para futuras cargas instantáneas
+        try {
+          const cachedKey = `cached_academy_lessons_${selectedCourse.id}`;
+          localStorage.setItem(cachedKey, JSON.stringify({
+            modules: formattedModules,
+            activeLesson: activeToSet
+          }));
+        } catch (e) {}
+
       } catch (error) {
         console.error("Error loading lessons:", error);
       } finally {
@@ -969,7 +1025,7 @@ export default function AcademyDashboard() {
         {/* VISTA DE CURSOS */}
         {view === 'courses' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {isLoading ? (
+            {isLoading && courses.length === 0 ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm animate-pulse">
                   <div className="aspect-[16/9] bg-slate-200 dark:bg-slate-800" />
@@ -1063,7 +1119,7 @@ export default function AcademyDashboard() {
               </div>
 
               <div className="overflow-y-auto flex-1 p-4 custom-scrollbar">
-                {isLoading ? (
+                {isLoading && modules.length === 0 ? (
                   <div className="space-y-4 animate-pulse">
                     <div className="space-y-2">
                       <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/3"></div>
@@ -1172,7 +1228,7 @@ export default function AcademyDashboard() {
 
             {/* ÁREA DE CONTENIDO */}
             <div className="flex-1 w-full order-1 lg:order-2 flex flex-col gap-6">
-              {isLoading ? (
+              {isLoading && !activeLesson ? (
                 <div className="space-y-6 animate-pulse">
                   <div className="w-full bg-slate-200 dark:bg-slate-850 rounded-3xl aspect-video"></div>
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
