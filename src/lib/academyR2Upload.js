@@ -39,7 +39,8 @@ export async function uploadToAcademyR2(file, subfolder) {
       'mp4': 'video/mp4',
       'webm': 'video/webm',
       'mov': 'video/quicktime',
-      'qt': 'video/quicktime'
+      'qt': 'video/quicktime',
+      'mkv': 'video/matroska'
     };
     if (extensionMap[extension]) {
       contentType = extensionMap[extension];
@@ -49,7 +50,7 @@ export async function uploadToAcademyR2(file, subfolder) {
   // Validaciones del tipo de archivo en el cliente según la subcarpeta
   const isImageFolder = subfolder === 'thumbnails' || subfolder === 'courses' || subfolder === 'banners';
   const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-  const allowedVideoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+  const allowedVideoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/matroska', 'video/x-matroska']);
 
   if (isImageFolder) {
     if (!allowedImageTypes.has(contentType)) {
@@ -60,7 +61,7 @@ export async function uploadToAcademyR2(file, subfolder) {
   } else if (subfolder === 'videos') {
     if (!allowedVideoTypes.has(contentType)) {
       throw new Error(
-        `Formato de video no permitido: ${contentType}. Sube un archivo de video MP4, WebM o MOV válido.`
+        `Formato de video no permitido: ${contentType}. Sube un archivo de video MP4, WebM, MOV o MKV válido.`
       );
     }
   }

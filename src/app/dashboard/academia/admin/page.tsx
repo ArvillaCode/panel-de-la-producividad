@@ -255,7 +255,7 @@ export default function LessonCreator() {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type === 'video/mp4') {
+    if (file && (file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mkv'))) {
       setFileToUpload(file);
       handleVideoUpload(file);
     }
@@ -460,7 +460,7 @@ export default function LessonCreator() {
                 >
                   <input 
                     type="file" 
-                    accept="video/mp4" 
+                    accept="video/*" 
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -474,7 +474,7 @@ export default function LessonCreator() {
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <label htmlFor="video-input" className="cursor-pointer">
                       <div className="text-blue-600 font-bold hover:underline">
-                        {fileToUpload ? fileToUpload.name : videoPath ? "Video Vinculado" : "Click o arrastra .mp4"}
+                        {fileToUpload ? fileToUpload.name : videoPath ? "Video Vinculado" : "Click o arrastra tu video"}
                       </div>
                     </label>
                     {(fileToUpload || videoPath) && (

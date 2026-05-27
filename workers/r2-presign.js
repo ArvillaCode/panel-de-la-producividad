@@ -18,7 +18,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ];
 const ALLOWED_FOLDERS = new Set(['videos', 'thumbnails', 'courses', 'banners']);
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/matroska', 'video/x-matroska']);
 const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 
 function getAllowedOrigins(env) {
