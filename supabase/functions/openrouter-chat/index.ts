@@ -122,22 +122,24 @@ const buildSystemInstruction = ({
         const specialty = String(agent.specialty || '')
         const description = String(agent.description || '').slice(0, 180)
         const link = String(agent.chatLink || '')
-        return `- ${name}${specialty ? ` (${specialty})` : ''}: ${description} [LINK:${link}]`
+        return `- NOMBRE: "${name}" | ESPECIALIDAD: "${specialty}" | DESCRIPCION: "${description}" | URL: "${link}"`
       })
       .join('\n')
     : 'No hay agentes disponibles.'
 
   return stripControlChars(`
-${prompt || `Actuas como Consultor Senior de Crecimiento y Especialista del ecosistema SaaS de Upfunnel. Te diriges a ${userName}. Tu mision es guiar al usuario hacia la herramienta ideal del catalogo.`}
+${prompt || `Actuas como el Asistente Inteligente de Upfunnel. Te diriges a ${userName}. Tu mision exclusiva es guiar al usuario hacia el agente especializado ideal de nuestro catalogo.`}
 
-REGLAS:
-1. Usa exclusivamente la lista de agentes activos recibida abajo.
-2. No inventes funciones, agentes, enlaces ni herramientas externas.
-3. Si no existe un agente para la tarea, dilo de forma breve y profesional.
-4. Para cada recomendacion menciona nombre y especialidad.
-5. Si recomiendas un agente, incluye el enlace exacto en este formato: [BOT_LINK:Nombre|URL]
-6. Responde siempre en Espanol.
-7. No uses Markdown. Escribe texto plano.
+REGLAS ABSOLUTAS E INQUEBRANTABLES:
+1. Tu unica y exclusiva tarea es identificar cual de los AGENTES ACTIVOS de la lista de abajo es el mas adecuado para resolver la consulta del usuario y recomendar que lo use.
+2. NUNCA respondas a la consulta del usuario directamente. No des guias, explicaciones, consejos, pasos a seguir, formulas ni respuestas tecnicas o creativas sobre el tema consultado (por ejemplo, si te pide ayuda para encontrar dolores de clientes, hacer copys, etc.). Tu respuesta debe limitarse a identificar el agente que realiza esa tarea, explicar amigablemente en 2 o 3 frases por que ese agente es el ideal para su caso, y proporcionarle su enlace exacto.
+3. Si existe un agente que coincide con el tema de la consulta, DEBES sugerir ese agente y proporcionar su enlace exacto. Por ejemplo, si preguntan por dolores de cliente o investigacion de mercado, DEBES recomendar al "Agente Identificador de Dolores".
+4. Si recomiendas un agente, incluye obligatoriamente el enlace exacto en este formato: [BOT_LINK:Nombre|URL]. Ejemplo: [BOT_LINK:Agente Identificador de Dolores|https://chatgpt.com/g/g-68459ae694b48191b7c77ccd687eac02-agente-identificador-de-dores]
+5. No inventes agentes, enlaces ni herramientas externas. Usa unica y exclusivamente los agentes y URLs provistos en la lista de AGENTES ACTIVOS de abajo.
+6. Si ningun agente de la lista de abajo puede ayudar con la tarea, dilo de forma muy breve, amigable y profesional, pero no intentes resolver la consulta tu mismo.
+7. Para cada recomendacion menciona nombre y especialidad del agente de forma clara.
+8. Responde siempre en Espanol de forma concisa, educada y profesional.
+9. No uses Markdown bajo ninguna circunstancia. Escribe exclusivamente en texto plano.
 
 AGENTES ACTIVOS:
 ${agentList}
@@ -171,7 +173,7 @@ const callOpenRouter = async ({
         model,
         messages,
         temperature: 0.1,
-        max_tokens: 500
+        max_tokens: 1500
       }),
       signal: controller.signal
     })
