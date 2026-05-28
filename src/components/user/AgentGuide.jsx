@@ -5,7 +5,8 @@ import {
   Sparkles,
   ExternalLink,
   Zap,
-  Compass
+  Compass,
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -54,6 +55,18 @@ const AgentGuide = () => {
   const inputRef = useRef(null);
 
   const { modalRef } = useCloseModal(isOpen, () => setIsOpen(false));
+
+  const handleNewChat = () => {
+    sessionStorage.removeItem(CHAT_HISTORY_KEY);
+    const name = profile?.name || user?.user_metadata?.name || 'Usuario';
+    setMessages([
+      {
+        role: 'model',
+        content: profile ? `Hola, ${name}. Soy el Asistente de Upfunnel y del Panel de la Productividad. En que puedo ayudarte hoy?` : DEFAULT_GREETING
+      }
+    ]);
+    toast.success('Chat reiniciado correctamente');
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -260,9 +273,18 @@ const AgentGuide = () => {
               </div>
             </div>
           </div>
-          <button onClick={() => setIsOpen(false)} className="p-2.5 hover:bg-white/5 rounded-xl transition-all text-gray-500 hover:text-white">
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleNewChat}
+              title="Iniciar nuevo chat"
+              className="p-2.5 hover:bg-white/5 rounded-xl transition-all text-gray-500 hover:text-neon-teal hover:scale-105 active:scale-95 flex items-center justify-center"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+            <button onClick={() => setIsOpen(false)} className="p-2.5 hover:bg-white/5 rounded-xl transition-all text-gray-500 hover:text-white">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:20px_20px] scroll-smooth custom-scrollbar">
