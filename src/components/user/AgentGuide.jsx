@@ -250,7 +250,7 @@ const AgentGuide = () => {
     <>
       <button
         onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
-        className={`fixed bottom-4 right-4 w-16 h-16 bg-neon-teal/10 backdrop-blur-xl text-neon-teal rounded-2xl border border-neon-teal/20 shadow-[0_0_30px_rgba(0,229,255,0.15)] flex items-center justify-center transition-all duration-500 hover:scale-110 hover:rotate-6 active:scale-95 z-[100] group ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
+        className={`fixed bottom-6 right-6 sm:bottom-8 sm:right-8 md:bottom-12 md:right-12 w-16 h-16 bg-neon-teal/10 backdrop-blur-xl text-neon-teal rounded-2xl border border-neon-teal/20 shadow-[0_0_30px_rgba(0,229,255,0.15)] flex items-center justify-center transition-all duration-500 hover:scale-110 hover:rotate-6 active:scale-95 z-[100] group ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
       >
         <div className="absolute inset-0 bg-neon-teal/20 rounded-2xl animate-ping opacity-20 group-hover:opacity-40"></div>
         <Compass className="w-8 h-8 relative z-10 neon-glow" />
@@ -258,7 +258,7 @@ const AgentGuide = () => {
 
       <div
         ref={modalRef}
-        className={`fixed bottom-4 right-4 w-full max-w-[380px] h-[580px] bg-deep-dark/80 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] transition-all duration-500 flex flex-col rounded-[2.5rem] border border-white/10 overflow-hidden ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}
+        className={`fixed bottom-6 left-6 right-6 sm:left-auto sm:bottom-8 sm:right-8 md:bottom-12 md:right-12 w-auto sm:w-full max-w-[380px] h-[580px] bg-deep-dark/80 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] transition-all duration-500 flex flex-col rounded-[2.5rem] border border-white/10 overflow-hidden ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}
       >
         <div className="p-6 bg-white/5 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-4">
