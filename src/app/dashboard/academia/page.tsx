@@ -15,7 +15,8 @@ import {
   Lock,
   Pencil,
   Settings,
-  Gem
+  Gem,
+  Copy
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload.js';
@@ -82,12 +83,20 @@ function formatAcademyLesson(lesson: any): Lesson {
   const videoPath = String(lesson.video_path || '').trim();
   const thumbnailUrl = String(lesson.thumbnail_url || '').trim();
 
+  let isCompleted = false;
+  try {
+    const completedLessons = JSON.parse(localStorage.getItem('academy_completed') || '[]');
+    isCompleted = Array.isArray(completedLessons) && completedLessons.includes(String(lesson.id));
+  } catch (e) {
+    console.error('Error reading academy_completed:', e);
+  }
+
   return {
     ...lesson,
     video_path: videoPath,
     thumbnail_url: thumbnailUrl,
     materiales: parseLessonMaterials(lesson.materiales),
-    is_completed: false,
+    is_completed: isCompleted,
     duration: "Video",
     video_url: academyMediaUrl(videoPath),
     thumb_url: academyMediaUrl(thumbnailUrl)
@@ -163,6 +172,10 @@ export default function AcademyDashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
 
+  // --- ESTADOS DRAG & DROP ---
+  const [draggedModuleId, setDraggedModuleId] = useState<string | null>(null);
+  const [draggedLesson, setDraggedLesson] = useState<{ id: string; moduleId: string } | null>(null);
+
   // --- ESTADOS CREACIÓN CURSO ---
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
 
@@ -197,6 +210,143 @@ export default function AcademyDashboard() {
       return selectedCategory === 'Todas' || course.category === selectedCategory;
     })
   ), [courses, selectedCategory, showOnlyPremium]);
+
+  // --- DRAG & DROP MANEJADORES ---
+  const handleModuleDragStart = (e: React.DragEvent, id: string) => {
+    if (!isAdmin || !isEditMode) return;
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedModuleId(id);
+  };
+
+  const handleModuleDragOver = (e: React.DragEvent, id: string) => {
+    if (!isAdmin || !isEditMode || draggedModuleId === id) return;
+    e.preventDefault();
+  };
+
+  const handleModuleDrop = async (e: React.DragEvent, targetId: string) => {
+    if (!isAdmin || !isEditMode || !draggedModuleId || draggedModuleId === targetId) return;
+    e.preventDefault();
+    
+    const activeModules = [...modules];
+    const dragIdx = activeModules.findIndex(m => m.id === draggedModuleId);
+    const dropIdx = activeModules.findIndex(m => m.id === targetId);
+    
+    if (dragIdx !== -1 && dropIdx !== -1) {
+      const [draggedItem] = activeModules.splice(dragIdx, 1);
+      activeModules.splice(dropIdx, 0, draggedItem);
+      
+      const updatedModules = activeModules.map((m, idx) => ({
+        ...m,
+        order_index: idx + 1
+      }));
+      setModules(updatedModules);
+
+      // Sincronizar Caché de localStorage inmediatamente para persistencia
+      if (selectedCourse) {
+        try {
+          const cachedKey = `cached_academy_lessons_${selectedCourse.id}`;
+          localStorage.setItem(cachedKey, JSON.stringify({
+            modules: updatedModules,
+            activeLesson: activeLesson
+          }));
+        } catch (e) {
+          console.warn('Error al actualizar cache local:', e);
+        }
+      }
+      
+      try {
+        const promises = updatedModules.map((m) => 
+          supabase
+            .from('academy_modules')
+            .update({ order_index: m.order_index })
+            .eq('id', m.id)
+        );
+        await Promise.all(promises);
+        toast.success("Orden de módulos actualizado");
+      } catch (err) {
+        console.error("Error al actualizar orden de módulos:", err);
+        toast.error("Error al guardar el nuevo orden de módulos");
+      }
+    }
+    setDraggedModuleId(null);
+  };
+
+  const handleLessonDragStart = (e: React.DragEvent, lessonId: string, mId: string) => {
+    if (!isAdmin || !isEditMode) return;
+    e.dataTransfer.setData('text/plain', lessonId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedLesson({ id: lessonId, moduleId: mId });
+  };
+
+  const handleLessonDragOver = (e: React.DragEvent, lessonId: string, mId: string) => {
+    if (!isAdmin || !isEditMode || !draggedLesson) return;
+    if (draggedLesson.moduleId === mId && draggedLesson.id !== lessonId) {
+      e.preventDefault();
+    }
+  };
+
+  const handleLessonDrop = async (e: React.DragEvent, targetLessonId: string, mId: string) => {
+    if (!isAdmin || !isEditMode || !draggedLesson || draggedLesson.moduleId !== mId || draggedLesson.id === targetLessonId) return;
+    e.preventDefault();
+    
+    const updatedModules = modules.map(m => {
+      if (m.id !== mId) return m;
+      
+      const activeLessons = [...(m.lessons || [])];
+      const dragIdx = activeLessons.findIndex(l => l.id === draggedLesson.id);
+      const dropIdx = activeLessons.findIndex(l => l.id === targetLessonId);
+      
+      if (dragIdx !== -1 && dropIdx !== -1) {
+        const [draggedItem] = activeLessons.splice(dragIdx, 1);
+        activeLessons.splice(dropIdx, 0, draggedItem);
+        
+        const reorderedLessons = activeLessons.map((l, idx) => ({
+          ...l,
+          order_index: idx + 1
+        }));
+        
+        (async () => {
+          try {
+            const promises = reorderedLessons.map((l) =>
+              supabase
+                .from('academy_lessons')
+                .update({ order_index: l.order_index })
+                .eq('id', l.id)
+            );
+            await Promise.all(promises);
+          } catch (err) {
+            console.error("Error al actualizar orden de lecciones:", err);
+            toast.error("Error al guardar el nuevo orden de lecciones");
+          }
+        })();
+        
+        return {
+          ...m,
+          lessons: reorderedLessons
+        };
+      }
+      return m;
+    });
+    
+    setModules(updatedModules);
+
+    // Sincronizar Caché de localStorage inmediatamente para persistencia
+    if (selectedCourse) {
+      try {
+        const cachedKey = `cached_academy_lessons_${selectedCourse.id}`;
+        localStorage.setItem(cachedKey, JSON.stringify({
+          modules: updatedModules,
+          activeLesson: activeLesson
+        }));
+      } catch (e) {
+        console.warn('Error al actualizar cache local:', e);
+      }
+    }
+
+    setDraggedLesson(null);
+    toast.success("Orden de lecciones actualizado");
+  };
 
   const handleSaveAcademySettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -701,13 +851,30 @@ export default function AcademyDashboard() {
       completedLessons.push(activeLesson.id);
       localStorage.setItem('academy_completed', JSON.stringify(completedLessons));
     }
-    setModules(prev => (prev || []).map(mod => ({
+    const updatedModules = (modules || []).map(mod => ({
       ...mod,
       lessons: (mod.lessons || []).map(les =>
         les.id === activeLesson.id ? { ...les, is_completed: true } : les
       )
-    })));
-    setActiveLesson(prev => prev ? ({ ...prev, is_completed: true }) : null);
+    }));
+    setModules(updatedModules);
+    
+    const nextActiveLesson = activeLesson ? { ...activeLesson, is_completed: true } : null;
+    setActiveLesson(nextActiveLesson);
+
+    // Sincronizar Caché de localStorage inmediatamente para persistencia
+    if (selectedCourse) {
+      try {
+        const cachedKey = `cached_academy_lessons_${selectedCourse.id}`;
+        localStorage.setItem(cachedKey, JSON.stringify({
+          modules: updatedModules,
+          activeLesson: nextActiveLesson
+        }));
+      } catch (e) {
+        console.warn('Error al actualizar cache local:', e);
+      }
+    }
+
     toast.success("Lección marcada como completada");
   };
 
@@ -1139,7 +1306,14 @@ export default function AcademyDashboard() {
                     const progress = Math.round((moduleLessonsCompleted / moduleLessons.length) * 100) || 0;
 
                     return (
-                      <div key={module.id} className="mb-2">
+                      <div 
+                        key={module.id} 
+                        className={`mb-2 rounded-xl transition-all ${isAdmin && isEditMode ? 'border border-dashed border-slate-200 dark:border-slate-800/60 p-1 hover:border-slate-400 dark:hover:border-slate-700' : ''} ${draggedModuleId === module.id ? 'opacity-40 scale-[0.98]' : ''}`}
+                        draggable={isAdmin && isEditMode}
+                        onDragStart={(e) => handleModuleDragStart(e, module.id)}
+                        onDragOver={(e) => handleModuleDragOver(e, module.id)}
+                        onDrop={(e) => handleModuleDrop(e, module.id)}
+                      >
                         <button
                           onClick={() => toggleModule(module.id)}
                           className="w-full flex flex-col p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left"
@@ -1184,7 +1358,13 @@ export default function AcademyDashboard() {
                                   key={lesson.id}
                                   onClick={() => handleLessonSelect(lesson)}
                                   className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-all duration-200
-                                  ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 shadow-sm border border-blue-100 dark:border-blue-800/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'}`}
+                                  ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 shadow-sm border border-blue-100 dark:border-blue-800/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'}
+                                  ${isAdmin && isEditMode ? 'border-dashed border border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-700' : ''}
+                                  ${draggedLesson?.id === lesson.id ? 'opacity-40 scale-[0.98]' : ''}`}
+                                  draggable={isAdmin && isEditMode}
+                                  onDragStart={(e) => handleLessonDragStart(e, lesson.id, module.id)}
+                                  onDragOver={(e) => handleLessonDragOver(e, lesson.id, module.id)}
+                                  onDrop={(e) => handleLessonDrop(e, lesson.id, module.id)}
                                 >
                                   <div className="shrink-0 mt-0.5">
                                     {lesson.is_completed ? (
@@ -1364,7 +1544,22 @@ export default function AcademyDashboard() {
                     {isEditMode ? (
                       <div className="space-y-4 animate-in fade-in duration-300">
                         <div>
-                          <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Título de la Lección</label>
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="text-[10px] font-bold text-amber-600 uppercase block">Título de la Lección</label>
+                            {editTitle && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(editTitle);
+                                  toast.success("Título copiado al portapapeles");
+                                }}
+                                className="text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                                title="Copiar título"
+                              >
+                                <Copy className="w-3 h-3" /> Copiar Título
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="text"
                             value={editTitle}
@@ -1458,7 +1653,26 @@ export default function AcademyDashboard() {
                         <div>
                           <label className="text-[10px] font-bold text-amber-600 uppercase mb-1 block">Materiales y Recursos</label>
                           {(Array.isArray(editMateriales) ? editMateriales : []).map((m, idx) => (
-                            <div key={idx} className="flex gap-2 mb-2">
+                            <div key={idx} className="flex gap-2 mb-2 items-center">
+                              <select
+                                value={m.emoji || '📥'}
+                                onChange={(e) => {
+                                  const nm = [...(Array.isArray(editMateriales) ? editMateriales : [])];
+                                  nm[idx] = { ...nm[idx], emoji: e.target.value };
+                                  setEditMateriales(nm);
+                                }}
+                                className="w-16 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-base text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 transition-all cursor-pointer text-center"
+                                title="Seleccionar Emoji"
+                              >
+                                <option value="📥">📥</option>
+                                <option value="🔗">🔗</option>
+                                <option value="💬">💬</option>
+                                <option value="💡">💡</option>
+                                <option value="📖">📖</option>
+                                <option value="🎥">🎥</option>
+                                <option value="🎁">🎁</option>
+                                <option value="⭐">⭐</option>
+                              </select>
                               <input 
                                 type="text" placeholder="Nombre (Ej: Guía en PDF)" 
                                 value={m.nombre || ''} 
@@ -1482,7 +1696,7 @@ export default function AcademyDashboard() {
                           ))}
                           <button 
                             type="button"
-                            onClick={() => setEditMateriales([...(Array.isArray(editMateriales) ? editMateriales : []), {nombre: '', url: ''}])}
+                            onClick={() => setEditMateriales([...(Array.isArray(editMateriales) ? editMateriales : []), {nombre: '', url: '', emoji: '📥'}])}
                             className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 mt-2"
                           >
                             <Plus className="w-3 h-3" /> Añadir Recurso
@@ -1546,8 +1760,12 @@ export default function AcademyDashboard() {
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase mb-4">Materiales de apoyo</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {activeLesson.materiales.map((material: any, idx: number) => (
-                            <a key={idx} href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-blue-50/50 transition-colors">
-                              <DownloadIcon className="w-4 h-4 text-slate-400" />
+                            <a key={idx} href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-blue-50/50 transition-colors shadow-sm">
+                              {material.emoji ? (
+                                <span className="text-base shrink-0 select-none">{material.emoji}</span>
+                              ) : (
+                                <DownloadIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                              )}
                               <span className="text-sm font-medium truncate">{material.nombre}</span>
                             </a>
                           ))}

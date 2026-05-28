@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
-import { Plus, Trash2, Save, ArrowLeft, Play, X } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Play, X, Copy } from 'lucide-react';
 import { useToast } from '../../../../context/ToastContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../../lib/academyR2Upload.js';
@@ -342,7 +342,22 @@ export default function LessonCreator() {
               <h2 className="text-lg font-semibold">Configuración General</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Título de la Lección *</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium">Título de la Lección *</label>
+                    {title && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(title);
+                          toast.success("Título copiado al portapapeles");
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-bold flex items-center gap-1.5"
+                        title="Copiar título"
+                      >
+                        <Copy className="w-3.5 h-3.5" /> Copiar Título
+                      </button>
+                    )}
+                  </div>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700" />
                 </div>
                 <div className="md:col-span-2">

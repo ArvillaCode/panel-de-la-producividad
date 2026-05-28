@@ -112,7 +112,7 @@ function validateUpload({ key, contentType, size }, env) {
     return 'invalid_key';
   }
 
-  const match = key.match(/^academy\/([a-z]+)\/[A-Za-z0-9._-]+$/);
+  const match = key.match(/^academy\/([a-z]+)\/[a-zA-Z0-9_\.\-]+$/);
   if (!match || !ALLOWED_FOLDERS.has(match[1])) {
     return 'invalid_key';
   }
@@ -152,7 +152,7 @@ export default {
       }
 
       // Validar que el key sea de las carpetas permitidas
-      const keyMatch = key.match(/^academy\/([a-z]+)\/[A-Za-z0-9._-]+$/);
+      const keyMatch = key.match(/^academy\/([a-z]+)\/[a-zA-Z0-9_\.\-]+$/);
       if (!keyMatch || !ALLOWED_FOLDERS.has(keyMatch[1])) {
         return jsonResponse(request, env, 400, { error: 'invalid_key' });
       }
