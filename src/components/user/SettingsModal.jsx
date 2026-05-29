@@ -397,7 +397,12 @@ const SettingsModal = ({ onClose }) => {
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest opacity-70">Estado del Plan</p>
-                      <h4 className="text-2xl font-black">Plan SaaS Premium 🚀</h4>
+                      <h4 className="text-2xl font-black">
+                        {profile?.plan === 'monthly' && 'Upfunnel Pro Mensual 🚀'}
+                        {profile?.plan === 'annual' && 'Upfunnel Pro Anual 🚀'}
+                        {profile?.plan === 'legacy' && 'Acceso Básico Legacy 👤'}
+                        {!['monthly', 'annual', 'legacy'].includes(profile?.plan) && 'Plan Anual Premium 🚀'}
+                      </h4>
                     </div>
                     <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-bold uppercase border border-white/10">
                       Activo
@@ -414,7 +419,7 @@ const SettingsModal = ({ onClose }) => {
                     <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
                       <p className="text-[10px] font-bold uppercase opacity-70 mb-1">Vencimiento</p>
                       <p className="text-sm font-bold">
-                        {profile?.end_date ? new Date(profile.end_date).toLocaleDateString() : 'N/A'}
+                        {profile?.plan === 'legacy' ? 'Sin vencimiento' : (profile?.end_date ? new Date(profile.end_date).toLocaleDateString() : 'N/A')}
                       </p>
                     </div>
                   </div>
@@ -426,15 +431,34 @@ const SettingsModal = ({ onClose }) => {
                     Beneficios de tu Suscripción
                   </h4>
                   <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                    <li>• Acceso ilimitado a los 50+ agentes especializados</li>
+                    <li>• Acceso ilimitado a los 71 agentes especializados de IA</li>
                     <li>• Actualizaciones semanales de modelos y lógica</li>
                     <li>• Soporte prioritario 24/7</li>
-                    <li>• Panel de administración personalizado</li>
+                    {profile?.plan === 'legacy' ? (
+                      <>
+                        <li className="text-amber-500 font-semibold">• Acceso a Cursos Básicos Gratuitos (Academia)</li>
+                        <li className="text-red-400/80 font-semibold">• Matchmaker Copilot & Cursos Premium bloqueados</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>• Acceso total a la Academia (Cursos Gratuitos y Premium)</li>
+                        <li>• Copiloto Matchmaker Inteligente habilitado</li>
+                      </>
+                    )}
+                    <li>• Costo del Plan: <strong className="text-gray-800 dark:text-white">
+                      {profile?.plan === 'monthly' && '$14.99 USD / mes'}
+                      {profile?.plan === 'annual' && '$79.99 USD / año'}
+                      {profile?.plan === 'legacy' && 'Sin costo recurrente (Legacy)'}
+                      {!['monthly', 'annual', 'legacy'].includes(profile?.plan) && '$79.99 USD / año'}
+                    </strong></li>
                   </ul>
                 </div>
 
                 <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                  Sistema de Recurrencia Anual Automatizado
+                  {profile?.plan === 'monthly' && 'Sistema de Recurrencia Mensual Automatizado'}
+                  {profile?.plan === 'annual' && 'Sistema de Recurrencia Anual Automatizado'}
+                  {profile?.plan === 'legacy' && 'Acceso Legacy Limitado Indefinido'}
+                  {!['monthly', 'annual', 'legacy'].includes(profile?.plan) && 'Sistema de Recurrencia Anual Automatizado'}
                 </p>
               </div>
             )}

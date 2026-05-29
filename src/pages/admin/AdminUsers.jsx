@@ -96,7 +96,9 @@ const AdminUsers = () => {
     password: '',
     confirmPassword: '',
     role: 'user',
-    avatar: ''
+    avatar: '',
+    plan: 'annual',
+    is_legacy_fallback: false
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -215,18 +217,28 @@ const AdminUsers = () => {
     setError('');
 
     try {
-      if (!formData.name || !formData.email || !formData.password) {
-        throw new Error('Todos los campos son obligatorios');
+      if (!formData.name || !formData.email) {
+        throw new Error('El nombre y el email son obligatorios');
       }
 
-      if (formData.password !== formData.confirmPassword) {
-        throw new Error('Las contraseñas no coinciden');
+      // Generar una contraseña fuerte y aleatoria automáticamente ya que se accede por Magic Link / OTP.
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+      let randomPassword = '';
+      randomPassword += 'A'; // Asegurar una mayúscula
+      randomPassword += 'a'; // Asegurar una minúscula
+      randomPassword += '1'; // Asegurar un número
+      randomPassword += '!'; // Asegurar un carácter especial
+      for (let i = 0; i < 16; i++) {
+        randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
       }
+      const finalPassword = randomPassword.split('').sort(() => 0.5 - Math.random()).join('');
 
-      const result = await adminCreateUser(formData.email, formData.password, {
+      const result = await adminCreateUser(formData.email, finalPassword, {
         name: formData.name,
         role: formData.role,
-        avatar_url: formData.avatar
+        avatar_url: formData.avatar,
+        plan: formData.plan,
+        is_legacy_fallback: formData.is_legacy_fallback
       });
       
       if (result.success) {
@@ -253,7 +265,9 @@ const AdminUsers = () => {
         name: formData.name,
         email: formData.email,
         role: formData.role,
-        avatar_url: formData.avatar
+        avatar_url: formData.avatar,
+        plan: formData.plan,
+        is_legacy_fallback: formData.is_legacy_fallback
       });
 
       if (!result.success) throw new Error(result.error || 'Error al actualizar');
@@ -289,7 +303,9 @@ const AdminUsers = () => {
       password: '',
       confirmPassword: '',
       role: u.role || 'user',
-      avatar: u.avatar_url || ''
+      avatar: u.avatar_url || '',
+      plan: u.plan || 'annual',
+      is_legacy_fallback: u.is_legacy_fallback || false
     });
     setShowEditModal(true);
   };
@@ -330,7 +346,9 @@ const AdminUsers = () => {
       password: '',
       confirmPassword: '',
       role: 'user',
-      avatar: ''
+      avatar: '',
+      plan: 'annual',
+      is_legacy_fallback: false
     });
     setSelectedUser(null);
     setError('');
@@ -687,9 +705,23 @@ const AdminUsers = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-gray-400'}`}>
-                                        {u.role === 'admin' ? 'Administrador' : 'Usuario'}
-                                    </span>
+                                    <div className="flex flex-col gap-1.5 items-start">
+                                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-gray-400'}`}>
+                                            {u.role === 'admin' ? 'Administrador' : 'Usuario'}
+                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                                                u.plan === 'monthly' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 
+                                                u.plan === 'legacy' ? 'bg-gray-500/10 border-gray-500/20 text-gray-400' : 
+                                                'bg-neon-teal/10 border-neon-teal/20 text-neon-teal'
+                                            }`}>
+                                                {u.plan === 'monthly' ? 'Mensual' : u.plan === 'legacy' ? 'Legacy' : 'Anual'}
+                                            </span>
+                                            {u.is_legacy_fallback && (
+                                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]" title="Protección de Reversión Legacy Activa"></span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-2">
@@ -858,24 +890,35 @@ const AdminUsers = () => {
                           )}
                         </div>
                     </div>
-                    {!showEditModal && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Contraseña</label>
-                                <input required type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="premium-input w-full" placeholder="******" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Confirmar</label>
-                                <input required type="password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} className="premium-input w-full" placeholder="******" />
-                            </div>
-                        </div>
-                    )}
+                    {/* Acceso por Magic Link / OTP: Contraseña autotramitada en el backend */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Nivel de Acceso</label>
                         <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="premium-input w-full appearance-none">
                             <option value="user">USUARIO ESTÁNDAR</option>
                             <option value="admin">ADMINISTRADOR CORE</option>
                         </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Plan de Suscripción</label>
+                        <select value={formData.plan} onChange={e => setFormData({...formData, plan: e.target.value})} className="premium-input w-full appearance-none">
+                            <option value="annual">UPFUNNEL PRO ANUAL ($79.99 USD)</option>
+                            <option value="monthly">UPFUNNEL PRO MENSUAL ($14.99 USD)</option>
+                            <option value="legacy">ACCESO BÁSICO ANTIGUO (LEGACY)</option>
+                        </select>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 mt-4">
+                        <input
+                          type="checkbox"
+                          id="is_legacy_fallback"
+                          checked={formData.is_legacy_fallback}
+                          onChange={e => setFormData({...formData, is_legacy_fallback: e.target.checked})}
+                          className="w-5 h-5 rounded border-white/10 bg-white/5 text-neon-teal focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                        />
+                        <label htmlFor="is_legacy_fallback" className="cursor-pointer select-none">
+                            <p className="text-xs font-black text-white uppercase tracking-wider">Protección de Reversión Legacy</p>
+                            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Si expira, vuelve al plan Legacy en vez de bloquearse</p>
+                        </label>
                     </div>
                     <div className="flex gap-4 pt-4">
                         <button type="button" onClick={closeModals} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>

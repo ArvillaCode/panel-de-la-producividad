@@ -24,6 +24,7 @@ import GlobalBanner from './components/user/GlobalBanner';
 import AcademiaPage from './app/dashboard/academia/page';
 import LessonCreator from './app/dashboard/academia/admin/page';
 import PendingApproval from './pages/PendingApproval';
+import Documentation from './pages/Documentation';
 import './App.css';
 
 // 1. Componente de Restricción de Dominio (Restaurado)
@@ -125,6 +126,7 @@ function App() {
               <Route path="/privacidad" element={<Privacy />} />
               <Route path="/soporte" element={<Support />} />
               <Route path="/dashboard/espera-aprobacion" element={<PendingApproval />} />
+              <Route path="/documentacion" element={<Documentation />} />
 
               {/* Academia */}
               <Route path="/dashboard/academia" element={<ProtectedRoute><AcademiaPage /></ProtectedRoute>} />

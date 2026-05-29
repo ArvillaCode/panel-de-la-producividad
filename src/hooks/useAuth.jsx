@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-// No creamos una instancia duplicada aquí para evitar el warning de Multiple GoTrueClient.
-// Usaremos la instancia única de ../lib/supabase.
+import { createClient } from '@supabase/supabase-js';
 
 
 const AuthContext = createContext();
@@ -129,7 +128,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
+        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone, plan, is_legacy_fallback')
         .order('created_at', { ascending: false });
 
       if (!error) setUsers(data || []);
@@ -206,7 +205,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const fetchPromise = supabase
             .from('profiles')
-            .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
+            .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone, plan, is_legacy_fallback')
             .eq('id', currentUser.id)
             .single();
 
@@ -256,6 +255,8 @@ export const AuthProvider = ({ children }) => {
                 timezone: metadata.timezone || 'UTC',
                 start_date: metadata.start_date || null,
                 end_date: metadata.end_date || null,
+                plan: metadata.plan || 'annual',
+                is_legacy_fallback: metadata.is_legacy_fallback || false,
                 created_at: new Date().toISOString()
               };
 
@@ -274,9 +275,34 @@ export const AuthProvider = ({ children }) => {
           }
 
           // Validación de acceso
-          const status = profileData.status || 'pending';
+          let status = profileData.status || 'pending';
           const userIsAdmin = profileData.role === 'admin' || profileData.role === 'core_admin';
-          const isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
+          let isExpired = profileData.end_date ? new Date(profileData.end_date) < new Date() : false;
+          
+          // Reversión automática incondicional a Plan Legacy si expira y tiene fallback activo
+          if (isExpired && profileData.is_legacy_fallback && !userIsAdmin) {
+            try {
+              console.log(`[AUTH] [LEGACY-REVERSION] Expiró plan de ${currentUser.email}. Revirtiendo a plan legacy de forma automática.`);
+              
+              // Actualizar base de datos de forma asíncrona y transparente
+              supabase.from('profiles').update({
+                plan: 'legacy',
+                end_date: null,
+                status: 'active'
+              }).eq('id', currentUser.id).then(({ error }) => {
+                if (error) console.error('[AUTH] [LEGACY-REVERSION] Falló actualización de reversión en Supabase:', error.message);
+              });
+              
+              // Modificar datos locales para evitar bloqueos visuales en sesión actual
+              profileData.plan = 'legacy';
+              profileData.end_date = null;
+              profileData.status = 'active';
+              status = 'active';
+              isExpired = false;
+            } catch (err) {
+              console.error('[AUTH] Error crítico en flujo de reversión legacy:', err);
+            }
+          }
 
           if (!userIsAdmin && (status === 'rejected' || status === 'inactive' || isExpired)) {
             let reason = 'Tu cuenta no tiene acceso permitido.';
@@ -322,6 +348,8 @@ export const AuthProvider = ({ children }) => {
               timezone: metadata.timezone || 'UTC',
               start_date: metadata.start_date || null,
               end_date: metadata.end_date || null,
+              plan: metadata.plan || 'annual',
+              is_legacy_fallback: metadata.is_legacy_fallback || false,
               created_at: new Date().toISOString()
             };
             setProfile(fallbackProfile);
@@ -575,14 +603,25 @@ export const AuthProvider = ({ children }) => {
       finalData.status = 'active';
       finalData.is_approved = true;
 
-      // Si no tiene fechas, asignamos 1 año por defecto desde hoy
+      // Si no tiene fechas, asignamos fechas por defecto según su plan
       if (!targetUser?.start_date || !targetUser?.end_date || data.force_dates) {
         const startDate = new Date();
         const endDate = new Date();
-        endDate.setFullYear(endDate.getFullYear() + 1);
-        finalData.start_date = startDate.toISOString();
-        finalData.end_date = endDate.toISOString();
-        console.log(`[AUTH] Asignando fechas automáticas para ${id}: ${finalData.start_date} a ${finalData.end_date}`);
+        const activePlan = finalData.plan || targetUser?.plan || 'annual';
+        
+        if (activePlan === 'legacy') {
+          finalData.start_date = startDate.toISOString();
+          finalData.end_date = null; // Acceso legacy no expira por defecto
+        } else {
+          if (activePlan === 'monthly') {
+            endDate.setMonth(endDate.getMonth() + 1);
+          } else {
+            endDate.setFullYear(endDate.getFullYear() + 1);
+          }
+          finalData.start_date = startDate.toISOString();
+          finalData.end_date = endDate.toISOString();
+        }
+        console.log(`[AUTH] Asignando fechas automáticas (${activePlan}) para ${id}: ${finalData.start_date} a ${finalData.end_date}`);
       }
     }
 
@@ -762,9 +801,18 @@ export const AuthProvider = ({ children }) => {
       if (!validation.valid) return { success: false, error: validation.error };
       const safeMetadata = pickAllowedFields(metadata, OWN_PROFILE_FIELDS);
 
-      // Usar la instancia única para el registro. 
-      // NOTA: Esto podría cerrar la sesión del admin si no se maneja con cuidado en el backend.
-      const { data, error } = await supabase.auth.signUp({
+      // Creamos un cliente de Supabase temporal aislado sin persistencia de sesión
+      // para evitar que reescriba el localStorage del administrador activo.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      });
+
+      const { data, error } = await tempSupabase.auth.signUp({
         email,
         password,
         options: { data: safeMetadata }

@@ -143,7 +143,7 @@ const FAQ_ITEMS = [
   },
   {
     question: '¿Cómo funciona el precio del "Acceso Founder"?',
-    answer: 'Es una oferta única de lanzamiento. Por solo $49 USD obtienes acceso completo a todo el sistema operativo, la flota de 71 agentes, el Asistente Copiloto y los cursos de la Academia por un año completo. En la renovación el precio se mantendrá congelado para ti, aunque el valor regular suba a $199 USD.'
+    answer: 'Es una oferta única de lanzamiento. Por solo $79.99 USD obtienes acceso completo a todo el sistema operativo, la flota de 71 agentes, el Asistente Copiloto y los cursos de la Academia por un año completo. En la renovación el precio se mantendrá congelado para ti, aunque el valor regular suba a $199 USD.'
   },
   {
     question: '¿Necesito conocimientos de código o prompts avanzados?',
@@ -156,6 +156,7 @@ const FAQ_ITEMS = [
 ];
 
 const STRIPE_URL = 'https://buy.stripe.com/4gMdR96wma4KdLM6LQ7bW0C';
+const STRIPE_MONTHLY_URL = 'https://buy.stripe.com/test_placeholder_monthly';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#080C14]';
@@ -592,6 +593,7 @@ const LandingPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('freelancer');
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState('annual'); // 'monthly' o 'annual'
   const reducedMotion = false;
   const activeSection = useActiveSection(SECTION_IDS);
 
@@ -1045,16 +1047,47 @@ const LandingPage = () => {
         {/* 9. PRICING & OFERTA SECTION */}
         <section id="pricing" className="py-24 px-4 sm:px-6 max-w-3xl mx-auto scroll-mt-24">
           <Reveal>
-            <div className="text-center mb-16">
+            <div className="text-center mb-10">
               <span className="text-[9px] font-black uppercase tracking-widest text-neon-teal bg-neon-teal/5 border border-neon-teal/10 px-3 py-1.5 rounded-full">
                 Acceso Fundadores
               </span>
               <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight mt-6 mb-4">
-                Una sola inversión anual.
+                Elige tu plan de inversión
               </h2>
               <p className="text-slate-400 text-sm">
-                Consigue acceso completo a Upfunnel antes de que cierre la convocatoria del Founder Access.
+                Consigue acceso completo a Upfunnel y delega tu esfuerzo operativo hoy mismo.
               </p>
+            </div>
+          </Reveal>
+
+          {/* Selector de Período de Facturación */}
+          <Reveal delay={100}>
+            <div className="flex justify-center mb-10">
+              <div className="bg-[#090C12] p-1.5 rounded-2xl border border-white/5 inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriod('monthly')}
+                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    billingPeriod === 'monthly'
+                      ? 'bg-neon-teal/15 border border-neon-teal/20 text-neon-teal shadow-[0_0_15px_-3px_rgba(0,229,255,0.2)]'
+                      : 'text-slate-500 hover:text-white'
+                  }`}
+                >
+                  Mensual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriod('annual')}
+                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                    billingPeriod === 'annual'
+                      ? 'bg-neon-teal/15 border border-neon-teal/20 text-neon-teal shadow-[0_0_15px_-3px_rgba(0,229,255,0.2)]'
+                      : 'text-slate-500 hover:text-white'
+                  }`}
+                >
+                  Anual
+                  <span className="bg-neon-teal text-deep-dark text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-normal">Ahorra 60%</span>
+                </button>
+              </div>
             </div>
           </Reveal>
 
@@ -1073,18 +1106,26 @@ const LandingPage = () => {
 
               <div className="space-y-8 relative z-10">
                 <div className="space-y-2">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Membresía Anual Completa</span>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                    {billingPeriod === 'annual' ? 'Membresía Anual Completa' : 'Membresía Mensual Flexible'}
+                  </span>
                   <div className="flex items-center justify-center gap-2">
-                    <span className="text-6xl md:text-7xl font-black text-white italic tracking-tighter">$49</span>
+                    <span className="text-6xl md:text-7xl font-black text-white italic tracking-tighter">
+                      {billingPeriod === 'annual' ? '$79.99' : '$14.99'}
+                    </span>
                     <div className="text-left">
                       <span className="text-xs font-bold text-neon-teal uppercase tracking-wider block">USD</span>
-                      <span className="text-[9px] text-slate-500 uppercase block -mt-1">al año</span>
+                      <span className="text-[9px] text-slate-500 uppercase block -mt-1">
+                        {billingPeriod === 'annual' ? 'al año' : 'al mes'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-slate-400 text-xs max-w-md mx-auto leading-relaxed">
-                  Consigue acceso total a la flota de agentes, copiloto de Gemini, centro de implementación de la Academia y actualizaciones prioritarias durante un año entero.
+                <p className="text-slate-400 text-xs max-w-md mx-auto leading-relaxed min-h-[48px]">
+                  {billingPeriod === 'annual' 
+                    ? 'Consigue acceso total a la flota de agentes, copiloto de Gemini, centro de implementación de la Academia y actualizaciones prioritarias durante un año entero.'
+                    : 'Disfruta de la flexibilidad de pagar mes a mes con acceso total ilimitado a la flota de agentes, copiloto de Gemini y academia práctica.'}
                 </p>
 
                 {/* Lista de beneficios premium */}
@@ -1117,16 +1158,18 @@ const LandingPage = () => {
 
                 <div className="space-y-3">
                   <a
-                    href={STRIPE_URL}
+                    href={billingPeriod === 'annual' ? STRIPE_URL : STRIPE_MONTHLY_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full group inline-flex items-center justify-center gap-3 px-10 py-5 bg-neon-teal text-deep-dark rounded-2xl font-black tracking-widest uppercase text-xs italic shadow-lg shadow-neon-teal/20 hover:brightness-110 transition-all"
                   >
-                    Obtener Acceso Founder Anual
+                    {billingPeriod === 'annual' ? 'Obtener Acceso Founder Anual' : 'Obtener Acceso Mensual'}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </a>
                   <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                    Renovación con precio congelado de por vida. Cancela cuando quieras.
+                    {billingPeriod === 'annual' 
+                      ? 'Renovación con precio congelado de por vida. Cancela cuando quieras.'
+                      : 'Suscripción mensual sin contratos. Cancela de forma instantánea cuando quieras.'}
                   </p>
                 </div>
               </div>
@@ -1220,6 +1263,9 @@ const LandingPage = () => {
               </li>
               <li>
                 <a href="#academia" onClick={(e) => { e.preventDefault(); scrollToSection('academia'); }} className="hover:text-neon-teal transition-colors">Academia</a>
+              </li>
+              <li>
+                <Link to="/documentacion" className="hover:text-neon-teal transition-colors text-neon-teal/95 font-bold">Documentación</Link>
               </li>
               <li>
                 <a href="/politicas" className="hover:text-neon-teal transition-colors">Políticas</a>

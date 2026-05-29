@@ -206,10 +206,11 @@ export default function AcademyDashboard() {
   const filteredCourses = useMemo(() => (
     courses.filter((course) => {
       if (course.slug === 'global-academy-settings') return false;
+      if (profile?.plan === 'legacy' && !isAdmin && course.is_premium) return false;
       if (showOnlyPremium) return course.is_premium;
       return selectedCategory === 'Todas' || course.category === selectedCategory;
     })
-  ), [courses, selectedCategory, showOnlyPremium]);
+  ), [courses, selectedCategory, showOnlyPremium, profile?.plan, isAdmin]);
 
   // --- DRAG & DROP MANEJADORES ---
   const handleModuleDragStart = (e: React.DragEvent, id: string) => {
@@ -656,6 +657,15 @@ export default function AcademyDashboard() {
     const fetchLessonsData = async () => {
       if (!selectedCourse) return;
       
+      // Interceptar accesos a cursos premium para usuarios Legacy
+      if (selectedCourse.is_premium && profile?.plan === 'legacy' && !isAdmin) {
+        toast.error("Este curso premium no está disponible en tu plan Acceso Básico Legacy.");
+        navigate('/dashboard/academia', { replace: true });
+        setSelectedCourse(null);
+        setView('courses');
+        return;
+      }
+      
       let hasCached = false;
       try {
         const cachedKey = `cached_academy_lessons_${selectedCourse.id}`;
@@ -795,7 +805,7 @@ export default function AcademyDashboard() {
       }
     };
     fetchLessonsData();
-  }, [selectedCourse, isAdmin]);
+  }, [selectedCourse, isAdmin, profile?.plan, navigate]);
 
   // Cargar progreso completado desde localStorage
   useEffect(() => {

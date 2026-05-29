@@ -243,7 +243,7 @@ const AgentGuide = () => {
 
   if (!isAuthenticated) return null;
 
-  const shouldRender = isEnabled || isAdmin;
+  const shouldRender = (isEnabled || isAdmin) && (profile?.plan !== 'legacy' || isAdmin);
   if (!shouldRender) return null;
 
   return (

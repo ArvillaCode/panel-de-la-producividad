@@ -100,11 +100,21 @@ const AdminReleases = () => {
         return;
       }
 
+      // Generar un resumen de vista previa basado en los mensajes de los commits
+      const commitSummaries = newCommits.slice(0, 2).map(c => {
+        let msg = c.commit.message.split('\\n')[0];
+        // Remover prefijos comunes de commits semánticos si existen
+        msg = msg.replace(/^(feat|fix|refactor|chore|style|docs|perf|test|build|ci|revert)(\(.+?\))?:\s*/i, '');
+        // Capitalizar primer letra
+        return msg.charAt(0).toUpperCase() + msg.slice(1);
+      });
+      const generatedDescription = `Incluye: ${commitSummaries.join(', ')}${newCommits.length > 2 ? ' y otras mejoras del sistema.' : '.'}`;
+
       const draftRelease = {
         ...emptyRelease,
         version: getNextVersion(releases.length > 0 ? releases[0].version : '2.5.0'),
         title: 'Actualización Automática',
-        description: 'Borrador generado automáticamente con los últimos cambios de GitHub.',
+        description: generatedDescription,
         changes: newCommits.map(c => c.commit.message.split('\\n')[0]),
         type: 'improvement',
         is_visible: false,
