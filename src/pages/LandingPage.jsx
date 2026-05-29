@@ -77,7 +77,7 @@ const PROBLEM_CARDS = [
 const BENTO_FEATURES = [
   {
     id: 'agents',
-    title: 'Workspace de 71 Agentes',
+    title: 'Workspace de 74 Agentes',
     desc: 'Una consola optimizada con agentes de IA configurados con prompts de élite en Salud, Ventas, Copywriting, Marketing y Programación.',
     tag: 'Infraestructura',
     size: 'md:col-span-2'
@@ -143,7 +143,7 @@ const FAQ_ITEMS = [
   },
   {
     question: '¿Cómo funciona el precio del "Acceso Founder"?',
-    answer: 'Es una oferta única de lanzamiento. Por solo $79.99 USD obtienes acceso completo a todo el sistema operativo, la flota de 71 agentes, el Asistente Copiloto y los cursos de la Academia por un año completo. En la renovación el precio se mantendrá congelado para ti, aunque el valor regular suba a $199 USD.'
+    answer: 'Es una oferta única de lanzamiento. Por solo $79.99 USD obtienes acceso completo a todo el sistema operativo, la flota de 74 agentes, el Asistente Copiloto y los cursos de la Academia por un año completo. En la renovación el precio se mantendrá congelado para ti, aunque el valor regular suba a $199 USD.'
   },
   {
     question: '¿Necesito conocimientos de código o prompts avanzados?',
@@ -698,7 +698,7 @@ const LandingPage = () => {
         <section className="py-10 border-y border-white/5 overflow-hidden bg-white/[0.01]" aria-label="Tecnologías compatibles">
           <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center mb-10">
             <div>
-              <p className="text-2xl md:text-3xl font-black text-white italic tracking-tight">71</p>
+              <p className="text-2xl md:text-3xl font-black text-white italic tracking-tight">74</p>
               <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Agentes Optimizados</p>
             </div>
             <div>
@@ -1132,7 +1132,7 @@ const LandingPage = () => {
                 <div className="max-w-xs mx-auto text-left space-y-2.5 border-t border-b border-white/5 py-6 text-xs text-slate-300">
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-neon-teal" />
-                    <span>Flota de 71 agentes de IA calibrados</span>
+                    <span>Flota de 74 agentes de IA calibrados</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-neon-teal" />

@@ -22,7 +22,7 @@ const SECTIONS = [
     id: 'intro',
     title: '1. Introducción',
     icon: BookOpen,
-    description: 'Descripción central del ecosistema de 71 agentes de IA de Upfunnel.',
+    description: 'Descripción central del ecosistema de 74 agentes de IA de Upfunnel.',
     code: {
       curl: `# Clonar repositorio del proyecto\ngit clone https://github.com/usuario/upfunnel.git\ncd upfunnel\nnpm install`,
       javascript: `// Iniciar servidor local de desarrollo\nnpm run dev\n// Abre http://localhost:3000 por defecto`,

@@ -431,7 +431,7 @@ const SettingsModal = ({ onClose }) => {
                     Beneficios de tu Suscripción
                   </h4>
                   <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                    <li>• Acceso ilimitado a los 71 agentes especializados de IA</li>
+                    <li>• Acceso ilimitado a los 74 agentes especializados de IA</li>
                     <li>• Actualizaciones semanales de modelos y lógica</li>
                     <li>• Soporte prioritario 24/7</li>
                     {profile?.plan === 'legacy' ? (
