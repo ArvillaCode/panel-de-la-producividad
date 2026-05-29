@@ -1140,11 +1140,15 @@ const LandingPage = () => {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-neon-teal" />
-                    <span>Módulo LMS de Academia (Tutoriales prácticos)</span>
+                    <span>Cursos Premium de la Academia</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-neon-teal" />
                     <span>Soporte prioritario y solicitudes de agentes</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-neon-teal" />
+                    <span>Acceso previo a las próximas actualizaciones</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-neon-teal" />
