@@ -1,6 +1,6 @@
 # 📘 Manual de Documentación Técnica - Upfunnel V3.0
 
-Bienvenido al manual maestro de documentación de **Upfunnel**, un panel interactivo moderno y de alto rendimiento diseñado para centralizar, estructurar y ejecutar tareas de negocio utilizando una flota de 71 agentes especializados en Inteligencia Artificial.
+Bienvenido al manual maestro de documentación de **Upfunnel**, un panel interactivo moderno y de alto rendimiento diseñado para centralizar, estructurar y ejecutar tareas de negocio utilizando una flota de 74 agentes especializados en Inteligencia Artificial.
 
 Este documento ofrece una radiografía detallada de la arquitectura, estructura de archivos, base de datos, flujos de autenticación, gestión de suscripciones y directrices operativas del sistema.
 
@@ -38,36 +38,36 @@ A continuación se detalla la jerarquía y propósito de cada sección de la apl
 src/
 ├── app/                  # Configuraciones y layouts a nivel de aplicación
 ├── components/           # Componentes reutilizables e interactivos
-│   ├── admin/            # Componentes específicos del panel de administración
-│   ├── ui/               # Componentes atómicos de diseño (Toaster, botones, etc.)
-│   ├── user/             # Componentes de interacción del usuario normal
-│   ├── AgentCard.jsx     # Tarjeta estándar de los agentes de IA
-│   ├── AgentCompactCard  # Tarjeta optimizada para rejillas densas
-│   └── AgentPanel.jsx    # LA CONSOLA: Centro de chat interactivo con agentes
+├── components/admin/     # Componentes específicos del panel de administración
+├── components/ui/        # Componentes atómicos de diseño (Toaster, botones, etc.)
+├── components/user/      # Componentes de interacción del usuario normal
+├── components/AgentCard.jsx # Tarjeta estándar de los agentes de IA
+├── components/AgentCompactCard # Tarjeta optimizada para rejillas densas
+├── components/AgentPanel.jsx # LA CONSOLA: Centro de chat interactivo con agentes
 ├── constants/            # Variables globales invariables de marca y sistema
-│   └── branding.js       # Configuración central de logotipos, colores e identidad
+├── constants/branding.js # Configuración central de logotipos, colores e identidad
 ├── context/              # Proveedores de contexto global de React
-│   └── ToastContext.jsx  # Desencadenante de alertas efímeras flotantes
+├── context/ToastContext.jsx # Desencadenante de alertas efímeras flotantes
 ├── data/                 # Archivos de datos maestros y estáticos
-│   └── agents.js         # Base de datos local con los 71 agentes, especialidades y prompts
+├── data/agents.js        # Base de datos local con los 74 agentes, especialidades y prompts
 ├── hooks/                # Hooks personalizados con lógica reutilizable
-│   ├── useAuth.jsx       # GESTOR DE SESIONES: Sincronización SWR con Supabase
-│   ├── useCloseModal.js  # Utilidad de cierre interactivo por escape/clic externo
-│   ├── useFavorites.js   # Almacenamiento de agentes marcados como favoritos
-│   ├── useReleaseNotes.js# Lógica de notificaciones de actualización
-│   └── useTheme.jsx      # Gestor dinámico de brillo (Temas Claro y Oscuro)
+├── hooks/useAuth.jsx     # GESTOR DE SESIONES: Sincronización SWR con Supabase
+├── hooks/useCloseModal.js # Utilidad de cierre interactivo por escape/clic externo
+├── hooks/useFavorites.js # Almacenamiento de agentes marcados como favoritos
+├── hooks/useReleaseNotes.js# Lógica de notificaciones de actualización
+├── hooks/useTheme.jsx    # Gestor dinámico de brillo (Temas Claro y Oscuro)
 ├── lib/                  # Inicialización de clientes de servicios externos
-│   ├── supabase.js       # Cliente unificado y singleton de Supabase
-│   └── academyR2Upload.js# Gestor de subidas de contenido para la Academia
+├── lib/supabase.js       # Cliente unificado y singleton de Supabase
+├── lib/academyR2Upload.js# Gestor de subidas de contenido para la Academia
 ├── pages/                # Páginas principales del enrutador de la aplicación
-│   ├── admin/            # Páginas del panel de control de administradores
-│   ├── ComingSoon.jsx    # Pantalla de mantenimiento o funciones futuras
-│   ├── LandingPage.jsx   # PÁGINA DE MARKETING: Interactiva y con animaciones Premium
-│   ├── PendingApproval.jsx# Pantalla de bloqueo para usuarios sin suscripción activa
-│   ├── Policies.jsx      # Página legal de términos de servicio
-│   ├── Privacy.jsx       # Página legal de políticas de privacidad
-│   ├── ReleaseHistory.jsx# Historial interactivo de lanzamientos y actualizaciones
-│   └── Support.jsx       # Centro de contacto y soporte prioritario
+├── pages/admin/          # Páginas del panel de control de administradores
+├── pages/ComingSoon.jsx  # Pantalla de mantenimiento o funciones futuras
+├── pages/LandingPage.jsx # PÁGINA DE MARKETING: Interactiva y con animaciones Premium
+├── pages/PendingApproval.jsx# Pantalla de bloqueo para usuarios sin suscripción activa
+├── pages/Policies.jsx    # Página legal de términos de servicio
+├── pages/Privacy.jsx     # Página legal de políticas de privacidad
+├── pages/ReleaseHistory.jsx# Historial interactivo de lanzamientos y actualizaciones
+├── pages/Support.jsx     # Centro de contacto y soporte prioritario
 ├── App.css               # Definición global de tokens de diseño y animaciones
 ├── App.jsx               # Enrutador centralizado (react-router-dom) y envoltorios
 └── main.jsx              # Punto de entrada de renderizado en el DOM
@@ -88,7 +88,8 @@ Almacena la información de perfil, configuración y estado de membresía de cad
 *   `role` (text): Rol del usuario (`user`, `support`, `editor`, `admin`, `core_admin`).
 *   `status` (text): Estado operativo (`pending`, `active`, `inactive`, `rejected`, `expired`).
 *   `is_approved` (boolean): Bandera de aprobación de acceso directo.
-*   `plan` (text): Identificador de suscripción activa (`monthly` para plan mensual de $9.99 USD, o `annual` para el anual).
+*   `plan` (text): Identificador de suscripción activa (`monthly` para plan mensual de $14.99 USD, `annual` para el anual de $79.99 USD, o `legacy` para acceso básico antiguo).
+*   `is_legacy_fallback` (boolean): Si es `true`, al vencer su suscripción premium el sistema lo devuelve automáticamente al plan `legacy` con estado `active` en lugar de bloquear su cuenta.
 *   `start_date` (timestamptz): Fecha en que se inició la suscripción activa.
 *   `end_date` (timestamptz): Fecha exacta de vencimiento del acceso del usuario.
 *   `timezone` (text): Zona horaria preferida (ej: `America/Mexico_City`).
@@ -122,10 +123,13 @@ Conserva una bitácora detallada e inmutable de las operaciones sensibles ejecut
 Upfunnel aplica un estricto control de accesos basado en roles (**RBAC**):
 
 *   **Usuario Estándar (`user`)**:
-    *   Visualiza y filtra los 71 agentes de IA.
+    *   Visualiza y filtra los 74 agentes de IA.
     *   Chatea con los agentes y hace solicitudes de recomendación a través del Copilot.
     *   Gestiona su propio perfil, foto, zona horaria y tema de visualización.
     *   *Bloqueo*: Si `status !== 'active'` o `end_date` es menor a la fecha de hoy, es redirigido automáticamente a la pantalla de aprobación pendiente (`/pending-approval`).
+*   **Plan Acceso Básico Legacy (`legacy`)**:
+    *   Mismo acceso básico al panel de agentes y visualización de cursos gratuitos en la Academia.
+    *   *Bloqueado*: Se le bloquea por completo el Matchmaker Copilot y el acceso a los cursos marcados como Premium.
 *   **Soporte (`support`)**:
     *   Mismas capacidades de usuario estándar.
     *   Acceso a leer sugerencias de usuarios y abrir tickets prioritarios.
@@ -143,8 +147,8 @@ Upfunnel aplica un estricto control de accesos basado en roles (**RBAC**):
 ## 💳 5. Flujo de Suscripción e Integración con Stripe
 
 El acceso al panel se realiza bajo un modelo de suscripción premium, ofreciendo dos modalidades de pago:
-1.  **Plan Mensual ($9.99 USD / mes)**: Acceso recurrente flexible de bajo impacto inicial.
-2.  **Plan Anual ($49.00 USD / año)**: Ahorro masivo con acceso congelado de por vida (Founder Access).
+1.  **Plan Mensual ($14.99 USD / mes)**: Acceso recurrente flexible sin contratos.
+2.  **Plan Anual ($79.99 USD / año)**: Ahorro masivo del 60% con precio congelado de por vida.
 
 ```mermaid
 sequenceDiagram
@@ -163,9 +167,10 @@ sequenceDiagram
 ```
 
 ### Lógica de Fechas en Activación
-Al autorizar el acceso a un usuario desde el panel administrativo:
+Al autorizar el acceso a un usuario desde el panel administrativo o webhook:
 *   Si el usuario tiene asignado el **Plan Mensual**, su `end_date` se calcula sumando **1 mes** exacto a partir del momento de activación.
 *   Si el usuario tiene asignado el **Plan Anual**, su `end_date` se calcula sumando **1 año** exacto.
+*   Si el usuario es asignado al **Plan Legacy**, su `end_date` queda configurado como `null` ya que goza de acceso ilimitado a perpetuidad para funciones básicas.
 
 ---
 

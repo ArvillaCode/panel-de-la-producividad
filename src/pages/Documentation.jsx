@@ -35,7 +35,7 @@ const SECTIONS = [
     icon: Cpu,
     description: 'Estructura frontend estática (React, Vite, Tailwind) conectada a Supabase (BaaS).',
     code: {
-      curl: `# Consultar estado del backend de Supabase\ncurl -X GET "https://krtthtzljlyewlngaklo.supabase.co/rest/v1/" \\\n  -H "apikey: SUPABASE_PUBLIC_ANON_KEY"`,
+      curl: `# Consultar estado del backend de Supabase\ncurl -X GET "https://YOUR_PROJECT.supabase.co/rest/v1/" \\\n  -H "apikey: SUPABASE_PUBLIC_ANON_KEY"`,
       javascript: `import { createClient } from '@supabase/supabase-js';\n\nconst supabaseUrl = import.meta.env.VITE_SUPABASE_URL;\nconst supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;\n\nexport const supabase = createClient(supabaseUrl, supabaseAnonKey);`,
       sql: `-- Habilitar extensiones necesarias en Postgres\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\nCREATE EXTENSION IF NOT EXISTS "pgcrypto";`
     }
