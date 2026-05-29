@@ -212,15 +212,15 @@ const Documentation = () => {
             {selectedData.id === 'intro' && (
               <div className="space-y-6 text-sm text-slate-300 leading-relaxed font-medium">
                 <p>
-                  El proyecto **Upfunnel** es un Sistema Operativo de Inteligencia Artificial que centraliza más de 70 agentes de IA calibrados. Está enfocado en eliminar el desorden del prompting manual estructurando inputs en workflows prediseñados y con la guía del Copilot.
+                  El proyecto <strong>Upfunnel</strong> es un Sistema Operativo de Inteligencia Artificial que centraliza más de 74 agentes de IA calibrados. Está enfocado en eliminar el desorden del prompting manual estructurando inputs en workflows prediseñados y con la guía del Copilot.
                 </p>
                 <div className="bg-[#090C12] border border-white/5 p-6 rounded-2xl">
                   <h4 className="font-bold text-white uppercase italic text-xs mb-3">Módulos Operacionales Activos:</h4>
                   <ul className="space-y-2 text-xs list-disc pl-4 text-slate-400">
-                    <li>**Dashboard de Agentes**: Rejilla de búsqueda y enrutamiento con base de datos real.</li>
-                    <li>**Copiloto Matchmaker**: Sistema inteligente de chat con NLP para recomendación automática de bots.</li>
-                    <li>**Academia LMS**: Módulo LMS dinámico para reproducción de lecciones en video.</li>
-                    <li>**Terminal Administrativa**: Interfaz de control absoluto para el propietario de la plataforma.</li>
+                    <li><strong>Dashboard de Agentes</strong>: Rejilla de búsqueda y enrutamiento con base de datos real.</li>
+                    <li><strong>Copiloto Matchmaker</strong>: Sistema inteligente de chat con NLP para recomendación automática de bots.</li>
+                    <li><strong>Academia LMS</strong>: Módulo LMS dinámico para reproducción de lecciones en video.</li>
+                    <li><strong>Terminal Administrativa</strong>: Interfaz de control absoluto para el propietario de la plataforma.</li>
                   </ul>
                 </div>
               </div>
@@ -270,14 +270,14 @@ const Documentation = () => {
             {selectedData.id === 'auth' && (
               <div className="space-y-6 text-sm text-slate-300 leading-relaxed font-medium">
                 <p>
-                  El sistema utiliza **Supabase GoTrue** para gestionar la autenticación por contraseña y Magic Links. Las sesiones se revalidan en segundo plano de manera ininterrumpida mediante una estrategia de caché **SWR (Stale-While-Revalidate)** implementada en el hook `useAuth.jsx`.
+                  El sistema utiliza <strong>Supabase GoTrue</strong> para gestionar la autenticación por contraseña y Magic Links. Las sesiones se revalidan en segundo plano de manera ininterrumpida mediante una estrategia de caché <strong>SWR (Stale-While-Revalidate)</strong> implementada en el hook `useAuth.jsx`.
                 </p>
                 <div className="bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-white/5 p-6 rounded-2xl">
                   <h4 className="font-bold text-white uppercase italic text-xs mb-3">Jerarquía de Roles de Seguridad:</h4>
                   <ul className="space-y-2.5 text-xs text-slate-400">
-                    <li>🔑 **admin** / **core_admin**: Acceso a la consola administrativa `/admin` para gestionar usuarios, banners e IA.</li>
-                    <li>✍️ **editor**: Permisos para gestionar el historial de actualizaciones y la biblioteca de la academia.</li>
-                    <li>👤 **user**: Acceso estándar de exploración y visualización (sujeto a plan activo).</li>
+                    <li>🔑 <strong>admin</strong> / <strong>core_admin</strong>: Acceso a la consola administrativa `/admin` para gestionar usuarios, banners e IA.</li>
+                    <li>✍️ <strong>editor</strong>: Permisos para gestionar el historial de actualizaciones y la biblioteca de la academia.</li>
+                    <li>👤 <strong>user</strong>: Acceso estándar de exploración y visualización (sujeto a plan activo).</li>
                   </ul>
                 </div>
               </div>
@@ -336,9 +336,9 @@ const Documentation = () => {
                 <div className="bg-[#090C12] border border-white/5 p-6 rounded-2xl">
                   <h4 className="font-bold text-white uppercase italic text-xs mb-3">Modelos de Facturación Configurados:</h4>
                   <ul className="space-y-3.5 text-xs text-slate-400">
-                    <li>💳 **Upfunnel Pro Mensual ($14.99 USD)**: Otorga 1 mes de acceso Premium. Renovación automática sin contratos.</li>
-                    <li>💎 **Upfunnel Pro Anual ($79.99 USD)**: Ahorro masivo del 60%. Otorga 1 año de acceso ininterrumpido.</li>
-                    <li>🛡️ **Protección de Reversión Legacy**: Al expirar el plan mensual de $14.99 USD de un usuario antiguo, el sistema cambia dinámicamente su plan de vuelta a `'legacy'` en Supabase de forma asíncrona, manteniendo su acceso activo y restaurando sus beneficios básicos originales (agentes de IA y cursos gratis) de por vida.</li>
+                    <li>💳 <strong>Upfunnel Pro Mensual ($14.99 USD)</strong>: Otorga 1 mes de acceso Premium. Renovación automática sin contratos.</li>
+                    <li>💎 <strong>Upfunnel Pro Anual ($79.99 USD)</strong>: Ahorro masivo del 60%. Otorga 1 año de acceso ininterrumpido.</li>
+                    <li>🛡️ <strong>Protección de Reversión Legacy</strong>: Al expirar el plan mensual de $14.99 USD de un usuario antiguo, el sistema cambia dinámicamente su plan de vuelta a `'legacy'` en Supabase de forma asíncrona, manteniendo su acceso activo y restaurando sus beneficios básicos originales (agentes de IA y cursos gratis) de por vida.</li>
                   </ul>
                 </div>
               </div>
@@ -352,9 +352,9 @@ const Documentation = () => {
                 <div className="bg-gradient-to-br from-[#090C12] to-neon-teal/[0.02] border border-white/5 p-6 rounded-2xl">
                   <h4 className="font-bold text-white uppercase italic text-xs mb-3">Herramientas del Panel de Control:</h4>
                   <ul className="space-y-2 text-xs list-disc pl-4 text-slate-400">
-                    <li>**Moderación de Usuarios**: Activación, bloqueo, cambio de planes (Pro Anual, Pro Mensual o Legacy) y activación de la protección `is_legacy_fallback`.</li>
-                    <li>**Matchmaker Config**: Modificar el modelo de IA base de OpenRouter/Gemini y cambiar las instrucciones del Copilot.</li>
-                    <li>**Biblioteca de la Academia**: Cargar nuevos cursos en video y marcar su visibilidad pública u hito Premium.</li>
+                    <li><strong>Moderación de Usuarios</strong>: Activación, bloqueo, cambio de planes (Pro Anual, Pro Mensual o Legacy) y activación de la protección `is_legacy_fallback`.</li>
+                    <li><strong>Matchmaker Config</strong>: Modificar el modelo de IA base de OpenRouter/Gemini y cambiar las instrucciones del Copilot.</li>
+                    <li><strong>Biblioteca de la Academia</strong>: Cargar nuevos cursos en video y marcar su visibilidad pública u hito Premium.</li>
                   </ul>
                 </div>
               </div>
@@ -370,8 +370,8 @@ const Documentation = () => {
                     🚨 Reglas Críticas Contra Fallas (Página Negra)
                   </h4>
                   <p className="text-xs">
-                    *   **Case-Sensitivity**: Los archivos importados deben respetar estrictamente las mayúsculas del sistema de archivos (ej: `AgentGuide.jsx` no puede importarse como `agentguide`). Windows los compila localmente, pero Linux en Vercel fallará de inmediato.
-                    *   **Try-Catch Defensivo**: Cualquier petición externa debe encapsularse en un try-catch. En caso de caídas de red, inyecta alertas amigables en lugar de crasheos de consola.
+                    *   <strong>Case-Sensitivity</strong>: Los archivos importados deben respetar estrictamente las mayúsculas del sistema de archivos (ej: `AgentGuide.jsx` no puede importarse como `agentguide`). Windows los compila localmente, pero Linux en Vercel fallará de inmediato.
+                    *   <strong>Try-Catch Defensivo</strong>: Cualquier petición externa debe encapsularse en un try-catch. En caso de caídas de red, inyecta alertas amigables en lugar de crasheos de consola.
                   </p>
                 </div>
               </div>
