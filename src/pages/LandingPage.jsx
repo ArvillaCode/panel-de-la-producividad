@@ -156,7 +156,7 @@ const FAQ_ITEMS = [
 ];
 
 const STRIPE_URL = 'https://buy.stripe.com/4gMdR96wma4KdLM6LQ7bW0C';
-const STRIPE_MONTHLY_URL = 'https://buy.stripe.com/test_placeholder_monthly';
+const STRIPE_MONTHLY_URL = 'https://buy.stripe.com/9B67sLdYO6Sy9vw1rw7bW0D';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#080C14]';
