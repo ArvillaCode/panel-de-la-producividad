@@ -260,7 +260,7 @@ const AdminFinance = () => {
       setPaginatedTransactions(data || []);
       setTotalTransactions(count || 0);
     } catch (err) {
-      console.error('[ADMIN_FINANCE] Error loading paginated transactions:', err);
+      console.error('[ADMIN_FINANCE] Error loading paginated transactions FULL:', JSON.stringify(err, null, 2));
       toast.error('Error al cargar transacciones');
     } finally {
       setIsLoadingTransactions(false);
