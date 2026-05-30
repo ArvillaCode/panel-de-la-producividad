@@ -890,7 +890,7 @@ export default function AcademyDashboard() {
     toast.success("Lección marcada como completada");
   };
 
-  const isAcademiaEnabled = systemConfig?.showAcademia !== false || isAdmin || profile?.role === 'admin';
+  const isAcademiaEnabled = true;
 
   if (!loading && !isAcademiaEnabled) {
     return (

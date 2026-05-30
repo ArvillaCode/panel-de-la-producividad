@@ -22,7 +22,7 @@ const UserSidebar = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const showAcademia = systemConfig?.showAcademia !== false || isAdmin || profile?.role === 'admin';
+  const showAcademia = true;
 
   // Dependencia local de fallback para evitar pantallas negras y crashes en build
   const currentActiveTab = activeTab !== undefined && activeTab !== null ? activeTab : (location.pathname === '/' ? 'Todos' : '');
