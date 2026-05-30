@@ -820,7 +820,22 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Actualizar lista de usuarios para ver al nuevo (con pequeño delay por trigger de Supabase)
+      // Actualizar el perfil recién creado en Supabase con los privilegios seleccionados
+      if (data.user?.id) {
+        // Esperamos un brevísimo momento para asegurar que el trigger de DB handle_new_user_profile() haya terminado
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        await updateUserById(data.user.id, {
+          role: metadata.role || 'user',
+          plan: metadata.plan || 'annual',
+          is_legacy_fallback: metadata.is_legacy_fallback || false,
+          status: 'active',
+          is_approved: true,
+          force_dates: true // Forzar asignación de fechas iniciales válidas según el plan
+        });
+      }
+
+      // Actualizar lista de usuarios para ver al nuevo
       setTimeout(() => fetchUsers(), 1500);
 
       return { success: true, data };

@@ -2,14 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import Stripe from 'npm:stripe@^14.16.0'
 import { createClient } from 'npm:@supabase/supabase-js@^2.39.0'
 
-// Instanciar Stripe
-// Nota: Usamos STRIPE_SECRET_KEY para llamadas a la API (como recuperar customer)
+// Instanciar Stripe con la clave secreta configurada en el entorno
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16', // Puedes ajustarlo a tu versión de API actual
+  apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 })
 
-// Proveedor criptográfico necesario en entornos Deno/Edge para validar la firma
+// Proveedor criptográfico necesario en entornos Deno/Edge para validar la firma de Stripe
 const cryptoProvider = Stripe.createSubtleCryptoProvider()
 
 Deno.serve(async (req) => {
@@ -29,7 +28,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.text()
     
-    // 2. Validar la firma criptográfica para asegurar autenticidad
+    // 2. Validar la firma criptográfica del webhook
     const event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
@@ -38,12 +37,12 @@ Deno.serve(async (req) => {
       cryptoProvider
     )
 
-    // 3. Inicializar el cliente Supabase de nivel Administrador (Service Role)
+    // 3. Inicializar el cliente Supabase con privilegios Service Role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // 4. Idempotency check: skip if this event was already processed
+    // 4. Evitar duplicidad mediante control de idempotencia
     const { data: existingEvent } = await supabase
       .from('webhook_events')
       .select('id')
@@ -58,12 +57,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Record event for idempotency
+    // Registrar evento procesado para idempotencia
     await supabase.from('webhook_events').insert({
       stripe_event_id: event.id,
       type: event.type,
       processed_at: new Date().toISOString()
-    }).catch(e => console.error('[STRIPE] Failed to record event idempotency:', e))
+    }).catch(e => console.error('[STRIPE] Falló registro de idempotencia:', e))
 
     // ==============================================================================
     // EVENTO: PAGO COMPLETADO (NUEVO CLIENTE O RENOVACIÓN)
@@ -77,24 +76,52 @@ Deno.serve(async (req) => {
         throw new Error('El payload no contiene un email de cliente (customer_details.email)')
       }
 
-      // Store stripe_customer_id for future lookups
       const stripeCustomerId = session.customer as string
+      console.log(`[STRIPE] Procesando pago exitoso para: ${email}`)
 
-      console.log(`Procesando pago exitoso para: ${email}`)
+      // A. Consultar la suscripción de forma dinámica en Stripe para deducir el plan y vigencia
+      const subscriptionId = session.subscription as string
+      let plan = 'monthly' // por defecto
+      let endDate = new Date()
+      endDate.setMonth(endDate.getMonth() + 1) // por defecto +1 mes
 
-      // A. Verificar si el usuario ya existe en la tabla de perfiles
+      if (subscriptionId) {
+        try {
+          console.log(`[STRIPE] Recuperando detalles de suscripción: ${subscriptionId}`)
+          const sub = await stripe.subscriptions.retrieve(subscriptionId)
+          const interval = sub.items.data[0]?.price?.recurring?.interval // 'month' o 'year'
+          if (interval === 'year') {
+            plan = 'annual'
+            endDate = new Date()
+            endDate.setFullYear(endDate.getFullYear() + 1)
+            console.log(`[STRIPE] Plan ANUAL detectado. Vence el: ${endDate.toISOString()}`)
+          } else {
+            plan = 'monthly'
+            endDate = new Date()
+            endDate.setMonth(endDate.getMonth() + 1)
+            console.log(`[STRIPE] Plan MENSUAL detectado. Vence el: ${endDate.toISOString()}`)
+          }
+        } catch (e) {
+          console.error(`[STRIPE] Error al recuperar detalles de suscripción ${subscriptionId}:`, e)
+        }
+      }
+
+      // B. Verificar existencia de perfil del usuario en la base de datos
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', email)
-        .single()
+        .maybeSingle()
 
       if (profile) {
-        // CASO A: Usuario ya registrado previamente
-        console.log(`Actualizando perfil existente para ${email}`)
+        // CASO A: Usuario ya registrado previamente (Renovación o Upgrade)
+        console.log(`[STRIPE] Actualizando perfil existente de ${email} a plan: ${plan}`)
         const updatePayload: Record<string, unknown> = {
           status: 'active',
-          is_approved: true
+          is_approved: true,
+          plan: plan,
+          start_date: new Date().toISOString(),
+          end_date: endDate.toISOString()
         }
         if (stripeCustomerId) {
           updatePayload.stripe_customer_id = stripeCustomerId
@@ -107,11 +134,10 @@ Deno.serve(async (req) => {
         if (updateError) throw updateError
 
       } else {
-        // CASO B: Usuario completamente nuevo (Creación on-the-fly)
-        console.log(`Creando nueva cuenta de usuario para ${email}`)
+        // CASO B: Usuario completamente nuevo (Creación passwordless)
+        console.log(`[STRIPE] Creando nueva cuenta de usuario para: ${email}`)
         
-        // Al no proveer "password", Supabase genera un usuario que debe ingresar vía Magic Link
-        // El metadata inyectará `status` y `is_approved` directo al trigger `on_auth_user_created`
+        // Al no proveer "password", Supabase genera un usuario sin contraseña que ingresará por Magic Link
         const { data: createdUser, error: createError } = await supabase.auth.admin.createUser({
           email: email,
           email_confirm: true,
@@ -130,8 +156,9 @@ Deno.serve(async (req) => {
             role: 'user',
             status: 'active',
             is_approved: true,
+            plan: plan,
             start_date: new Date().toISOString(),
-            end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
+            end_date: endDate.toISOString()
           }
           if (stripeCustomerId) {
             profilePayload.stripe_customer_id = stripeCustomerId
@@ -146,47 +173,93 @@ Deno.serve(async (req) => {
     } 
     
     // ==============================================================================
-    // EVENTO: SUSCRIPCIÓN CANCELADA / ELIMINADA
+    // EVENTO: SUSCRIPCIÓN CANCELADA / ELIMINADA (SEGURIDAD Y CONTROL DE FALLBACK)
     // ==============================================================================
     else if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
 
-      // Try to find user by stripe_customer_id first (more reliable than email)
+      // Intentar encontrar el perfil por stripe_customer_id (método 100% fiable)
       const { data: profileByStripeId } = await supabase
         .from('profiles')
-        .select('id, email')
+        .select('id, email, is_legacy_fallback')
         .eq('stripe_customer_id', customerId)
         .maybeSingle()
 
       if (profileByStripeId) {
-        console.log(`Revocando acceso (suscripción cancelada) para: ${profileByStripeId.email}`)
-        const { error: revokeError } = await supabase
-          .from('profiles')
-          .update({ status: 'inactive', is_approved: false })
-          .eq('id', profileByStripeId.id)
+        if (profileByStripeId.is_legacy_fallback) {
+          console.log(`[STRIPE] Reversión a plan legacy (suscripción cancelada con fallback activo) para: ${profileByStripeId.email}`)
+          const { error: fallbackError } = await supabase
+            .from('profiles')
+            .update({
+              plan: 'legacy',
+              end_date: null,
+              status: 'active',
+              is_approved: true
+            })
+            .eq('id', profileByStripeId.id)
 
-        if (revokeError) throw revokeError
+          if (fallbackError) throw fallbackError
+        } else {
+          console.log(`[STRIPE] Revocando acceso absoluto (suscripción cancelada sin fallback) para: ${profileByStripeId.email}`)
+          const { error: revokeError } = await supabase
+            .from('profiles')
+            .update({
+              status: 'inactive',
+              is_approved: false
+            })
+            .eq('id', profileByStripeId.id)
+
+          if (revokeError) throw revokeError
+        }
       } else {
-        // Fallback: lookup by email via Stripe API
+        // Fallback secundario: buscar por email mediante la API de Stripe
+        console.log(`[STRIPE] stripe_customer_id no encontrado localmente. Buscando cliente en Stripe API...`)
         const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
         const email = customer.email
 
         if (email) {
-          console.log(`Revocando acceso (fallback email) para: ${email}`)
-          const { error: revokeError } = await supabase
+          const { data: profileByEmail } = await supabase
             .from('profiles')
-            .update({ status: 'inactive', is_approved: false })
+            .select('id, email, is_legacy_fallback')
             .eq('email', email)
+            .maybeSingle()
 
-          if (revokeError) throw revokeError
+          if (profileByEmail) {
+            if (profileByEmail.is_legacy_fallback) {
+              console.log(`[STRIPE] Reversión a plan legacy (suscripción cancelada con fallback activo - fallback email) para: ${email}`)
+              const { error: fallbackError } = await supabase
+                .from('profiles')
+                .update({
+                  plan: 'legacy',
+                  end_date: null,
+                  status: 'active',
+                  is_approved: true
+                })
+                .eq('id', profileByEmail.id)
+
+              if (fallbackError) throw fallbackError
+            } else {
+              console.log(`[STRIPE] Revocando acceso absoluto (suscripción cancelada sin fallback - fallback email) para: ${email}`)
+              const { error: revokeError } = await supabase
+                .from('profiles')
+                .update({
+                  status: 'inactive',
+                  is_approved: false
+                })
+                .eq('id', profileByEmail.id)
+
+              if (revokeError) throw revokeError
+            }
+          } else {
+            console.warn(`[STRIPE] No se encontró perfil para el email de fallback: ${email}`)
+          }
         } else {
-          console.warn(`No se pudo obtener el email para el customer_id: ${customerId}`)
+          console.warn(`[STRIPE] No se pudo obtener el email del customer_id: ${customerId}`)
         }
       }
     }
 
-    // 4. Retornar éxito a Stripe para confirmar la recepción
     return new Response(JSON.stringify({ received: true, type: event.type }), { 
       status: 200, 
       headers: { "Content-Type": "application/json" } 
@@ -194,9 +267,9 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err)
-    console.error(`Webhook Error: ${errorMessage}`)
+    console.error(`[STRIPE-ERROR] Webhook Error: ${errorMessage}`)
     
-    return new Response(JSON.stringify({ error: 'webhook_error' }), { 
+    return new Response(JSON.stringify({ error: 'webhook_error', message: errorMessage }), { 
       status: 400,
       headers: { "Content-Type": "application/json" } 
     })
