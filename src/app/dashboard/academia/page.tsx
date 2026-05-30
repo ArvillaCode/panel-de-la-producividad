@@ -203,16 +203,20 @@ export default function AcademyDashboard() {
     setConfirmDialog({ isOpen: true, message, onConfirm });
   };
 
-  const filteredCourses = useMemo(() => (
-    courses.filter((course) => {
+  const filteredCourses = useMemo(() => {
+    const plan = profile?.plan?.toLowerCase();
+    const hasPremiumAccess = isAdmin || plan === 'annual' || plan === 'monthly';
+
+    return courses.filter((course) => {
       if (course.slug === 'global-academy-settings') return false;
       // Si no está publicado y el usuario no es admin, ocultarlo por completo
       if (course.is_published === false && !isAdmin) return false;
-      if (profile?.plan === 'legacy' && !isAdmin && course.is_premium) return false;
+      // Si el curso es premium y el usuario no tiene acceso premium, ocultarlo
+      if (course.is_premium && !hasPremiumAccess) return false;
       if (showOnlyPremium) return course.is_premium;
       return selectedCategory === 'Todas' || course.category === selectedCategory;
-    })
-  ), [courses, selectedCategory, showOnlyPremium, profile?.plan, isAdmin]);
+    });
+  }, [courses, selectedCategory, showOnlyPremium, profile?.plan, isAdmin]);
 
   // --- DRAG & DROP MANEJADORES ---
   const handleModuleDragStart = (e: React.DragEvent, id: string) => {
@@ -659,8 +663,11 @@ export default function AcademyDashboard() {
     const fetchLessonsData = async () => {
       if (!selectedCourse) return;
       
-      // Interceptar accesos a cursos premium para usuarios Legacy
-      if (selectedCourse.is_premium && profile?.plan === 'legacy' && !isAdmin) {
+      const plan = profile?.plan?.toLowerCase();
+      const hasPremiumAccess = isAdmin || plan === 'annual' || plan === 'monthly';
+      
+      // Interceptar accesos a cursos premium para usuarios sin acceso premium (ej: plan Legacy)
+      if (selectedCourse.is_premium && !hasPremiumAccess) {
         toast.error("Este curso premium no está disponible en tu plan Acceso Básico Legacy.");
         navigate('/dashboard/academia', { replace: true });
         setSelectedCourse(null);
