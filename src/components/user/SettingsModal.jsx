@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Lock, Moon, Sun, Globe, Check, Camera, Shield, ChevronRight } from 'lucide-react';
+import { X, User, Lock, Moon, Sun, Globe, Check, Camera, Shield, ChevronRight, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';

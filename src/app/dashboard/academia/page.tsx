@@ -158,6 +158,19 @@ export default function AcademyDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { isAdmin, profile, systemConfig, loading } = useAuth();
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    if (profile) {
+      console.log("[ACADEMY_DEBUG] Perfil cargado en Academia:", {
+        email: profile.email,
+        role: profile.role,
+        plan: profile.plan,
+        isAdmin: isAdmin,
+        hasPremiumAccess: isAdmin || profile.plan?.toLowerCase() === 'annual' || profile.plan?.toLowerCase() === 'monthly'
+      });
+    }
+  }, [profile, isAdmin]);
+
   const [videoError, setVideoError] = useState(false);
 
   // --- MODO EDICIÓN ---
