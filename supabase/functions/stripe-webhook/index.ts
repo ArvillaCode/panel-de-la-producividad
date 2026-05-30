@@ -113,7 +113,10 @@ Deno.serve(async (req) => {
         .eq('email', email)
         .maybeSingle()
 
+      let targetUserId: string | null = null
+
       if (profile) {
+        targetUserId = profile.id
         // CASO A: Usuario ya registrado previamente (Renovación o Upgrade)
         console.log(`[STRIPE] Actualizando perfil existente de ${email} a plan: ${plan}`)
         const updatePayload: Record<string, unknown> = {
@@ -149,6 +152,7 @@ Deno.serve(async (req) => {
         if (createError) throw createError
 
         if (createdUser.user?.id) {
+          targetUserId = createdUser.user.id
           const profilePayload: Record<string, unknown> = {
             id: createdUser.user.id,
             email,
@@ -168,6 +172,34 @@ Deno.serve(async (req) => {
             .upsert(profilePayload, { onConflict: 'id' })
 
           if (profileError) throw profileError
+        }
+      }
+
+      if (targetUserId) {
+        console.log(`[STRIPE] Registrando transacción exitosa en base de datos para: ${email}`)
+        const { error: paymentError } = await supabase.from('payments').insert({
+          user_id: targetUserId,
+          amount: session.amount_total,
+          currency: session.currency || 'usd',
+          status: 'succeeded',
+          source: 'stripe',
+          payment_method: session.payment_method_types?.[0] || 'credit_card',
+          processor_payment_id: session.payment_intent as string || session.id,
+          processor_customer_id: stripeCustomerId,
+          processor_event_id: event.id,
+          product_name: `Suscripción Upfunnel - Plan ${plan.toUpperCase()}`,
+          plan_type: plan,
+          description: `Activación/Renovación automatizada del plan: ${plan.toUpperCase()}`,
+          paid_at: new Date().toISOString(),
+          is_estimated: false,
+          metadata: {
+            stripe_session_id: session.id,
+            stripe_subscription_id: subscriptionId
+          }
+        })
+
+        if (paymentError) {
+          console.error('[STRIPE] Error al registrar pago en base de datos:', paymentError)
         }
       }
     } 
@@ -257,6 +289,52 @@ Deno.serve(async (req) => {
         } else {
           console.warn(`[STRIPE] No se pudo obtener el email del customer_id: ${customerId}`)
         }
+      }
+    }
+    
+    // ==============================================================================
+    // EVENTO: REEMBOLSO PROCESADO EN STRIPE
+    // ==============================================================================
+    else if (event.type === 'charge.refunded') {
+      const charge = event.data.object as Stripe.Charge
+      const email = charge.billing_details?.email
+
+      if (email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, plan')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (profile) {
+          console.log(`[STRIPE] Registrando reembolso real para ${email} de ${charge.amount_refunded} centavos`)
+          const { error: refundError } = await supabase.from('payments').insert({
+            user_id: profile.id,
+            amount: charge.amount_refunded, // Monto positivo
+            currency: charge.currency,
+            status: 'refunded',
+            source: 'stripe',
+            payment_method: charge.payment_method_details?.type || 'credit_card',
+            processor_payment_id: `${charge.id}_refund`,
+            processor_customer_id: charge.customer as string,
+            processor_event_id: event.id,
+            product_name: 'Reembolso de suscripción',
+            plan_type: profile.plan,
+            description: `Reembolso procesado en Stripe: ${charge.failure_message || 'Solicitado por cliente'}`,
+            paid_at: new Date().toISOString(),
+            is_estimated: false,
+            metadata: {
+              stripe_charge_id: charge.id,
+              refund_reason: charge.refunds?.data?.[0]?.reason || 'manual'
+            }
+          })
+
+          if (refundError) throw refundError
+        } else {
+          console.warn(`[STRIPE] No se encontró perfil para el email de reembolso: ${email}`)
+        }
+      } else {
+        console.warn(`[STRIPE] No se pudo obtener el email del cargo reembolsado: ${charge.id}`)
       }
     }
 

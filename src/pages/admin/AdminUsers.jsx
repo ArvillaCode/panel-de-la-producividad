@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, 
   Plus, 
@@ -30,8 +30,10 @@ import {
   UserMinus,
   Eraser,
   Download,
-  RotateCcw
+  RotateCcw,
+  DollarSign
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useAuth } from '../../hooks/useAuth';
@@ -42,9 +44,7 @@ const AdminUsers = () => {
   const { 
     user, 
     profile, 
-    users, 
     loading: authLoading,
-    fetchUsers,
     deleteUserById, 
     updateUserById, 
     toggleUserStatus, 
@@ -76,8 +76,17 @@ const AdminUsers = () => {
   const [notificationTarget, setNotificationTarget] = useState('all'); 
   const [notificationData, setNotificationData] = useState({ title: '', message: '', type: 'info' });
 
+  // Paginación y Filtrado Server-side
+  const [users, setUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const [searchTermInput, setSearchTermInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -89,6 +98,16 @@ const AdminUsers = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Estados para Registro de Pago Manual (CFO V1)
+  const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
+  const [paymentFormData, setPaymentFormData] = useState({
+    amount: '',
+    currency: 'USD',
+    method: 'wire_transfer',
+    description: '',
+    paidAt: new Date().toISOString().substring(0, 16)
+  });
 
   const [formData, setFormData] = useState({
     name: '',
@@ -103,17 +122,108 @@ const AdminUsers = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   
-  // Paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  
   // Acciones Masivas
   const [selectedRows, setSelectedRows] = useState([]);
 
   const headerCheckboxRef = React.useRef(null);
 
+  // Debounce search term
   useEffect(() => {
-    fetchUsers();
+    const handler = setTimeout(() => {
+      setSearchTerm(searchTermInput);
+      setCurrentPage(1);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTermInput]);
+
+  const fetchUsersLocal = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setError('');
+    try {
+      let query = supabase
+        .from('profiles')
+        .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone, plan, is_legacy_fallback', { count: 'exact' });
+
+      // Apply search filters
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+      }
+
+      // Apply role filters
+      if (filterRole !== 'all') {
+        if (filterRole === 'recent') {
+          const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          query = query.gt('created_at', dayAgo);
+        } else {
+          query = query.eq('role', filterRole);
+        }
+      }
+
+      // Apply ordering
+      query = query.order('created_at', { ascending: false });
+
+      // Apply pagination
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      query = query.range(from, to);
+
+      const { data, count, error: fetchErr } = await query;
+
+      if (fetchErr) {
+        // Fallback para base de datos sin columnas de plan o is_legacy_fallback
+        if (fetchErr.code === '42703' || fetchErr.message?.includes('plan') || fetchErr.message?.includes('is_legacy_fallback')) {
+          console.warn('[ADMIN_USERS] Fallback columns query...');
+          let fallbackQuery = supabase
+            .from('profiles')
+            .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone', { count: 'exact' });
+
+          if (searchTerm) {
+            fallbackQuery = fallbackQuery.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+          }
+          if (filterRole !== 'all') {
+            if (filterRole === 'recent') {
+              const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+              fallbackQuery = fallbackQuery.gt('created_at', dayAgo);
+            } else {
+              fallbackQuery = fallbackQuery.eq('role', filterRole);
+            }
+          }
+          fallbackQuery = fallbackQuery.order('created_at', { ascending: false }).range(from, to);
+          
+          const { data: fallbackData, count: fallbackCount, error: fallbackErr } = await fallbackQuery;
+          if (fallbackErr) throw fallbackErr;
+
+          const enriched = (fallbackData || []).map(u => ({
+            ...u,
+            plan: 'annual',
+            is_legacy_fallback: false
+          }));
+          setUsers(enriched);
+          setTotalUsers(fallbackCount || 0);
+        } else {
+          throw fetchErr;
+        }
+      } else {
+        setUsers(data || []);
+        setTotalUsers(count || 0);
+      }
+    } catch (err) {
+      console.error('[ADMIN_USERS] Error fetching users server-side:', err);
+      setError('Error al cargar usuarios de la base de datos');
+      toast.error('Error al sincronizar usuarios');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, [searchTerm, filterRole, currentPage, toast]);
+
+  useEffect(() => {
+    fetchUsersLocal();
+  }, [fetchUsersLocal]);
+
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') closeModals();
     };
@@ -126,42 +236,20 @@ const AdminUsers = () => {
     }
 
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fetchUsers, location.search, navigate]);
+  }, [location.search, navigate]);
 
-  // Filtrado y ordenamiento defensivos contra valores nulos o indefinidos
-  const filteredUsers = (users || []).filter(user => {
-    if (!user) return false;
-    let matchesSearch = true;
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      matchesSearch = (user.name && user.name.toLowerCase().includes(searchLower)) ||
-                      (user.email && user.email.toLowerCase().includes(searchLower));
-    }
-    
-    let matchesRole = true;
-    if (filterRole !== 'all') {
-      if (filterRole === 'recent') {
-        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        matchesRole = user.created_at && new Date(user.created_at) > dayAgo;
-      } else {
-        matchesRole = user.role === filterRole;
-      }
-    }
-    return matchesSearch && matchesRole;
-  }).sort((a, b) => {
-    const dateA = a?.created_at ? new Date(a.created_at) : new Date(0);
-    const dateB = b?.created_at ? new Date(b.created_at) : new Date(0);
-    return dateB - dateA;
-  });
-
+  // Restablecer página si cambian filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterRole, users?.length]);
+  }, [filterRole]);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentUsers = (filteredUsers || []).slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil((filteredUsers || []).length / itemsPerPage);
+  // Limpiar selección de filas al cambiar de página, rol/filtro o término de búsqueda
+  useEffect(() => {
+    setSelectedRows([]);
+  }, [currentPage, filterRole, searchTerm]);
+
+  const currentUsers = users;
+  const totalPages = Math.ceil(totalUsers / itemsPerPage);
 
   const isAllSelected = currentUsers.length > 0 && currentUsers.every(u => selectedRows.includes(u.id));
   const isSomeButNotAllSelected = selectedRows.length > 0 && !isAllSelected;
@@ -191,12 +279,12 @@ const AdminUsers = () => {
 
   // Selección rápida por estado 
   const handleSelectByStatus = (status) => {
-    const matchingIds = filteredUsers
+    const matchingIds = currentUsers
       .filter(u => status === 'active' ? u.status === 'active' : u.status !== 'active')
       .map(u => u.id);
 
     if (matchingIds.length === 0) {
-      toast.error(`No hay usuarios con estado "${status === 'active' ? 'Activo' : 'Offline'}" en la vista actual`);
+      toast.error(`No hay usuarios con estado "${status === 'active' ? 'Activo' : 'Offline'}" en la página actual`);
       return;
     }
 
@@ -360,8 +448,79 @@ const AdminUsers = () => {
     setShowDeleteModal(false);
     setShowResetModal(false);
     setShowNotifyModal(false);
+    setShowManualPaymentModal(false);
     setResetPasswordData({ password: '', confirm: '' });
     resetForm();
+  };
+
+  const handleOpenManualPayment = (u) => {
+    setSelectedUser(u);
+    setPaymentFormData({
+      amount: '',
+      currency: 'USD',
+      method: 'wire_transfer',
+      description: `Pago manual registrado para plan ${u.plan ? u.plan.toUpperCase() : 'ANUAL'}`,
+      paidAt: new Date().toISOString().substring(0, 16)
+    });
+    setShowManualPaymentModal(true);
+  };
+
+  const handleRegisterManualPayment = async (e) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setActionLoading(true);
+    setError('');
+
+    try {
+      const amountInCents = Math.round(parseFloat(paymentFormData.amount) * 100);
+      if (isNaN(amountInCents) || amountInCents <= 0) {
+        throw new Error('El monto ingresado no es válido. Ingrese un valor mayor a cero.');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentAdminId = session?.user?.id;
+
+      // 1. Registrar pago en la tabla payments
+      const { error: payError } = await supabase.from('payments').insert({
+        user_id: selectedUser.id,
+        amount: amountInCents,
+        currency: paymentFormData.currency.toLowerCase(),
+        status: 'succeeded',
+        source: 'manual',
+        payment_method: paymentFormData.method,
+        product_name: `Asignación Manual - Plan ${selectedUser.plan ? selectedUser.plan.toUpperCase() : 'ANUAL'}`,
+        plan_type: selectedUser.plan || 'annual',
+        description: paymentFormData.description || 'Pago manual registrado por el administrador',
+        paid_at: new Date(paymentFormData.paidAt).toISOString(),
+        created_by: currentAdminId || user?.id,
+        is_estimated: false,
+        metadata: {
+          registered_by_admin_email: user?.email
+        }
+      });
+
+      if (payError) throw new Error(payError.message);
+
+      // 2. Si el usuario no está activo, activarlo automáticamente
+      if (selectedUser.status !== 'active' || !selectedUser.is_approved) {
+        const updateResult = await updateUserById(selectedUser.id, {
+          status: 'active',
+          is_approved: true,
+          plan: selectedUser.plan || 'annual'
+        });
+        if (!updateResult.success) {
+          console.warn('[MANUAL PAYMENT] Pago registrado, pero falló la activación automática del usuario:', updateResult.error);
+        }
+      }
+
+      toast.success('Pago manual registrado y cuenta activada exitosamente');
+      setShowManualPaymentModal(false);
+      fetchUsersLocal();
+    } catch (err) {
+      toast.error(err.message || 'Error al registrar pago manual');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleSendNotification = async (e) => {
@@ -399,7 +558,7 @@ const AdminUsers = () => {
         toast.error(`Error al activar ${failures} usuarios`);
       }
       setSelectedRows([]);
-      fetchUsers();
+      fetchUsersLocal();
     } catch (err) {
       toast.error('Error en activación masiva');
       setSelectedRows([]);
@@ -412,13 +571,22 @@ const AdminUsers = () => {
     if (selectedRows.length === 0) return;
 
     // Protección estricta del último administrador
-    const totalAdmins = users.filter(u => u.role === 'admin');
+    const { count: adminCount, error: adminCountErr } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'admin');
+
+    if (adminCountErr) {
+      toast.error('Error al verificar privilegios administrativos');
+      return;
+    }
+
     const selectedAdmins = selectedRows.filter(id => {
       const u = users.find(user => user.id === id);
       return u && u.role === 'admin';
     });
 
-    if (selectedAdmins.length >= totalAdmins.length) {
+    if (selectedAdmins.length >= adminCount) {
       toast.error('Operación denegada: No puedes expulsar o desactivar a todos los administradores. Debe quedar al menos un administrador activo en el sistema.');
       setSelectedRows([]);
       return;
@@ -438,7 +606,7 @@ const AdminUsers = () => {
         toast.error(`Error al expulsar ${failures} usuarios`);
       }
       setSelectedRows([]);
-      fetchUsers();
+      fetchUsersLocal();
     } catch (err) {
       toast.error('Error en expulsión masiva');
       setSelectedRows([]);
@@ -451,13 +619,22 @@ const AdminUsers = () => {
     if (selectedRows.length === 0) return;
 
     // Protección estricta del último administrador
-    const totalAdmins = users.filter(u => u.role === 'admin');
+    const { count: adminCount, error: adminCountErr } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'admin');
+
+    if (adminCountErr) {
+      toast.error('Error al verificar privilegios administrativos');
+      return;
+    }
+
     const selectedAdmins = selectedRows.filter(id => {
       const u = users.find(user => user.id === id);
       return u && u.role === 'admin';
     });
 
-    if (selectedAdmins.length >= totalAdmins.length) {
+    if (selectedAdmins.length >= adminCount) {
       toast.error('Operación denegada: No puedes eliminar a todos los administradores. Debe quedar al menos un administrador activo en el sistema.');
       setSelectedRows([]);
       return;
@@ -477,7 +654,7 @@ const AdminUsers = () => {
         toast.error(`Error al eliminar ${failures} usuarios`);
       }
       setSelectedRows([]);
-      fetchUsers();
+      fetchUsersLocal();
     } catch (err) {
       toast.error('Error en eliminación masiva');
       setSelectedRows([]);
@@ -542,7 +719,7 @@ const AdminUsers = () => {
             
             <div className="glass-card p-8 border-white/10 flex flex-col justify-center text-center">
                 <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-2">Población Total</p>
-                <p className="text-5xl font-black text-white italic tracking-tighter neon-glow">{users.length}</p>
+                <p className="text-5xl font-black text-white italic tracking-tighter neon-glow">{totalUsers}</p>
                 <p className="text-[10px] font-bold text-neon-teal uppercase mt-2">Sincronizado</p>
             </div>
         </div>
@@ -555,8 +732,8 @@ const AdminUsers = () => {
                     <input
                         type="text"
                         placeholder="Escanear base de datos por nombre o email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={searchTermInput}
+                        onChange={(e) => setSearchTermInput(e.target.value)}
                         className="w-full pl-12 pr-6 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-neon-teal/30 focus:border-neon-teal transition-all outline-none"
                     />
                 </div>
@@ -736,6 +913,9 @@ const AdminUsers = () => {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2 transition-opacity">
+                                        <button onClick={() => handleOpenManualPayment(u)} title="Registrar Pago Manual" className="p-2.5 glass-card border-white/5 text-green-400 hover:bg-green-500 hover:text-deep-dark transition-all rounded-xl">
+                                            <DollarSign className="w-4 h-4" />
+                                        </button>
                                         <button onClick={() => handleResetPassword(u)} title="Resetear contraseña" className="p-2.5 glass-card border-white/5 text-amber-400 hover:bg-amber-500 hover:text-deep-dark transition-all rounded-xl">
                                             <RotateCcw className="w-4 h-4" />
                                         </button>
@@ -1007,6 +1187,108 @@ const AdminUsers = () => {
                 {actionLoading ? 'Eliminando...' : `Eliminar ${selectedRows.length}`}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Pago Manual (CFO V1) */}
+      {showManualPaymentModal && selectedUser && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
+          <div className="relative glass-card p-10 w-full max-w-md border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 text-green-400 rounded-xl neon-glow">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <h2 className="text-xl font-black text-white uppercase italic tracking-tight">Cobro Manual</h2>
+              </div>
+              <button onClick={closeModals} className="p-1 text-gray-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-6">
+              Auditoría contable para: <span className="text-white font-black">{selectedUser.name || selectedUser.email}</span>
+            </p>
+
+            <form onSubmit={handleRegisterManualPayment} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Monto Recibido</label>
+                <div className="relative">
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="79.99"
+                    value={paymentFormData.amount}
+                    onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: e.target.value })}
+                    className="premium-input w-full pl-8"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Divisa</label>
+                  <select
+                    value={paymentFormData.currency}
+                    onChange={(e) => setPaymentFormData({ ...paymentFormData, currency: e.target.value })}
+                    className="premium-input w-full appearance-none cursor-pointer"
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="MXN">MXN ($)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Método de Pago</label>
+                  <select
+                    value={paymentFormData.method}
+                    onChange={(e) => setPaymentFormData({ ...paymentFormData, method: e.target.value })}
+                    className="premium-input w-full appearance-none cursor-pointer"
+                  >
+                    <option value="wire_transfer">Transferencia</option>
+                    <option value="cash">Efectivo</option>
+                    <option value="paypal">PayPal</option>
+                    <option value="mercadopago">MercadoPago</option>
+                    <option value="gohighlevel">GHL Link</option>
+                    <option value="hotmart">Hotmart</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Fecha del Pago</label>
+                <input
+                  required
+                  type="datetime-local"
+                  value={paymentFormData.paidAt}
+                  onChange={(e) => setPaymentFormData({ ...paymentFormData, paidAt: e.target.value })}
+                  className="premium-input w-full cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Notas / Descripción</label>
+                <textarea
+                  placeholder="Detalles de la transferencia, número de referencia o concepto contable..."
+                  value={paymentFormData.description}
+                  onChange={(e) => setPaymentFormData({ ...paymentFormData, description: e.target.value })}
+                  className="premium-input w-full h-20 resize-none text-xs"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={closeModals} className="flex-1 py-3.5 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>
+                <button type="submit" disabled={actionLoading} className="flex-1 py-3.5 bg-green-500 text-deep-dark rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-green-500/20">
+                  {actionLoading ? 'PROCESANDO...' : 'REGISTRAR'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

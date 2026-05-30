@@ -1,16 +1,9 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ComingSoon from './pages/ComingSoon';
 import AgentPanel from './components/AgentPanel';
 import AdminLogin from './pages/admin/AdminLogin';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminAgents from './pages/admin/AdminAgents';
-import MatchmakerConfig from './pages/admin/MatchmakerConfig';
-import AdminConfig from './pages/admin/AdminConfig';
-import AdminReleases from './pages/admin/AdminReleases';
-import AdminLogs from './pages/admin/AdminLogs';
 import ReleaseHistory from './pages/ReleaseHistory';
 import { useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
@@ -19,13 +12,23 @@ import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
 import Policies from './pages/Policies';
 import Privacy from './pages/Privacy';
 import Support from './pages/Support';
-import AdminBanners from './pages/admin/AdminBanners';
 import GlobalBanner from './components/user/GlobalBanner';
 import AcademiaPage from './app/dashboard/academia/page';
 import LessonCreator from './app/dashboard/academia/admin/page';
 import PendingApproval from './pages/PendingApproval';
 import Documentation from './pages/Documentation';
 import './App.css';
+
+// Lazy load heavy admin views to decouple Recharts, D3, and Lucide packages from the initial bundle
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminAgents = lazy(() => import('./pages/admin/AdminAgents'));
+const MatchmakerConfig = lazy(() => import('./pages/admin/MatchmakerConfig'));
+const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
+const AdminReleases = lazy(() => import('./pages/admin/AdminReleases'));
+const AdminLogs = lazy(() => import('./pages/admin/AdminLogs'));
+const AdminFinance = lazy(() => import('./pages/admin/AdminFinance'));
+const AdminBanners = lazy(() => import('./pages/admin/AdminBanners'));
 
 // 1. Componente de Restricción de Dominio (Restaurado)
 const DomainRestrictedRoute = ({ children, appOnly = false }) => {
@@ -105,36 +108,43 @@ function App() {
               </>
             )}
 
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/coming-soon" element={<ComingSoon />} />
-              <Route path="/login" element={<AdminLogin />} />
-              
-              {/* Rutas Admin */}
-              <Route path="/admin/dashboard" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/users" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/agents" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/matchmaker-config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><MatchmakerConfig /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/releases" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/logs" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} />
-              <Route path="/admin/banners" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminBanners /></ProtectedRoute></DomainRestrictedRoute>} />
+            <Suspense fallback={
+              <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center">
+                <div className="premium-spinner"></div>
+              </div>
+            }>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/coming-soon" element={<ComingSoon />} />
+                <Route path="/login" element={<AdminLogin />} />
+                
+                {/* Rutas Admin */}
+                <Route path="/admin/dashboard" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminDashboard /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/users" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminUsers /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/agents" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminAgents /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/matchmaker-config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><MatchmakerConfig /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/config" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/releases" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminReleases /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/logs" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminLogs /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/finance" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminFinance /></ProtectedRoute></DomainRestrictedRoute>} />
+                <Route path="/admin/banners" element={<DomainRestrictedRoute appOnly={true}><ProtectedRoute adminOnly={true}><AdminBanners /></ProtectedRoute></DomainRestrictedRoute>} />
 
-              {/* Páginas de Información */}
-              <Route path="/novedades" element={<ReleaseHistory />} />
-              <Route path="/politicas" element={<Policies />} />
-              <Route path="/privacidad" element={<Privacy />} />
-              <Route path="/soporte" element={<Support />} />
-              <Route path="/dashboard/espera-aprobacion" element={<PendingApproval />} />
-              <Route path="/documentacion" element={<Documentation />} />
+                {/* Páginas de Información */}
+                <Route path="/novedades" element={<ReleaseHistory />} />
+                <Route path="/politicas" element={<Policies />} />
+                <Route path="/privacidad" element={<Privacy />} />
+                <Route path="/soporte" element={<Support />} />
+                <Route path="/dashboard/espera-aprobacion" element={<PendingApproval />} />
+                <Route path="/documentacion" element={<Documentation />} />
 
-              {/* Academia */}
-              <Route path="/dashboard/academia" element={<ProtectedRoute><AcademiaPage /></ProtectedRoute>} />
-              <Route path="/dashboard/academia/admin" element={<ProtectedRoute adminOnly={true}><LessonCreator /></ProtectedRoute>} />
+                {/* Academia */}
+                <Route path="/dashboard/academia" element={<ProtectedRoute><AcademiaPage /></ProtectedRoute>} />
+                <Route path="/dashboard/academia/admin" element={<ProtectedRoute adminOnly={true}><LessonCreator /></ProtectedRoute>} />
 
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </div>
         </Router>
       </ToastProvider>

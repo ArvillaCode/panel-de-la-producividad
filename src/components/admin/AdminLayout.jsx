@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  TrendingUp,
   Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -61,6 +62,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
     if (path === '/admin/users') return 'users';
     if (path === '/admin/agents') return 'agents';
     if (path === '/admin/config') return 'config';
+    if (path === '/admin/finance') return 'finance';
     if (path === '/admin/releases') return 'releases';
     if (path === '/admin/logs') return 'logs';
     if (path === '/admin/matchmaker-config') return 'matchmaker-config';
@@ -113,6 +115,13 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
       icon: Sparkles,
       path: '/admin/releases',
       description: 'Gestión de actualizaciones'
+    },
+    {
+      id: 'finance',
+      name: 'Finanzas',
+      icon: TrendingUp,
+      path: '/admin/finance',
+      description: 'Análisis contable'
     },
     {
       id: 'logs',
