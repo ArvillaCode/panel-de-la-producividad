@@ -206,6 +206,8 @@ export default function AcademyDashboard() {
   const filteredCourses = useMemo(() => (
     courses.filter((course) => {
       if (course.slug === 'global-academy-settings') return false;
+      // Si no está publicado y el usuario no es admin, ocultarlo por completo
+      if (course.is_published === false && !isAdmin) return false;
       if (profile?.plan === 'legacy' && !isAdmin && course.is_premium) return false;
       if (showOnlyPremium) return course.is_premium;
       return selectedCategory === 'Todas' || course.category === selectedCategory;
@@ -1240,10 +1242,15 @@ export default function AcademyDashboard() {
                         );
                       })()}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
-                    <div className="absolute top-4 left-4">
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
                       <span className={`px-3 py-1 ${CATEGORY_COLORS[course.category] || 'bg-slate-600'} backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg`}>
                         {course.category || 'General'}
                       </span>
+                      {course.is_published === false && (
+                        <span className="px-2.5 py-1 bg-rose-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg border border-rose-500/20 w-fit">
+                          🔒 Oculto
+                        </span>
+                      )}
                     </div>
 
                     {isAdmin && isEditMode && (
@@ -1945,6 +1952,25 @@ export default function AcademyDashboard() {
                     </div>
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-500">Visibilidad del Curso</label>
+                <button
+                  type="button"
+                  onClick={() => setCourseForm({ ...courseForm, is_published: !courseForm.is_published })}
+                  className={`w-full px-4 py-3 rounded-2xl border transition-all flex items-center justify-between
+                    ${courseForm.is_published
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-indigo-300'
+                      : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-300'}`}
+                >
+                  <span className="text-sm font-semibold">
+                    {courseForm.is_published ? '👁️ Publicado (Visible para todos)' : '🔒 Oculto / Borrador (Solo Admins)'}
+                  </span>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${courseForm.is_published ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${courseForm.is_published ? 'right-1' : 'left-1'}`} />
+                  </div>
+                </button>
               </div>
 
               <div>

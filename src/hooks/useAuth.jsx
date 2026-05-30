@@ -131,9 +131,31 @@ export const AuthProvider = ({ children }) => {
         .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone, plan, is_legacy_fallback')
         .order('created_at', { ascending: false });
 
-      if (!error) setUsers(data || []);
+      if (!error) {
+        setUsers(data || []);
+      } else if (error.code === '42703' || error.message?.includes('plan') || error.message?.includes('is_legacy_fallback')) {
+        // Fallback seguro si la base de datos no tiene las columnas del plan aún
+        console.warn('[AUTH] La base de datos no tiene las columnas plan/is_legacy_fallback. Ejecutando consulta de compatibilidad...');
+        const { data: legacyData, error: legacyError } = await supabase
+          .from('profiles')
+          .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
+          .order('created_at', { ascending: false });
+
+        if (!legacyError) {
+          const enriched = (legacyData || []).map(u => ({
+            ...u,
+            plan: 'annual', // valor por defecto
+            is_legacy_fallback: false // valor por defecto
+          }));
+          setUsers(enriched);
+        } else {
+          console.error('[AUTH] Error al consultar perfiles con fallback:', legacyError.message);
+        }
+      } else {
+        console.error('[AUTH] Error al consultar perfiles:', error.message);
+      }
     } catch (err) {
-      console.error('[AUTH] Fetch users error:', err);
+      console.error('[AUTH] Fetch users exception:', err);
     }
   }, []);
 
@@ -216,8 +238,27 @@ export const AuthProvider = ({ children }) => {
           );
 
           const result = await Promise.race([fetchPromise, timeoutPromise]);
-          const profileData = result.data;
-          const profileError = result.error;
+          let profileData = result.data;
+          let profileError = result.error;
+
+          // Fallback seguro si faltan las columnas de plan en base de datos
+          if (profileError && (profileError.code === '42703' || profileError.message?.includes('plan') || profileError.message?.includes('is_legacy_fallback'))) {
+            console.warn('[AUTH] Perfil falló por columnas inexistentes. Reintentando consulta de compatibilidad...');
+            const compatResult = await supabase
+              .from('profiles')
+              .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
+              .eq('id', currentUser.id)
+              .single();
+
+            if (!compatResult.error && compatResult.data) {
+              profileData = {
+                ...compatResult.data,
+                plan: 'annual',
+                is_legacy_fallback: false
+              };
+              profileError = null;
+            }
+          }
 
           if (profileError || !profileData) {
             // Verificar si es un error de autenticación
