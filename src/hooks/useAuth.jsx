@@ -639,16 +639,20 @@ export const AuthProvider = ({ children }) => {
     // Lógica de fechas automáticas al aceptar (Regla 4)
     let finalData = { ...data };
 
-    // Si se está activando al usuario
-    if (data.status === 'active' || data.is_approved === true) {
-      finalData.status = 'active';
-      finalData.is_approved = true;
+    const activePlan = finalData.plan || targetUser?.plan || 'annual';
+    const planChanged = finalData.plan && finalData.plan !== targetUser?.plan;
 
-      // Si no tiene fechas, asignamos fechas por defecto según su plan
-      if (!targetUser?.start_date || !targetUser?.end_date || data.force_dates) {
+    // Si se está activando al usuario o cambió su plan
+    if (data.status === 'active' || data.is_approved === true || planChanged) {
+      if (data.status !== 'inactive' && data.status !== 'rejected') {
+        finalData.status = 'active';
+        finalData.is_approved = true;
+      }
+
+      // Si no tiene fechas, cambió el plan o se forzan las fechas
+      if (!targetUser?.start_date || !targetUser?.end_date || planChanged || data.force_dates) {
         const startDate = new Date();
         const endDate = new Date();
-        const activePlan = finalData.plan || targetUser?.plan || 'annual';
         
         if (activePlan === 'legacy') {
           finalData.start_date = startDate.toISOString();
@@ -662,7 +666,7 @@ export const AuthProvider = ({ children }) => {
           finalData.start_date = startDate.toISOString();
           finalData.end_date = endDate.toISOString();
         }
-        console.log(`[AUTH] Asignando fechas automáticas (${activePlan}) para ${id}: ${finalData.start_date} a ${finalData.end_date}`);
+        console.log(`[AUTH] Asignando fechas (${activePlan}) para ${id}: ${finalData.start_date} a ${finalData.end_date}`);
       }
     }
 
