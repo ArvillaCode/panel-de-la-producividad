@@ -69,7 +69,7 @@ const SECTIONS = [
     description: 'Lógica comercial de Upfunnel Pro Mensual ($14.99 USD), Pro Anual ($79.99 USD) y Reversión Legacy.',
     code: {
       curl: `# Registrar intento de pago en Stripe\ncurl https://api.stripe.com/v1/checkout/sessions \\\n  -u sk_test_Key: \\\n  -d "line_items[0][price]"=price_monthly_id \\\n  -d "line_items[0][quantity]"=1 \\\n  -d "mode"=subscription`,
-      javascript: `// Constantes de Enlaces de Pago de Stripe (LandingPage.jsx)\nconst STRIPE_URL = 'https://buy.stripe.com/4gMdR96wma4KdLM6LQ7bW0C'; // Anual $79.99\nconst STRIPE_MONTHLY_URL = 'https://buy.stripe.com/test_placeholder_monthly'; // Mensual $14.99\n\nconst handleUpgrade = (period) => {\n  window.open(period === 'annual' ? STRIPE_URL : STRIPE_MONTHLY_URL, '_blank');\n};`,
+      javascript: `// Constantes de Enlaces de Pago de Stripe (LandingPage.jsx)\nconst STRIPE_URL = 'https://buy.stripe.com/dRm3cvcUKfp49vw1rw7bW0F'; // Anual $79.99\nconst STRIPE_MONTHLY_URL = 'https://buy.stripe.com/9B67sLdYO6Sy9vw1rw7bW0D'; // Mensual $14.99\n\nconst handleUpgrade = (period) => {\n  window.open(period === 'annual' ? STRIPE_URL : STRIPE_MONTHLY_URL, '_blank');\n};`,
       sql: `-- Habilitar seguridad de nivel de fila (RLS)\nALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY "Permitir lectura de perfil propio" ON public.profiles\n  FOR SELECT USING (auth.uid() = id);`
     }
   },
