@@ -215,7 +215,7 @@ const AdminFinance = () => {
       const ranges = getDateRanges(dateFilter);
       let query = supabase
         .from('payments')
-        .select('*, profiles(name, email)', { count: 'exact' });
+        .select('*, profiles:profiles!payments_user_id_fkey(name, email)', { count: 'exact' });
 
       // Apply date range filter
       query = query.gte('paid_at', ranges.startDate).lte('paid_at', ranges.endDate);
@@ -388,7 +388,7 @@ const AdminFinance = () => {
       const ranges = getDateRanges(dateFilter);
       let query = supabase
         .from('payments')
-        .select('*, profiles(name, email)');
+        .select('*, profiles:profiles!payments_user_id_fkey(name, email)');
 
       // Apply date range filter
       query = query.gte('paid_at', ranges.startDate).lte('paid_at', ranges.endDate);
