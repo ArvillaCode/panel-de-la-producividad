@@ -155,7 +155,7 @@ const FAQ_ITEMS = [
   }
 ];
 
-const STRIPE_URL = 'https://buy.stripe.com/4gMdR96wma4KdLM6LQ7bW0C';
+const STRIPE_URL = 'https://buy.stripe.com/dRm3cvcUKfp49vw1rw7bW0F';
 const STRIPE_MONTHLY_URL = 'https://buy.stripe.com/9B67sLdYO6Sy9vw1rw7bW0D';
 
 const focusRing =

@@ -36,7 +36,7 @@ function getCorsHeaders(request, env) {
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
@@ -172,12 +172,26 @@ export default {
       });
 
       try {
+        // Extraer y reenviar de forma exacta la cabecera Range del cliente
+        const headers = {};
+        const rangeHeader = request.headers.get('Range');
+        if (rangeHeader) {
+          headers['Range'] = rangeHeader;
+        }
+
         const signed = await aws.sign(
-          new Request(r2Url, { method: 'GET' }),
+          new Request(r2Url, { method: 'GET', headers }),
           { aws: { signQuery: true, expires: 3600 } }
         );
 
-        const mediaRes = await fetch(signed.url);
+        // Llamar a R2 con soporte de rango y activar la caché perimetral de Cloudflare
+        const mediaRes = await fetch(signed.url, { 
+          headers,
+          cf: {
+            cacheEverything: true,
+            cacheTtl: 31536000
+          }
+        });
 
         if (!mediaRes.ok) {
           return jsonResponse(request, env, mediaRes.status === 404 ? 404 : 502, { error: 'fetch_failed' });
@@ -192,18 +206,16 @@ export default {
           'Accept-Ranges': 'bytes'
         });
 
-        // Para videos, soportar range requests
-        if (request.headers.has('Range')) {
-          responseHeaders.set('Content-Range', mediaRes.headers.get('Content-Range') || '');
-          responseHeaders.set('Accept-Ranges', 'bytes');
-          return new Response(mediaRes.body, {
-            status: mediaRes.status,
-            headers: responseHeaders
-          });
+        // Copiar las cabeceras de rango y tamaño reales devueltas por R2
+        if (mediaRes.headers.has('Content-Range')) {
+          responseHeaders.set('Content-Range', mediaRes.headers.get('Content-Range'));
+        }
+        if (mediaRes.headers.has('Content-Length')) {
+          responseHeaders.set('Content-Length', mediaRes.headers.get('Content-Length'));
         }
 
         return new Response(mediaRes.body, {
-          status: 200,
+          status: mediaRes.status, // Esto será 206 en Range Requests, o 200 en descarga completa
           headers: responseHeaders
         });
       } catch (error) {
