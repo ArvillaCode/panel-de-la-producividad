@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
 const SettingsModal = ({ onClose }) => {
-  const { user, profile, updateUser, changePassword } = useAuth();
+  const { user, profile, updateUser, changePassword, hasPremiumAccess } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
   
   const [activeTab, setActiveTab] = useState('perfil');
@@ -400,12 +400,17 @@ const SettingsModal = ({ onClose }) => {
                       <h4 className="text-2xl font-black">
                         {profile?.plan === 'monthly' && 'Upfunnel Pro Mensual 🚀'}
                         {profile?.plan === 'annual' && 'Upfunnel Pro Anual 🚀'}
+                        {profile?.plan === 'trial' && 'Prueba Gratuita (7 días) 🚀'}
                         {profile?.plan === 'legacy' && 'Acceso Básico Legacy 👤'}
-                        {!['monthly', 'annual', 'legacy'].includes(profile?.plan) && 'Plan Anual Premium 🚀'}
+                        {!['monthly', 'annual', 'legacy', 'trial'].includes(profile?.plan) && 'Plan Activo 🚀'}
                       </h4>
                     </div>
-                    <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-bold uppercase border border-white/10">
-                      Activo
+                    <div className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase border backdrop-blur-md ${
+                      profile?.end_date && new Date(profile.end_date) < new Date()
+                        ? 'bg-red-500/20 text-red-300 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                        : 'bg-white/20 text-white border-white/10'
+                    }`}>
+                      {profile?.end_date && new Date(profile.end_date) < new Date() ? 'Vencido' : 'Activo'}
                     </div>
                   </div>
                   
@@ -434,7 +439,7 @@ const SettingsModal = ({ onClose }) => {
                     <li>• Acceso ilimitado a los 74 agentes especializados de IA</li>
                     <li>• Actualizaciones semanales de modelos y lógica</li>
                     <li>• Soporte prioritario 24/7</li>
-                    {profile?.plan === 'legacy' ? (
+                    {!hasPremiumAccess ? (
                       <>
                         <li className="text-amber-500 font-semibold">• Acceso a Cursos Básicos Gratuitos (Academia)</li>
                         <li className="text-red-400/80 font-semibold">• Matchmaker Copilot & Cursos Premium bloqueados</li>
@@ -448,8 +453,9 @@ const SettingsModal = ({ onClose }) => {
                     <li>• Costo del Plan: <strong className="text-gray-800 dark:text-white">
                       {profile?.plan === 'monthly' && '$14.99 USD / mes'}
                       {profile?.plan === 'annual' && '$79.99 USD / año'}
+                      {profile?.plan === 'trial' && 'Gratis (Prueba)'}
                       {profile?.plan === 'legacy' && 'Sin costo recurrente (Legacy)'}
-                      {!['monthly', 'annual', 'legacy'].includes(profile?.plan) && '$79.99 USD / año'}
+                      {!['monthly', 'annual', 'legacy', 'trial'].includes(profile?.plan) && 'N/A'}
                     </strong></li>
                   </ul>
                 </div>
@@ -457,8 +463,9 @@ const SettingsModal = ({ onClose }) => {
                 <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                   {profile?.plan === 'monthly' && 'Sistema de Recurrencia Mensual Automatizado'}
                   {profile?.plan === 'annual' && 'Sistema de Recurrencia Anual Automatizado'}
+                  {profile?.plan === 'trial' && 'Periodo de Prueba Activo'}
                   {profile?.plan === 'legacy' && 'Acceso Legacy Limitado Indefinido'}
-                  {!['monthly', 'annual', 'legacy'].includes(profile?.plan) && 'Sistema de Recurrencia Anual Automatizado'}
+                  {!['monthly', 'annual', 'legacy', 'trial'].includes(profile?.plan) && 'Suscripción Activa'}
                 </p>
               </div>
             )}

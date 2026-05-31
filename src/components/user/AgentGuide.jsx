@@ -44,7 +44,7 @@ const getFriendlyError = (error) => {
 };
 
 const AgentGuide = () => {
-  const { isAdmin, isAuthenticated, profile, user } = useAuth();
+  const { isAdmin, isAuthenticated, profile, user, hasPremiumAccess } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -243,7 +243,7 @@ const AgentGuide = () => {
 
   if (!isAuthenticated) return null;
 
-  const shouldRender = (isEnabled || isAdmin) && (profile?.plan !== 'legacy' || isAdmin);
+  const shouldRender = (isEnabled || isAdmin) && hasPremiumAccess;
   if (!shouldRender) return null;
 
   return (

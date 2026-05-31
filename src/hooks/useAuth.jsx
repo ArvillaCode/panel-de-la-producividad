@@ -90,6 +90,28 @@ export const AuthProvider = ({ children }) => {
   const isEditor = profile?.role === 'editor' || isAdmin;
   const isSupport = profile?.role === 'support' || isEditor;
 
+  const hasPremiumAccess = useMemo(() => {
+    if (!profile) return false;
+
+    const plan = profile.plan?.toLowerCase();
+    const isAdmin = profile.role === 'admin' || profile.role === 'core_admin';
+
+    const validPremiumPlan =
+      plan === 'annual' ||
+      plan === 'monthly' ||
+      plan === 'trial';
+
+    const isApproved =
+      profile.is_approved === true ||
+      profile.status === 'active';
+
+    const isExpired =
+      profile.end_date &&
+      new Date(profile.end_date) < new Date();
+
+    return isAdmin || (validPremiumPlan && isApproved && !isExpired);
+  }, [profile]);
+
   const logAction = useCallback(async (action, entity, entityId = null, details = {}) => {
     if (!user) return;
     try {
@@ -931,6 +953,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated,
     isAdmin,
+    hasPremiumAccess,
     notifications,
     systemConfig,
     login,
