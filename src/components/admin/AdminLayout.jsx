@@ -318,7 +318,7 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
         </header>
 
         {/* Page Content */}
-        <main className="p-6 md:p-10 flex-1 overflow-x-hidden overflow-y-auto relative z-0">
+        <main className="p-6 md:p-10 flex-1 overflow-x-hidden overflow-y-auto relative">
           {children}
         </main>
       </div>

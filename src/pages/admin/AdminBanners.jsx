@@ -250,9 +250,9 @@ const AdminBanners = () => {
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
           <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={() => setShowModal(false)}></div>
-          <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95">
+          <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-neon-teal/10 rounded-2xl text-neon-teal neon-glow">
@@ -344,7 +344,6 @@ const AdminBanners = () => {
                     value={formData.link_url} 
                     onChange={e => {
                       const val = e.target.value;
-                      if (val && !val.startsWith('http://') && !val.startsWith('https://')) return;
                       setFormData({...formData, link_url: val});
                     }} 
                     className="premium-input w-full pl-12" 

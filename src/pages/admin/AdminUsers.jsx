@@ -997,9 +997,9 @@ const AdminUsers = () => {
 
       {/* Modal Notificar */}
       {showNotifyModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
             <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
-            <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-neon-teal/10 rounded-2xl text-neon-teal neon-glow">
@@ -1043,9 +1043,9 @@ const AdminUsers = () => {
 
       {/* Modal Crear/Editar */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
             <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
-            <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="relative glass-card p-10 w-full max-w-lg border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-neon-teal/10 rounded-2xl text-neon-teal neon-glow">
@@ -1135,9 +1135,9 @@ const AdminUsers = () => {
 
       {/* Modal Reset contraseña */}
       {showResetModal && selectedUser && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
             <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
-            <div className="relative glass-card p-10 w-full max-w-md border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="relative glass-card p-10 w-full max-w-md border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
                 <h2 className="text-2xl font-black text-white uppercase italic mb-2">Nueva contraseña</h2>
                 <p className="text-gray-500 text-sm mb-6">Usuario: <span className="text-white font-bold">{selectedUser.email}</span></p>
                 <div className="space-y-4">
@@ -1168,9 +1168,9 @@ const AdminUsers = () => {
 
       {/* Modal Eliminar */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
             <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
-            <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95">
+            <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
                 <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-red-500/10">
                     <AlertTriangle className="w-10 h-10" />
                 </div>
@@ -1189,9 +1189,9 @@ const AdminUsers = () => {
       )}
       {/* Modal Confirmación Eliminación Masiva */}
       {showBulkDeleteModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
           <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={() => setShowBulkDeleteModal(false)}></div>
-          <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95">
+          <div className="relative glass-card p-10 w-full max-w-md text-center border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
             <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-red-500/10">
               <AlertTriangle className="w-10 h-10" />
             </div>
@@ -1215,9 +1215,9 @@ const AdminUsers = () => {
 
       {/* Modal Registrar Pago Manual (CFO V1) */}
       {showManualPaymentModal && selectedUser && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] overflow-y-auto flex items-start justify-center p-4 sm:p-10">
           <div className="absolute inset-0 bg-deep-dark/90 backdrop-blur-xl" onClick={closeModals}></div>
-          <div className="relative glass-card p-10 w-full max-w-md border-white/10 shadow-2xl animate-in zoom-in-95">
+          <div className="relative glass-card p-10 w-full max-w-md border-white/10 shadow-2xl animate-in zoom-in-95 my-auto">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-500/10 text-green-400 rounded-xl neon-glow">
