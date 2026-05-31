@@ -9,6 +9,29 @@ const OWN_PROFILE_FIELDS = ['name', 'avatar_url', 'timezone'];
 const pickAllowedFields = (data, allowedFields) =>
   Object.fromEntries(Object.entries(data || {}).filter(([key]) => allowedFields.includes(key)));
 
+// Función centralizada para el cálculo de fechas de suscripción de todos los planes
+export const calculatePlanDates = (plan, startDate = new Date()) => {
+  const endDate = new Date(startDate);
+  
+  if (plan === 'legacy') {
+    return {
+      start_date: startDate.toISOString(),
+      end_date: null
+    };
+  } else if (plan === 'trial') {
+    endDate.setDate(endDate.getDate() + 7); // 7 días para trial
+  } else if (plan === 'monthly') {
+    endDate.setMonth(endDate.getMonth() + 1); // 1 mes para mensual
+  } else {
+    endDate.setFullYear(endDate.getFullYear() + 1); // 1 año para anual
+  }
+
+  return {
+    start_date: startDate.toISOString(),
+    end_date: endDate.toISOString()
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
@@ -651,21 +674,9 @@ export const AuthProvider = ({ children }) => {
 
       // Si no tiene fechas, cambió el plan o se forzan las fechas
       if (!targetUser?.start_date || !targetUser?.end_date || planChanged || data.force_dates) {
-        const startDate = new Date();
-        const endDate = new Date();
-        
-        if (activePlan === 'legacy') {
-          finalData.start_date = startDate.toISOString();
-          finalData.end_date = null; // Acceso legacy no expira por defecto
-        } else {
-          if (activePlan === 'monthly') {
-            endDate.setMonth(endDate.getMonth() + 1);
-          } else {
-            endDate.setFullYear(endDate.getFullYear() + 1);
-          }
-          finalData.start_date = startDate.toISOString();
-          finalData.end_date = endDate.toISOString();
-        }
+        const dates = calculatePlanDates(activePlan);
+        finalData.start_date = dates.start_date;
+        finalData.end_date = dates.end_date;
         console.log(`[AUTH] Asignando fechas (${activePlan}) para ${id}: ${finalData.start_date} a ${finalData.end_date}`);
       }
     }

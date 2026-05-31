@@ -117,7 +117,8 @@ const AdminUsers = () => {
     role: 'user',
     avatar: '',
     plan: 'annual',
-    is_legacy_fallback: false
+    is_legacy_fallback: false,
+    force_dates: false
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -355,7 +356,8 @@ const AdminUsers = () => {
         role: formData.role,
         avatar_url: formData.avatar,
         plan: formData.plan,
-        is_legacy_fallback: formData.is_legacy_fallback
+        is_legacy_fallback: formData.is_legacy_fallback,
+        force_dates: formData.force_dates
       });
 
       if (!result.success) throw new Error(result.error || 'Error al actualizar');
@@ -393,7 +395,8 @@ const AdminUsers = () => {
       role: u.role || 'user',
       avatar: u.avatar_url || '',
       plan: u.plan || 'annual',
-      is_legacy_fallback: u.is_legacy_fallback || false
+      is_legacy_fallback: u.is_legacy_fallback || false,
+      force_dates: false
     });
     setShowEditModal(true);
   };
@@ -436,7 +439,8 @@ const AdminUsers = () => {
       role: 'user',
       avatar: '',
       plan: 'annual',
-      is_legacy_fallback: false
+      is_legacy_fallback: false,
+      force_dates: false
     });
     setSelectedUser(null);
     setError('');
@@ -666,11 +670,11 @@ const AdminUsers = () => {
   return (
     <AdminLayout currentPage="users">
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-white/5 pb-6">
           <div className="space-y-1">
-            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic neon-glow">Gestión de Usuarios</h1>
-            <p className="text-gray-500 font-bold text-xs uppercase tracking-widest">
-              Control de acceso y privilegios de la comunidad
+            <h2 className="text-sm font-black text-neon-teal uppercase tracking-[0.2em]">Resumen Administrativo</h2>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
+              Gestión activa y auditoría de la comunidad de usuarios
             </p>
           </div>
           <div className="flex gap-4">
@@ -890,9 +894,10 @@ const AdminUsers = () => {
                                             <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
                                                 u.plan === 'monthly' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 
                                                 u.plan === 'legacy' ? 'bg-gray-500/10 border-gray-500/20 text-gray-400' : 
+                                                u.plan === 'trial' ? 'bg-amber-100 border-amber-200 text-amber-800' : 
                                                 'bg-neon-teal/10 border-neon-teal/20 text-neon-teal'
                                             }`}>
-                                                {u.plan === 'monthly' ? 'Mensual' : u.plan === 'legacy' ? 'Legacy' : 'Anual'}
+                                                {u.plan === 'monthly' ? 'Mensual' : u.plan === 'legacy' ? 'Legacy' : u.plan === 'trial' ? 'TRIAL' : 'Anual'}
                                             </span>
                                             {u.is_legacy_fallback && (
                                                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]" title="Protección de Reversión Legacy Activa"></span>
@@ -1084,6 +1089,7 @@ const AdminUsers = () => {
                             <option value="annual">UPFUNNEL PRO ANUAL ($79.99 USD)</option>
                             <option value="monthly">UPFUNNEL PRO MENSUAL ($14.99 USD)</option>
                             <option value="legacy">ACCESO BÁSICO ANTIGUO (LEGACY)</option>
+                            <option value="trial">PRUEBA GRATIS (7 DÍAS)</option>
                         </select>
                     </div>
                     
@@ -1100,6 +1106,22 @@ const AdminUsers = () => {
                             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Si expira, vuelve al plan Legacy en vez de bloquearse</p>
                         </label>
                     </div>
+
+                    {showEditModal && (
+                        <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 mt-4">
+                            <input
+                              type="checkbox"
+                              id="force_dates"
+                              checked={formData.force_dates || false}
+                              onChange={e => setFormData({...formData, force_dates: e.target.checked})}
+                              className="w-5 h-5 rounded border-white/10 bg-white/5 text-neon-teal focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                            />
+                            <label htmlFor="force_dates" className="cursor-pointer select-none">
+                                <p className="text-xs font-black text-white uppercase tracking-wider">Reiniciar fechas del plan</p>
+                                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Forzar el reinicio de la duración de la prueba o suscripción desde hoy</p>
+                            </label>
+                        </div>
+                    )}
                     <div className="flex gap-4 pt-4">
                         <button type="button" onClick={closeModals} className="flex-1 py-4 glass-card border-white/5 text-gray-500 font-black uppercase text-xs tracking-widest">Cancelar</button>
                         <button type="submit" disabled={actionLoading} className="flex-1 py-4 bg-neon-teal text-deep-dark rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-neon-teal/20">

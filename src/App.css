@@ -58,6 +58,13 @@
     @apply bg-white/5 border-white/10 text-white focus:ring-neon-teal/30 focus:border-neon-teal;
   }
 
+  .dark select.premium-input option,
+  .dark .premium-input option,
+  .dark select option {
+    background-color: #0b0f19 !important;
+    color: #ffffff !important;
+  }
+
   /* Segmented Progress Bar */
   .segmented-progress {
     @apply flex gap-1.5 h-2.5 w-full;
