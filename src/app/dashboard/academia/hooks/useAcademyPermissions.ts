@@ -8,7 +8,7 @@ export function useAcademyPermissions() {
   const hasPremiumAccess = useMemo(() => {
     if (isAdmin) return true;
     const plan = profile?.plan?.toLowerCase();
-    return plan === 'annual' || plan === 'monthly';
+    return plan === 'annual' || plan === 'monthly' || plan === 'trial';
   }, [isAdmin, profile?.plan]);
 
   const canAccessCourse = (course: Course | null): boolean => {
