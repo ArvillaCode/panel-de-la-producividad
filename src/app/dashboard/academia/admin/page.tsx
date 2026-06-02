@@ -4,6 +4,7 @@ import { Plus, Trash2, Save, ArrowLeft, Play, X, Copy } from 'lucide-react';
 import { useToast } from '../../../../context/ToastContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { uploadToAcademyR2, academyMediaUrl } from '../../../../lib/academyR2Upload.js';
+import { extractYouTubeId } from '../utils/mediaUtils';
 
 interface Module {
   id: string;
@@ -37,6 +38,14 @@ export default function LessonCreator() {
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [isVisible, setIsVisible] = useState(true);
+
+  // YouTube state fields
+  const [youtubeId, setYoutubeId] = useState('');
+  const [youtubeTitle, setYoutubeTitle] = useState('');
+  const [youtubeDurationSeconds, setYoutubeDurationSeconds] = useState<number>(0);
+  const [youtubeThumbnailUrl, setYoutubeThumbnailUrl] = useState('');
+  const [requireCompletion, setRequireCompletion] = useState(false);
+  const [minimumWatchPercent, setMinimumWatchPercent] = useState<number>(90);
 
   // Upload States (Video)
   const [isUploading, setIsUploading] = useState(false);
@@ -221,7 +230,13 @@ export default function LessonCreator() {
         materiales,
         is_visible: isVisible,
         order_index: (count || 0) + 1,
-        course_id: courseId
+        course_id: courseId,
+        youtube_id: youtubeId || null,
+        youtube_title: youtubeTitle || null,
+        youtube_duration_seconds: youtubeDurationSeconds ? Number(youtubeDurationSeconds) : null,
+        youtube_thumbnail_url: youtubeThumbnailUrl || null,
+        require_completion: requireCompletion,
+        minimum_watch_percent: Number(minimumWatchPercent)
       };
 
       const { error } = await supabase.from('academy_lessons').insert([newLesson]);
@@ -451,15 +466,123 @@ export default function LessonCreator() {
 
             <hr className="border-slate-100 dark:border-slate-800" />
 
-            <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 italic">Ruta de archivo (Opcional / Debug)</label>
-              <input 
-                type="text" 
-                value={videoPath} 
-                onChange={(e) => setVideoPath(e.target.value)} 
-                placeholder=" academy/videos/nombre-del-archivo.mp4"
-                className="w-full px-4 py-2 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
-              />
+            <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/10 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500">Configuración del Video (Híbrido)</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Opción A: Archivo Cloudflare R2 (Ruta)</label>
+                  <input 
+                    type="text" 
+                    value={videoPath} 
+                    onChange={(e) => {
+                      setVideoPath(e.target.value);
+                      if (e.target.value) {
+                        setYoutubeId('');
+                      }
+                    }} 
+                    placeholder="Ej: academy/videos/nombre-del-archivo.mp4"
+                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Opción B: Enlace o Código Embed de YouTube</label>
+                  <input 
+                    type="text" 
+                    value={youtubeId ? `https://youtube.com/watch?v=${youtubeId}` : ''} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val) {
+                        setVideoPath('');
+                      }
+                      const id = extractYouTubeId(val);
+                      setYoutubeId(id || val);
+                    }} 
+                    placeholder="Pega URL (watch, shorts, embed) o <iframe>"
+                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                  />
+                  {youtubeId && (
+                    <p className="text-[10px] text-emerald-500 font-semibold mt-1">
+                      ID detectado: {youtubeId}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Metadatos adicionales de YouTube (Solo si hay YouTube ID) */}
+            {youtubeId && (
+              <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/10 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in slide-in-from-top-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500">Metadatos de YouTube</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Título de Referencia YouTube</label>
+                    <input
+                      type="text"
+                      value={youtubeTitle}
+                      onChange={(e) => setYoutubeTitle(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                      placeholder="Ej: Clase 1 - Introducción"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Duración (Segundos)</label>
+                    <input
+                      type="number"
+                      value={youtubeDurationSeconds || ''}
+                      onChange={(e) => setYoutubeDurationSeconds(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                      placeholder="Ej: 300 (5 min)"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Miniatura YouTube Alternativa (URL)</label>
+                    <input
+                      type="text"
+                      value={youtubeThumbnailUrl}
+                      onChange={(e) => setYoutubeThumbnailUrl(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                      placeholder="Dejar en blanco para autodetectar de img.youtube.com"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/10 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500">Restricciones Académicas</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Requerir Visualización Completa</span>
+                    <span className="text-[9px] font-medium text-slate-400">Bloquea marcado manual hasta ver el porcentaje mínimo</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRequireCompletion(!requireCompletion)}
+                    className={`w-12 h-6 rounded-full p-1 transition-all duration-300 flex items-center ${requireCompletion ? 'bg-blue-600 justify-end' : 'bg-slate-300 dark:bg-slate-700 justify-start'}`}
+                  >
+                    <div className="w-4 h-4 bg-white rounded-full shadow-md" />
+                  </button>
+                </div>
+
+                {requireCompletion && (
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col justify-center animate-in slide-in-from-right-1">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Visualización Mínima: {minimumWatchPercent}%</label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      value={minimumWatchPercent}
+                      onChange={(e) => setMinimumWatchPercent(Number(e.target.value))}
+                      className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Multimedia & Thumbnail */}
@@ -569,6 +692,12 @@ export default function LessonCreator() {
                     setMateriales([]);
                     setFileToUpload(null);
                     setUploadProgress(0);
+                    setYoutubeId('');
+                    setYoutubeTitle('');
+                    setYoutubeDurationSeconds(0);
+                    setYoutubeThumbnailUrl('');
+                    setRequireCompletion(false);
+                    setMinimumWatchPercent(90);
                   }
                 }}
                 className="px-10 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"

@@ -22,7 +22,7 @@ import { uploadToAcademyR2, academyMediaUrl } from '../../../lib/academyR2Upload
 
 // --- IMPORTS MODULARES ---
 import { Course, Module, fetchCourses, fetchModulesAndLessons, saveCourse, saveGlobalAcademySettings, deleteCourse, deleteLesson, deleteModule, updateLesson } from './services/academyService';
-import { Lesson, formatAcademyLesson, getEmbedUrl, isHttpUrl, looksLikeDirectVideoUrl } from './utils/mediaUtils';
+import { Lesson, formatAcademyLesson, getEmbedUrl, isHttpUrl, looksLikeDirectVideoUrl, extractYouTubeId } from './utils/mediaUtils';
 import { useAcademyPermissions } from './hooks/useAcademyPermissions';
 import { useAcademyProgress } from './hooks/useAcademyProgress';
 import { useAcademyDragDrop } from './hooks/useAcademyDragDrop';
@@ -62,6 +62,21 @@ export default function AcademyDashboard() {
   const [isUploadingEditVideo, setIsUploadingEditVideo] = useState(false);
   const [editMateriales, setEditMateriales] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  // YouTube specific edit states
+  const [editYouTubeId, setEditYouTubeId] = useState('');
+  const [editYouTubeTitle, setEditYouTubeTitle] = useState('');
+  const [editYouTubeDurationSeconds, setEditYouTubeDurationSeconds] = useState<number>(0);
+  const [editYouTubeThumbnailUrl, setEditYouTubeThumbnailUrl] = useState('');
+  const [editRequireCompletion, setEditRequireCompletion] = useState(false);
+  const [editMinimumWatchPercent, setEditMinimumWatchPercent] = useState<number>(90);
+
+  // User lesson progress state (from Supabase academy_progress)
+  const [activeLessonProgress, setActiveLessonProgress] = useState<{
+    last_watched_seconds: number;
+    max_watched_seconds: number;
+    completed: boolean;
+  } | null>(null);
 
   // --- ESTADOS CREACIÓN CURSO ---
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -273,7 +288,13 @@ export default function AcademyDashboard() {
           description: editDescription,
           video_path: editVideoPath,
           thumbnail_url: editThumbnailUrl,
-          materiales: editMateriales
+          materiales: editMateriales,
+          youtube_id: editYouTubeId || null,
+          youtube_title: editYouTubeTitle || null,
+          youtube_duration_seconds: editYouTubeDurationSeconds ? Number(editYouTubeDurationSeconds) : null,
+          youtube_thumbnail_url: editYouTubeThumbnailUrl || null,
+          require_completion: editRequireCompletion,
+          minimum_watch_percent: Number(editMinimumWatchPercent)
         };
 
         await updateLesson(activeLesson.id, payload);
@@ -313,8 +334,53 @@ export default function AcademyDashboard() {
       setEditVideoPath(activeLesson.video_path || '');
       setEditThumbnailUrl(activeLesson.thumbnail_url || '');
       setEditMateriales(Array.isArray(activeLesson.materiales) ? activeLesson.materiales : []);
+      
+      setEditYouTubeId(activeLesson.youtube_id || '');
+      setEditYouTubeTitle(activeLesson.youtube_title || '');
+      setEditYouTubeDurationSeconds(activeLesson.youtube_duration_seconds || 0);
+      setEditYouTubeThumbnailUrl(activeLesson.youtube_thumbnail_url || '');
+      setEditRequireCompletion(!!activeLesson.require_completion);
+      setEditMinimumWatchPercent(activeLesson.minimum_watch_percent ?? 90);
+      
       setVideoError(false);
     }
+  }, [activeLesson]);
+
+  // Fetch progress from database for the active lesson
+  useEffect(() => {
+    const fetchActiveProgress = async () => {
+      if (!activeLesson) {
+        setActiveLessonProgress(null);
+        return;
+      }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: prog } = await supabase
+            .from('academy_progress')
+            .select('completed, last_watched_seconds, max_watched_seconds')
+            .eq('user_id', user.id)
+            .eq('lesson_id', activeLesson.id)
+            .maybeSingle();
+          if (prog) {
+            setActiveLessonProgress({
+              completed: !!prog.completed,
+              last_watched_seconds: prog.last_watched_seconds || 0,
+              max_watched_seconds: prog.max_watched_seconds || 0
+            });
+          } else {
+            setActiveLessonProgress({
+              completed: false,
+              last_watched_seconds: 0,
+              max_watched_seconds: 0
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching active progress:", e);
+      }
+    };
+    fetchActiveProgress();
   }, [activeLesson]);
 
   // 1. Cargar cursos al montar el componente (y cuando cambie el rol de admin)
@@ -416,9 +482,43 @@ export default function AcademyDashboard() {
 
         const [modulesData, allLessons] = await fetchModulesAndLessons(selectedCourse.id, isAdmin);
 
+        // Fetch db progress for active user to merge
+        let dbProgressMap = new Map();
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: progressData } = await supabase
+              .from('academy_progress')
+              .select('lesson_id, completed, last_watched_seconds, max_watched_seconds')
+              .eq('user_id', user.id);
+            if (progressData) {
+              progressData.forEach((p: any) => dbProgressMap.set(String(p.lesson_id), p));
+            }
+          }
+        } catch (pe) {
+          console.error("Error fetching academy_progress:", pe);
+        }
+
         const visibleLessons = (allLessons || [])
           .filter((lesson: any) => isAdmin || lesson.is_visible !== false)
-          .map(formatAcademyLesson);
+          .map((lesson: any) => {
+            const formatted = formatAcademyLesson(lesson);
+            const dbProg = dbProgressMap.get(String(formatted.id));
+            if (dbProg) {
+              formatted.is_completed = formatted.is_completed || dbProg.completed;
+              // Sincronizar localStorage si el progreso en DB está completado
+              if (dbProg.completed) {
+                try {
+                  const localCompleted = JSON.parse(localStorage.getItem('academy_completed') || '[]');
+                  if (!localCompleted.includes(formatted.id)) {
+                    localCompleted.push(formatted.id);
+                    localStorage.setItem('academy_completed', JSON.stringify(localCompleted));
+                  }
+                } catch (le) {}
+              }
+            }
+            return formatted;
+          });
 
         const lessonsByModuleId = new Map<string, Lesson[]>();
         visibleLessons.forEach((lesson) => {
@@ -524,6 +624,12 @@ export default function AcademyDashboard() {
         editDescription !== (activeLesson.description || '') ||
         editVideoPath !== (activeLesson.video_path || '') ||
         editThumbnailUrl !== (activeLesson.thumbnail_url || '') ||
+        editYouTubeId !== (activeLesson.youtube_id || '') ||
+        editYouTubeTitle !== (activeLesson.youtube_title || '') ||
+        editYouTubeDurationSeconds !== (activeLesson.youtube_duration_seconds || 0) ||
+        editYouTubeThumbnailUrl !== (activeLesson.youtube_thumbnail_url || '') ||
+        editRequireCompletion !== (!!activeLesson.require_completion) ||
+        editMinimumWatchPercent !== (activeLesson.minimum_watch_percent ?? 90) ||
         JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []);
 
       if (hasUnsavedChanges) {
@@ -579,6 +685,12 @@ export default function AcademyDashboard() {
                    editDescription !== activeLesson.description ||
                    editVideoPath !== activeLesson.video_path ||
                    editThumbnailUrl !== activeLesson.thumbnail_url ||
+                   editYouTubeId !== (activeLesson.youtube_id || '') ||
+                   editYouTubeTitle !== (activeLesson.youtube_title || '') ||
+                   editYouTubeDurationSeconds !== (activeLesson.youtube_duration_seconds || 0) ||
+                   editYouTubeThumbnailUrl !== (activeLesson.youtube_thumbnail_url || '') ||
+                   editRequireCompletion !== (!!activeLesson.require_completion) ||
+                   editMinimumWatchPercent !== (activeLesson.minimum_watch_percent ?? 90) ||
                    JSON.stringify(editMateriales) !== JSON.stringify(activeLesson.materiales || []));
 
                 if (isEditMode && hasUnsavedChanges) {
@@ -780,25 +892,64 @@ export default function AcademyDashboard() {
                 videoError={videoError}
                 setVideoError={setVideoError}
                 onNavigateBack={() => navigate('/dashboard/academia')}
+                activeLessonProgress={activeLessonProgress}
+                onProgressUpdate={(prog) => {
+                  setActiveLessonProgress(prog);
+                  if (prog.completed && !activeLesson.is_completed) {
+                    // Marcar como completada en la interfaz del estudiante
+                    setModules(prev => prev.map(mod => ({
+                      ...mod,
+                      lessons: mod.lessons.map(l => l.id === activeLesson.id ? { ...l, is_completed: true } : l)
+                    })));
+                    setActiveLesson(prev => prev ? { ...prev, is_completed: true } : null);
+                  }
+                }}
+                nextLesson={(() => {
+                  if (!activeLesson || modules.length === 0) return null;
+                  let foundActive = false;
+                  for (const mod of modules) {
+                    for (const lesson of (mod.lessons || [])) {
+                      if (foundActive) return lesson;
+                      if (lesson.id === activeLesson.id) foundActive = true;
+                    }
+                  }
+                  return null;
+                })()}
               />
 
               {activeLesson && (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-300">
                   {!isEditMode ? (
                     <>
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                        <div>
-                          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">{activeLesson.title}</h2>
-                          <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-widest">CLASE MULTIMEDIA SECUENCIAL</p>
-                        </div>
-                        <button
-                          onClick={markAsCompleted}
-                          disabled={activeLesson.is_completed}
-                          className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeLesson.is_completed ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 active:scale-95'}`}
-                        >
-                          {activeLesson.is_completed ? '✓ Completada con Éxito' : 'Marcar como Completada'}
-                        </button>
-                      </div>
+                      {(() => {
+                        const isCompletionDisabled = activeLesson.require_completion && 
+                          (!activeLessonProgress || 
+                           (activeLessonProgress.max_watched_seconds / (activeLesson.youtube_duration_seconds || 1)) * 100 < (activeLesson.minimum_watch_percent || 90));
+                        
+                        return (
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 border-b border-slate-100 dark:border-slate-800 pb-6">
+                            <div>
+                              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">{activeLesson.title}</h2>
+                              <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-widest">CLASE MULTIMEDIA SECUENCIAL</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <button
+                                onClick={markAsCompleted}
+                                disabled={activeLesson.is_completed || isCompletionDisabled}
+                                className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeLesson.is_completed ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : isCompletionDisabled ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 active:scale-95'}`}
+                              >
+                                {activeLesson.is_completed ? '✓ Completada con Éxito' : 'Marcar como Completada'}
+                              </button>
+                              {isCompletionDisabled && !activeLesson.is_completed && (
+                                <p className="text-[10px] text-red-500 font-semibold text-right max-w-[200px]">
+                                  Requiere ver el {activeLesson.minimum_watch_percent}% del video.
+                                  (Visto: {Math.min(100, Math.floor((activeLessonProgress?.max_watched_seconds || 0) / (activeLesson.youtube_duration_seconds || 1) * 100))}%)
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                       })()}
                       
                       <div className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-8 prose dark:prose-invert max-w-none whitespace-pre-line">
                         {activeLesson.description || 'Esta lección no contiene descripción adicional.'}
@@ -865,30 +1016,135 @@ export default function AcademyDashboard() {
                             className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-sm leading-relaxed"
                           />
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Ruta de Video (R2 o URL)</label>
-                            <input
-                              type="text"
-                              value={editVideoPath}
-                              onChange={(e) => setEditVideoPath(e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-mono"
-                              placeholder="Ej: academy/videos/archivo.mp4 o https://youtube.com/embed/..."
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Imagen de Miniatura (Thumbnail)</label>
-                            <input
-                              type="text"
-                              value={editThumbnailUrl}
-                              onChange={(e) => setEditThumbnailUrl(e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-mono"
-                              placeholder="Ej: academy/thumbnails/portada.jpg"
-                            />
-                          </div>
-                        </div>
+                                     <div className="bg-slate-50 dark:bg-slate-800/10 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500">Configuración del Video (Híbrido)</h4>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Opción A: Archivo Cloudflare R2 (Ruta)</label>
+                                  <input
+                                    type="text"
+                                    value={editVideoPath}
+                                    onChange={(e) => {
+                                      setEditVideoPath(e.target.value);
+                                      if (e.target.value) {
+                                        setEditYouTubeId('');
+                                      }
+                                    }}
+                                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                    placeholder="Ej: academy/videos/archivo.mp4"
+                                  />
+                                </div>
+    
+                                <div>
+                                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Opción B: Enlace o Código Embed de YouTube</label>
+                                  <input
+                                    type="text"
+                                    value={editYouTubeId ? `https://youtube.com/watch?v=${editYouTubeId}` : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val) {
+                                        setEditVideoPath('');
+                                      }
+                                      const id = extractYouTubeId(val);
+                                      setEditYouTubeId(id || val);
+                                    }}
+                                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                    placeholder="Pega URL (watch, shorts, embed) o <iframe>"
+                                  />
+                                  {editYouTubeId && (
+                                    <p className="text-[10px] text-emerald-500 font-semibold mt-1">
+                                      ID detectado: {editYouTubeId}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+    
+                            {/* Configuración de Metadatos de YouTube & Reglas Académicas (Solo si hay YouTube ID) */}
+                            {editYouTubeId && (
+                              <div className="bg-slate-50 dark:bg-slate-800/10 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-in slide-in-from-top-1">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500">Metadatos de YouTube</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="md:col-span-2">
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Título de Referencia YouTube</label>
+                                    <input
+                                      type="text"
+                                      value={editYouTubeTitle}
+                                      onChange={(e) => setEditYouTubeTitle(e.target.value)}
+                                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                                      placeholder="Ej: Introducción a la Automatización"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Duración (Segundos)</label>
+                                    <input
+                                      type="number"
+                                      value={editYouTubeDurationSeconds || ''}
+                                      onChange={(e) => setEditYouTubeDurationSeconds(Number(e.target.value))}
+                                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                      placeholder="Ej: 360 (6 min)"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Miniatura YouTube Alternativa (URL)</label>
+                                    <input
+                                      type="text"
+                                      value={editYouTubeThumbnailUrl}
+                                      onChange={(e) => setEditYouTubeThumbnailUrl(e.target.value)}
+                                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                      placeholder="Dejar en blanco para autodetectar de img.youtube.com"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+    
+                            <div className="bg-slate-50 dark:bg-slate-800/10 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500">Restricciones Académicas & Miniatura</h4>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl">
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Requerir Visualización</span>
+                                    <span className="text-[9px] font-medium text-slate-400">Bloquea marcado manual hasta ver el mínimo</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditRequireCompletion(!editRequireCompletion)}
+                                    className={`w-12 h-6 rounded-full p-1 transition-all duration-350 flex items-center ${editRequireCompletion ? 'bg-blue-600 justify-end' : 'bg-slate-300 dark:bg-slate-700 justify-start'}`}
+                                  >
+                                    <div className="w-4 h-4 bg-white rounded-full shadow-md" />
+                                  </button>
+                                </div>
+    
+                                {editRequireCompletion ? (
+                                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col justify-center animate-in slide-in-from-right-1">
+                                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Visualización Mínima: {editMinimumWatchPercent}%</label>
+                                    <input
+                                      type="range"
+                                      min="10"
+                                      max="100"
+                                      value={editMinimumWatchPercent}
+                                      onChange={(e) => setEditMinimumWatchPercent(Number(e.target.value))}
+                                      className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col justify-center">
+                                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Miniatura Personalizada (R2)</label>
+                                    <input
+                                      type="text"
+                                      value={editThumbnailUrl}
+                                      onChange={(e) => setEditThumbnailUrl(e.target.value)}
+                                      className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                      placeholder="Ej: academy/thumbnails/portada.jpg"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
                         {/* SECCIÓN MATERIALES */}
                         <div className="border-t border-slate-100 dark:border-slate-800 pt-6">

@@ -13,6 +13,12 @@ export interface Lesson {
   video_url?: string;
   thumb_url?: string;
   module_id?: string;
+  youtube_id?: string;
+  youtube_title?: string;
+  youtube_duration_seconds?: number;
+  youtube_thumbnail_url?: string;
+  require_completion?: boolean;
+  minimum_watch_percent?: number;
 }
 
 export function parseLessonMaterials(materiales: any): any[] {
@@ -25,6 +31,13 @@ export function parseLessonMaterials(materiales: any): any[] {
   } catch {
     return [];
   }
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 export function formatAcademyLesson(lesson: any): Lesson {
@@ -45,9 +58,17 @@ export function formatAcademyLesson(lesson: any): Lesson {
     thumbnail_url: thumbnailUrl,
     materiales: parseLessonMaterials(lesson.materiales),
     is_completed: isCompleted,
-    duration: "Video",
+    duration: lesson.youtube_duration_seconds 
+      ? formatDuration(lesson.youtube_duration_seconds)
+      : "Video",
     video_url: academyMediaUrl(videoPath),
-    thumb_url: academyMediaUrl(thumbnailUrl)
+    thumb_url: academyMediaUrl(thumbnailUrl),
+    youtube_id: lesson.youtube_id || undefined,
+    youtube_title: lesson.youtube_title || undefined,
+    youtube_duration_seconds: lesson.youtube_duration_seconds || undefined,
+    youtube_thumbnail_url: lesson.youtube_thumbnail_url || undefined,
+    require_completion: !!lesson.require_completion,
+    minimum_watch_percent: lesson.minimum_watch_percent ?? 90
   };
 }
 
@@ -87,4 +108,35 @@ export function isHttpUrl(url: string): boolean {
 
 export function looksLikeDirectVideoUrl(url: string): boolean {
   return /\.(mp4|webm|mov|m4v)(?:[?#]|$)/i.test(String(url || '').trim());
+}
+
+export function extractYouTubeId(input: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  
+  // 1. Si es exactamente un ID de 11 caracteres válido
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // 2. Extraer de iframe src si está presente (evitando ReDoS usando index y substring simple)
+  let urlToParse = trimmed;
+  if (trimmed.toLowerCase().includes('<iframe')) {
+    const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      urlToParse = srcMatch[1];
+    } else {
+      return null;
+    }
+  }
+  
+  // 3. Regex simple y eficiente para extraer el ID del video (Complejidad O(N))
+  // Soporta: watch?v=, youtu.be/, embed/, shorts/
+  const regExp = /(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  const match = urlToParse.match(regExp);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  return null;
 }
