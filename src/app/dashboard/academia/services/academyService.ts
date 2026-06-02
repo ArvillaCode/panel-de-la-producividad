@@ -53,7 +53,7 @@ export async function fetchModulesAndLessons(courseId: string, isAdmin: boolean)
   if (moduleIds.length > 0) {
     const { data: lessonsByModule, error: lessonsByModuleError } = await supabase
       .from('academy_lessons')
-      .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id')
+      .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id, youtube_id, youtube_title, youtube_duration_seconds, youtube_thumbnail_url, require_completion, minimum_watch_percent')
       .in('module_id', moduleIds)
       .order('order_index', { ascending: true });
 
@@ -64,7 +64,7 @@ export async function fetchModulesAndLessons(courseId: string, isAdmin: boolean)
   // 3. Obtener lecciones asociadas directamente al curso (lecciones huérfanas)
   const { data: lessonsByCourse, error: lessonsByCourseError } = await supabase
     .from('academy_lessons')
-    .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id')
+    .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id, youtube_id, youtube_title, youtube_duration_seconds, youtube_thumbnail_url, require_completion, minimum_watch_percent')
     .eq('course_id', courseId)
     .order('order_index', { ascending: true });
 
@@ -157,6 +157,12 @@ export async function updateLesson(
     video_path: string;
     thumbnail_url: string;
     materiales: any[];
+    youtube_id?: string | null;
+    youtube_title?: string | null;
+    youtube_duration_seconds?: number | null;
+    youtube_thumbnail_url?: string | null;
+    require_completion?: boolean;
+    minimum_watch_percent?: number;
   }
 ): Promise<void> {
   const { error } = await supabase
