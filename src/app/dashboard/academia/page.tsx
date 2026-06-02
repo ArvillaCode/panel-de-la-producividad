@@ -951,7 +951,7 @@ export default function AcademyDashboard() {
                         );
                        })()}
                       
-                      <div className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-8 prose dark:prose-invert max-w-none whitespace-pre-line">
+                      <div className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-8 prose dark:prose-invert max-w-none whitespace-pre-line break-words overflow-hidden">
                         {activeLesson.description || 'Esta lección no contiene descripción adicional.'}
                       </div>
 
