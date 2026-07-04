@@ -22,7 +22,7 @@ El propio código y su historial de commits muestran tres etapas superpuestas:
 
 ## Modelo de negocio observable
 
-La landing (`src/pages/LandingPage.jsx`) vende una oferta de lanzamiento de $49 USD/año con renovación congelada frente a un precio regular de $199 USD — confirma suscripción anual con paywall, no freemium.
+Suscripción por planes parametrizados en la tabla `pricing_plans`: **mensual $14.99 USD**, **anual $79.99 USD** (presentado como oferta de lanzamiento frente a un precio regular de $199), **trial de 7 días gratis** (alta manual desde el panel admin) y **legacy** para usuarios antiguos protegidos contra bloqueo al expirar (`is_legacy_fallback`). El webhook de Stripe asigna el plan automáticamente según el intervalo de la suscripción. No es freemium: todo el producto vive detrás del paywall, aunque la Academia está activada para todos los planes (los cursos premium se restringen por plan).
 
 ## Lo que este documento NO cubre
 

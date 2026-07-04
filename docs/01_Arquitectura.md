@@ -38,7 +38,8 @@ Todos los flujos están descritos con detalle en `PROJECT_ANALYSIS.md`, sección
 - **Una sola base de datos** para todo: perfiles, agentes, academia, notificaciones, logs, config del asistente. No hay separación de datos por dominio funcional.
 - **Un solo cliente Supabase** (`src/lib/supabase.js`) importado directamente por casi cualquier componente — no existe una capa de abstracción/API interna entre "features".
 - **El "asistente" no orquesta módulos**: es una función de recomendación de texto que conoce de antemano la tabla `agents` completa vía una query SQL directa dentro de la Edge Function, no un router que invoque servicios independientes.
-- **`AuthProvider` (`useAuth.jsx`) es un god-context**: sesión, perfil, notificaciones, gestión de usuarios admin y RPCs de negocio conviven en un solo archivo de +800 líneas consumido por casi toda la app.
+- **`AuthProvider` (`useAuth.jsx`) es un god-context**: sesión, perfil, notificaciones, gestión de usuarios admin, RPCs de negocio y ahora la lógica de planes/trial conviven en un solo archivo consumido por casi toda la app.
+- **Excepción parcial (jul-2026):** la Academia fue refactorizada con una capa de datos propia (`academyService.ts`) y componentes/hooks separados — el primer precedente interno de la separación por capas que la migración hacia `upfunnel-os` necesitará en el resto de la app.
 
 ## Restricciones de infraestructura observadas
 

@@ -25,4 +25,4 @@ Mientras `upfunnel-os` responde "¿hacia dónde vamos?", esta carpeta responde *
 
 ## Estado
 
-📄 Contenido inicial generado a partir de una auditoría estática completa del repositorio (código, migraciones SQL, Edge Functions, workers, CI/CD y documentación interna existente). Pendiente de revisión por el equipo antes de tratarse como referencia definitiva.
+📄 Contenido generado a partir de una auditoría estática completa del repositorio (código, migraciones SQL, Edge Functions, workers, CI/CD y documentación interna existente). **Última verificación: 2026-07-03 (segunda pasada)** — actualizado tras integrar los 43 commits de mayo-julio 2026 (planes de suscripción, módulo financiero, refactor de Academia con player de YouTube, sprint de seguridad v31). Pendiente de revisión por el equipo antes de tratarse como referencia definitiva.

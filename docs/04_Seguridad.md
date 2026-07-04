@@ -22,7 +22,9 @@
 - **Edge Functions con validación server-side de sesión y rol** (`openrouter-chat` valida JWT, perfil aprobado y estado del asistente antes de gastar cuota de OpenRouter).
 - **Webhook de Stripe con verificación de firma criptográfica** (`stripe.webhooks.constructEventAsync`) e idempotencia vía `webhook_events`.
 - **Worker de R2 con validación de rol admin** contra Supabase antes de firmar cualquier `PUT`, y validación estricta de rutas/tipos de archivo/tamaño (`validateUpload`).
-- **Protección del último administrador**: la app rechaza explícitamente degradar, expulsar o eliminar al único usuario con rol `admin` restante (`useAuth.jsx`).
+- **Protección del último administrador en dos capas**: la app rechaza degradar, expulsar o eliminar al único `admin` restante (`useAuth.jsx`), y desde el sprint 1 v31 también lo impide un trigger a nivel de base de datos (`check_last_admin_protection`) — la protección ya no depende solo del frontend.
+- **Sprint de seguridad 1 v31** (migración `20260531`, 612 líneas): `audit_logs` inmutable por trigger (`prevent_audit_log_mutation` — ni admins pueden alterar o borrar registros de auditoría), auditoría automática de acciones administrativas y de cambios de perfil mediante triggers (`audit_administrative_actions`, `audit_profile_changes` — el registro ya no depende de que el frontend llame a `logAction`), y re-endurecimiento de las RPCs administrativas.
+- **RLS extendido a las tablas nuevas**: financieras (`payments`, `pricing_plans`, `financial_targets_history`, `webhook_events` — admin-only salvo lectura de planes) y de Academia (`academy_progress` owner-only, `academy_analytics_events` insert autenticado/select admin).
 
 ## Brechas y riesgos no resueltos (identificados en este análisis, jul-2026)
 

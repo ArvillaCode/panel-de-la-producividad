@@ -2,6 +2,7 @@
 
 > Análisis técnico y de producto del repositorio local `panel-de-la-producividad` (nombre de carpeta local: `IA Operative System`).
 > Generado el 2026-07-03 mediante inspección estática del código fuente, migraciones SQL, funciones Edge, workers y documentación existente en el repo. No se ejecutó la aplicación ni se consultó la base de datos real de Supabase.
+> **Última verificación: 2026-07-03 (segunda pasada)** — actualizado tras integrar 43 commits remotos posteriores al análisis original (planes de suscripción, módulo financiero, refactorización de Academia con player de YouTube, sprint de seguridad v31).
 >
 > Convención: todo lo marcado como **"Pendiente de confirmar"** no pudo deducirse con certeza del código y requiere validación con el equipo o con el entorno de producción/Supabase real.
 
@@ -11,13 +12,13 @@
 
 El producto se llama **Upfunnel** (nombre comercial visible en dominios, CSP, branding y guías internas; el `package.json` conserva el nombre legado `panel-50-agentes-ia-v2`). Es un **SaaS de productividad por suscripción** que combina tres pilares:
 
-1. **Catálogo de agentes de IA** (actualmente ~71 "agentes" definidos como tarjetas con enlace a GPTs de ChatGPT, organizados por categoría/especialidad) — el producto original del que evolucionó la app.
+1. **Catálogo de agentes de IA** (74 según la UI actual; el fallback local `src/data/agents.js` conserva 71 — el catálogo vivo está en la tabla `agents` de Supabase) — el producto original del que evolucionó la app.
 2. **Copiloto/Asistente conversacional propio** ("Asistente de Upfunnel" / matchmaker) que usa un LLM vía OpenRouter para recomendar el agente adecuado dentro del propio catálogo, con enlaces directos a cada bot.
-3. **Academia** (LMS interno): cursos → módulos → lecciones en video, con contenido premium/gratuito, materiales descargables y progreso de usuario.
+3. **Academia** (LMS interno): cursos → módulos → lecciones en video (player de YouTube propio con tracking de progreso, o media vía R2), con contenido premium/gratuito, materiales descargables y progreso de usuario persistido en base de datos.
 
-Todo esto vive detrás de una **puerta de pago/aprobación manual**: los usuarios se registran o pagan vía Stripe, y un administrador (o el propio webhook de Stripe) debe aprobar/activar la cuenta antes de que puedan usar el panel. Existe un **Panel de Administración** completo (`/admin/*`) para gestionar usuarios, agentes, banners, releases, logs de auditoría y configuración global del sistema (incluyendo el prompt y modelo del asistente IA).
+Todo esto vive detrás de una **puerta de pago/aprobación**: los usuarios pagan vía Stripe (el webhook activa la cuenta y asigna el plan automáticamente) o son aprobados manualmente por un administrador. Existe un **Panel de Administración** completo (`/admin/*`) para gestionar usuarios, agentes, banners, releases, logs de auditoría, finanzas y configuración global del sistema (incluyendo el prompt y modelo del asistente IA).
 
-La landing pública (`LandingPage.jsx`) vende una "oferta de lanzamiento" de $49 USD (con precio de renovación de $199 USD), lo que confirma el modelo de negocio: suscripción anual con paywall.
+**Modelo de negocio (actualizado):** suscripción por planes gestionados en la tabla `pricing_plans` — `monthly` ($14.99 USD/mes), `annual` ($79.99 USD/año, presentado como oferta de lanzamiento frente a un precio regular de $199), `trial` (7 días gratis, alta manual) y `legacy` (usuarios antiguos protegidos por la bandera `is_legacy_fallback`, que evita bloquearlos al expirar y los revierte a legacy). El webhook de Stripe deduce el plan dinámicamente del intervalo de la suscripción (`month`/`year`).
 
 ## 2. Tecnologías utilizadas
 
@@ -60,19 +61,29 @@ src/
 │   ├── user/                  # Sidebar, modales de settings/sugerencias, AgentGuide (chat IA), banner global, release notes
 │   └── ui/                    # Fondo de partículas, visualizador "tech", Toaster
 ├── pages/
-│   ├── LandingPage.jsx, ComingSoon.jsx, PendingApproval.jsx, Policies.jsx, Privacy.jsx, Support.jsx, ReleaseHistory.jsx
+│   ├── LandingPage.jsx, ComingSoon.jsx, PendingApproval.jsx, Policies.jsx, Privacy.jsx, Support.jsx,
+│   │   ReleaseHistory.jsx, Documentation.jsx (manual técnico in-app en /documentacion)
 │   └── admin/                 # AdminLogin, AdminDashboard, AdminUsers, AdminAgents, AdminBanners,
-│                               # AdminConfig, AdminReleases, AdminLogs, MatchmakerConfig
-└── app/dashboard/academia/    # LMS: page.tsx (vista usuario) + admin/page.tsx (creador de contenido)
-                                # Nota: convive con Vite bajo una ruta con forma "Next.js App Router",
-                                # pero NO es Next.js real (solo naming, ver sección 6).
+│                               # AdminConfig, AdminReleases, AdminLogs, MatchmakerConfig,
+│                               # AdminFinance (dashboard financiero, lazy-loaded, ruta /admin/finance)
+└── app/dashboard/academia/    # LMS refactorizado (ya no monolítico):
+    ├── page.tsx               #   vista usuario + admin/page.tsx (creador de contenido)
+    ├── components/            #   AcademyPlayer (player YouTube propio con tracking), CourseCard,
+    │                          #   LessonSidebar, AdminActionsMenu
+    ├── hooks/                 #   useAcademyDragDrop (reordenación persistente), useAcademyPermissions,
+    │                          #   useAcademyProgress
+    ├── services/academyService.ts  # capa de acceso a datos de la Academia
+    └── utils/mediaUtils.ts    #   Nota: forma "Next.js App Router" pero NO es Next.js real (ver sección 6).
 
 supabase/
 ├── functions/
 │   ├── openrouter-chat/       # Proxy seguro + rate limit al LLM, inyecta catálogo de agentes como contexto
-│   ├── stripe-webhook/        # checkout.session.completed / customer.subscription.deleted → activa/revoca perfiles
+│   ├── stripe-webhook/        # checkout.session.completed / customer.subscription.deleted →
+│   │                          # activa/revoca perfiles, deduce plan (monthly/annual) del intervalo de la
+│   │                          # suscripción de Stripe, registra el pago en la tabla payments
 │   └── auto-release/          # Genera notas de versión automáticas a partir de commits (uso interno/privado)
-└── migrations/                # Solo hardening incremental (RLS, funciones RPC); el esquema base NO está versionado aquí
+└── migrations/                # Hardening incremental + migraciones funcionales recientes (planes, finanzas,
+                                # YouTube/progreso de Academia); el esquema base sigue SIN versionar aquí
 
 workers/
 └── r2-presign.js               # Cloudflare Worker: firma PUT a R2 (admin only) y sirve GET de media pública validada
@@ -96,12 +107,13 @@ mcp-supabase-custom/            # Servidor MCP local para inspección de Supabas
 - **Control de acceso granular:** roles `admin`/`core_admin`/`editor`/`support`/`user`; estados `pending/active/inactive/rejected`; fechas de suscripción (`start_date`/`end_date`) con expulsión automática si expira; protección explícita contra eliminar/degradar al último admin.
 - **Catálogo de agentes:** CRUD completo desde `/admin/agents`, visibilidad pública/oculta, `admin_only`, contador de interacciones (`total_interactions`), fallback a datos locales (`src/data/agents.js`) si Supabase falla.
 - **Asistente IA (matchmaker):** chat flotante con historial persistido en `sessionStorage`, manejo de errores amigable, configuración de modelo/prompt/activación desde `/admin/matchmaker-config` y `/admin/config`.
-- **Academia (LMS):** cursos con categorías y flag premium, módulos ordenables, lecciones con video (soporta YouTube/Vimeo/Google Drive embebido o video directo vía R2), materiales adjuntos, progreso de usuario (localStorage), modo edición inline para admins, ajustes globales de marca de la Academia (título/logo vía un "curso" especial `global-academy-settings`).
-- **Panel Admin:** Dashboard con métricas (recharts, contadores animados), gestión de usuarios (aceptar/rechazar/expulsar/resetear contraseña/crear manualmente), gestión de banners globales, historial de actividad (`audit_logs`), gestión de notas de versión (`release_notes`) con publicación manual, logs.
+- **Academia (LMS, refactorizada):** cursos con categorías y flag premium (acceso premium por plan, con trial incluido), módulos y lecciones reordenables por drag & drop persistente, player de YouTube propio (`AcademyPlayer.tsx`) con controles custom, ocultamiento de branding, tracking de segundos vistos, `require_completion` y `minimum_watch_percent` por lección; media alternativa vía R2 (incluye MKV) o Google Drive con auto-conversión; materiales adjuntos con selector de emojis; autoguardado con insignia en tiempo real; progreso persistido en la tabla `academy_progress` (RLS por usuario) además de caché local; eventos de analítica en `academy_analytics_events`; modo edición inline para admins; ajustes globales de marca (curso especial `global-academy-settings`). Academia activada para todos los planes.
+- **Panel Admin:** Dashboard con métricas (recharts, contadores animados), gestión de usuarios (aceptar/rechazar/expulsar/resetear contraseña/crear manualmente, asignación de plan con recálculo de fechas, trial manual de 7 días), gestión de banners globales (subida a R2 con validación visual), historial de actividad (`audit_logs`), gestión de notas de versión con publicación manual, logs, y **módulo financiero** (`/admin/finance`): dashboard de ingresos/transacciones sobre las tablas `payments` y `pricing_plans` con RPC `get_financial_dashboard_stats` y metas históricas (`financial_targets_history`).
 - **Notificaciones:** personales y broadcast, lectura optimista (UI local + persistencia diferida en DB o localStorage para broadcasts), banner global (`GlobalBanner.jsx`).
-- **Pagos:** integración Stripe vía Payment Link + webhook (alta automática de usuario nuevo o reactivación), sin backend propio de checkout (se apoya 100% en el link hosteado por Stripe).
-- **Seguridad reforzada (post-auditoría de 2026-05-21):** RLS habilitado y con políticas en las tablas críticas, rate limiting en la Edge Function de IA, RPCs con verificación server-side de rol, `system_config` expuesto solo vía función `get_public_system_config` (no la tabla cruda).
+- **Pagos (ampliado):** Stripe vía Payment Links (mensual y anual) + webhook que deduce el plan del intervalo de la suscripción, activa/crea el perfil con `plan` y `stripe_subscription_id`, registra cada pago en la tabla `payments`, y al cancelarse la suscripción revoca acceso o revierte a plan `legacy` si `is_legacy_fallback` está activo. Planes parametrizados en la tabla `pricing_plans` (incluye `trial` gratuito de 7 días, de alta manual).
+- **Seguridad reforzada (dos oleadas):** (1) post-auditoría 2026-05-21: RLS en tablas críticas, rate limiting en la Edge Function de IA, RPCs con verificación server-side, `system_config` solo vía `get_public_system_config`; (2) **sprint 1 v31** (migración `20260531`): `audit_logs` inmutable por trigger (`prevent_audit_log_mutation`), auditoría automática de acciones administrativas y cambios de perfil por triggers, y protección del último admin ahora también a nivel de base de datos (`check_last_admin_protection`), no solo en el frontend.
 - **Automatización de release notes:** generación heurística de notas de versión legibles a partir de mensajes de commit (clasifica en feature/fix/security/improvement).
+- **Documentación in-app:** página `/documentacion` (`Documentation.jsx`) + `DOCUMENTACION_COMPLETA.md` en la raíz, un manual técnico de producto generado recientemente (ver sección 6 sobre su coexistencia con `/docs`).
 
 ## 6. Partes que parecen incompletas o inconsistentes
 
@@ -114,8 +126,10 @@ mcp-supabase-custom/            # Servidor MCP local para inspección de Supabas
 - **Mezcla de convenciones Next.js/Vite:** la carpeta `src/app/dashboard/academia/*.tsx` imita la convención de rutas de Next.js App Router, pero el proyecto es una SPA Vite pura enrutada con `react-router-dom`. Es simplemente una convención de nombres de carpeta, no un App Router real; puede confundir a quien no conozca el histórico.
 - **Doble estrategia de despliegue:** hay configuración simultánea para Vercel (`vercel.json`, rewrites SPA) y para contenedor propio (`Dockerfile` + `nginx.conf`, mencionado como Coolify en comentarios de `App.jsx`: `hostname.startsWith('51.79.68.')`). **Pendiente de confirmar** cuál es el entorno de producción activo actualmente (¿ambos? ¿uno legado?).
 - **Restricción de dominio "hardcodeada":** `DomainRestrictedRoute` en `App.jsx` compara `window.location.hostname` con literales (`app.`, `localhost`, una IP fija de Coolify). Es frágil ante cambios de infraestructura y no está centralizado en configuración.
-- **`react-draggable` y otras dependencias:** declarada en `package.json` pero no se localizó su uso durante la exploración. **Pendiente de confirmar** si sigue en uso o es dependencia residual.
-- **Progreso de Academia solo local:** `academy_completed` se guarda en `localStorage`, no en Supabase — el progreso del alumno no es multi-dispositivo ni auditable por el admin.
+- **`react-draggable` y otras dependencias:** declarada en `package.json` pero no se localizó su uso durante la exploración. **Pendiente de confirmar** si sigue en uso o es dependencia residual (la reordenación de la Academia usa el hook propio `useAcademyDragDrop`, no esta librería).
+- **Progreso de Academia — parcialmente resuelto:** ahora existe la tabla `academy_progress` con RLS por usuario (segundos vistos, usada por `AcademyPlayer`), pero el hook `useAcademyProgress.ts` sigue guardando la lista de lecciones completadas (`academy_completed`) en `localStorage`. El progreso es hoy un modelo híbrido DB + local; la parte local sigue sin ser multi-dispositivo.
+- **Doble fuente de documentación técnica:** `DOCUMENTACION_COMPLETA.md` (manual de producto V3.0, con página in-app `/documentacion`) coexiste con `/docs` (este análisis estructurado) sin referenciarse entre sí. Además, su diagrama de arquitectura describe la capa de IA como "OpenRouter / Gemini API Edge", reintroduciendo la ambigüedad Gemini/OpenRouter que este análisis ya había señalado como resuelta a favor de OpenRouter. Conviene decidir cuál es la fuente autoritativa y enlazar una desde la otra.
+- **Precios inconsistentes entre documentos:** `stripe_integration_guide.md` sigue describiendo la suscripción anual de $50 USD; el producto real hoy cobra $14.99/mes o $79.99/año según `pricing_plans` y la landing.
 - **Carpetas ajenas al build presentes en el repo:** `.codex-tmp/` (logs y capturas de otra herramienta de agente), `Nueva carpeta` (nombre por defecto de Windows, contenido no explorado), sugieren limpieza pendiente del árbol de trabajo.
 - **`sec_audit_report.md`** (fechado 2026-05-21) menciona componentes huérfanos (`SignUpModal.jsx`, `RegisterForm.jsx`) y una carpeta `mcp-antigravity-auditor/` vacía — **ya no existen** en el estado actual del repo, por lo que ese hallazgo específico está resuelto, pero el documento en sí no fue actualizado para reflejarlo.
 
