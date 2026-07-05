@@ -1,5 +1,7 @@
 # 📘 Manual de Documentación Técnica - Upfunnel V3.0
 
+> ⚠️ **Nota de vigencia (2026-07-04):** este manual es una referencia general **no autoritativa**. La documentación técnica autoritativa del proyecto vive en [`/docs`](./docs/README.md) (00-07) y, ante cualquier discrepancia, **el código real y `/docs` prevalecen**. La propiedad y cadencia de mantenimiento de este manual están pendientes de decidir (ver `docs/07_Pendientes_y_Riesgos.md`, pregunta 7).
+
 Bienvenido al manual maestro de documentación de **Upfunnel**, un panel interactivo moderno y de alto rendimiento diseñado para centralizar, estructurar y ejecutar tareas de negocio utilizando una flota de 74 agentes especializados en Inteligencia Artificial.
 
 Este documento ofrece una radiografía detallada de la arquitectura, estructura de archivos, base de datos, flujos de autenticación, gestión de suscripciones y directrices operativas del sistema.
@@ -16,7 +18,7 @@ graph TD
     A -->|Estilos Globales| C[Tailwind CSS]
     B -->|Base de Datos| D[PostgreSQL + RLS]
     B -->|Almacenamiento| E[Supabase Storage / Cloudflare R2]
-    A -->|Llamadas de IA| F[OpenRouter / Gemini API Edge]
+    A -->|Llamadas de IA| F[Supabase Edge Function openrouter-chat via OpenRouter - modelos Gemini]
     A -->|Pagos| G[Stripe Payment Links]
 ```
 
