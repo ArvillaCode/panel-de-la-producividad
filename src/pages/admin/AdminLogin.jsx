@@ -38,7 +38,11 @@ const AdminLogin = () => {
       if (urlError) {
         setError(urlError);
         if (urlError.toLowerCase().includes('token') || urlError.toLowerCase().includes('sesion') || urlError.toLowerCase().includes('expirada')) {
-          localStorage.clear();
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-') || key.startsWith('cached_profile_') || key.startsWith('read_notifications_')) {
+              localStorage.removeItem(key);
+            }
+          });
           sessionStorage.clear();
         }
         const newUrl = window.location.pathname;

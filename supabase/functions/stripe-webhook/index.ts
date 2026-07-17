@@ -42,27 +42,27 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // 4. Evitar duplicidad mediante control de idempotencia
-    const { data: existingEvent } = await supabase
+    // 4. Idempotencia atómica (evita race conditions entre requests simultáneos)
+    const { data: insertedEvent, error: idemError } = await supabase
       .from('webhook_events')
-      .select('id')
-      .eq('stripe_event_id', event.id)
-      .maybeSingle()
+      .upsert({
+        stripe_event_id: event.id,
+        type: event.type,
+        processed_at: new Date().toISOString()
+      }, { onConflict: 'stripe_event_id', ignoreDuplicates: true })
+      .select()
 
-    if (existingEvent) {
+    if (idemError) {
+      console.error('[STRIPE] Error en registro de idempotencia:', idemError)
+    }
+
+    if (!insertedEvent || insertedEvent.length === 0) {
       console.log(`[STRIPE] Evento duplicado ignorado: ${event.id}`)
       return new Response(JSON.stringify({ received: true, duplicate: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       })
     }
-
-    // Registrar evento procesado para idempotencia
-    await supabase.from('webhook_events').insert({
-      stripe_event_id: event.id,
-      type: event.type,
-      processed_at: new Date().toISOString()
-    }).catch(e => console.error('[STRIPE] Falló registro de idempotencia:', e))
 
     // ==============================================================================
     // EVENTO: PAGO COMPLETADO (NUEVO CLIENTE O RENOVACIÓN)
@@ -76,11 +76,14 @@ Deno.serve(async (req) => {
         throw new Error('El payload no contiene un email de cliente (customer_details.email)')
       }
 
+      if (!session.customer) {
+        throw new Error('El payload no contiene un customer ID (session.customer)')
+      }
       const stripeCustomerId = session.customer as string
-      console.log(`[STRIPE] Procesando pago exitoso para: ${email}`)
+      console.log(`[STRIPE] Procesando pago exitoso para: ${email}, customer: ${stripeCustomerId}`)
 
       // A. Consultar la suscripción de forma dinámica en Stripe para deducir el plan y vigencia
-      const subscriptionId = session.subscription as string
+      const subscriptionId = session.subscription ? (session.subscription as string) : null
       let plan = 'monthly' // por defecto
       let endDate = new Date()
       endDate.setMonth(endDate.getMonth() + 1) // por defecto +1 mes

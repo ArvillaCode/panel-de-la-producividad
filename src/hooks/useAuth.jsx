@@ -317,7 +317,12 @@ export const AuthProvider = ({ children }) => {
 
             if (isAuthError) {
               console.warn('[AUTH] Detectado token de sesión inválido o expirado. Cerrando sesión...');
-              localStorage.clear();
+              // Limpiar solo keys de Supabase, no todo localStorage (evita perder preferencias)
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-') || key.startsWith('cached_profile_')) {
+                  localStorage.removeItem(key);
+                }
+              });
               sessionStorage.clear();
               await supabase.auth.signOut();
               setUser(null);
@@ -351,7 +356,7 @@ export const AuthProvider = ({ children }) => {
                 console.log('[AUTH] Perfil no encontrado. Creando perfil básico...');
                 supabase.from('profiles').insert(fallbackProfile).then(({ error: createError }) => {
                   if (createError) console.error('[AUTH] Fallback profile creation failed:', createError.message);
-                });
+                }).catch(err => console.error('[AUTH] Excepción en fallback profile creation:', err));
                 setProfile(fallbackProfile);
               } else {
                 setProfile(fallbackProfile);
@@ -377,7 +382,7 @@ export const AuthProvider = ({ children }) => {
                 status: 'active'
               }).eq('id', currentUser.id).then(({ error }) => {
                 if (error) console.error('[AUTH] [LEGACY-REVERSION] Falló actualización de reversión en Supabase:', error.message);
-              });
+              }).catch(err => console.error('[AUTH] [LEGACY-REVERSION] Excepción en reversión:', err));
               
               // Modificar datos locales para evitar bloqueos visuales en sesión actual
               profileData.plan = 'legacy';
@@ -422,20 +427,19 @@ export const AuthProvider = ({ children }) => {
           // Si falló la red pero ya teníamos caché, no pasa nada.
           // Si no teníamos caché, intentamos cargar el caché como fallback o usamos el perfil básico.
           if (!hasCached) {
-            const metadata = currentUser.user_metadata || {};
             const fallbackProfile = {
               id: currentUser.id,
               email: currentUser.email,
-              name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
-              role: 'role' in currentUser ? currentUser.role : 'user',
-              avatar_url: metadata.avatar_url || '',
+              name: currentUser.email?.split('@')[0] || 'Usuario',
+              role: 'user',
+              avatar_url: '',
               status: 'pending',
               is_approved: false,
-              timezone: metadata.timezone || 'UTC',
-              start_date: metadata.start_date || null,
-              end_date: metadata.end_date || null,
-              plan: metadata.plan || 'annual',
-              is_legacy_fallback: metadata.is_legacy_fallback || false,
+              timezone: 'UTC',
+              start_date: null,
+              end_date: null,
+              plan: 'annual',
+              is_legacy_fallback: false,
               created_at: new Date().toISOString()
             };
             setProfile(fallbackProfile);
@@ -849,6 +853,17 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (currentPassword, newPassword) => {
     const validation = validatePassword(newPassword);
     if (!validation.valid) return { success: false, error: validation.error };
+
+    // Verificar la contraseña actual antes de permitir el cambio
+    if (user?.email) {
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+      if (reauthError) {
+        return { success: false, error: 'La contraseña actual no es correcta' };
+      }
+    }
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { success: !error, error: error?.message || 'Error al cambiar contraseña' };

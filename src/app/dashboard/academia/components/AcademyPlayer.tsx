@@ -46,6 +46,24 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
   const lastSavedTimeRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null); // Fullscreen container
 
+  // Refs para evitar stale closures en efectos
+  const saveProgressRef = useRef(saveProgress);
+  const onProgressUpdateRef = useRef(onProgressUpdate);
+  const activeLessonRef = useRef(activeLesson);
+  const activeLessonProgressRef = useRef(activeLessonProgress);
+  const setVideoErrorRef = useRef(setVideoError);
+  const logAnalyticsEventRef = useRef(logAnalyticsEvent);
+  const playerVolumeRef = useRef(playerVolume);
+  const playerMutedRef = useRef(playerMuted);
+  useEffect(() => { saveProgressRef.current = saveProgress; }, [saveProgress]);
+  useEffect(() => { onProgressUpdateRef.current = onProgressUpdate; }, [onProgressUpdate]);
+  useEffect(() => { activeLessonRef.current = activeLesson; }, [activeLesson]);
+  useEffect(() => { activeLessonProgressRef.current = activeLessonProgress; }, [activeLessonProgress]);
+  useEffect(() => { setVideoErrorRef.current = setVideoError; }, [setVideoError]);
+  useEffect(() => { logAnalyticsEventRef.current = logAnalyticsEvent; }, [logAnalyticsEvent]);
+  useEffect(() => { playerVolumeRef.current = playerVolume; }, [playerVolume]);
+  useEffect(() => { playerMutedRef.current = playerMuted; }, [playerMuted]);
+
   // Helper: Format duration seconds to mm:ss
   const formatDuration = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return "0:00";
@@ -162,6 +180,41 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
     checkMilestones(percent, currentSeconds);
   };
 
+  // Respaldo síncrono para beforeunload (sessionStorage es síncrono, navigator.sendBeacon no)
+  const saveProgressToSessionStorage = (currentTime: number, duration: number) => {
+    if (!activeLessonRef.current?.id) return;
+    try {
+      const currentSeconds = Math.floor(currentTime);
+      const previousMax = activeLessonProgressRef.current?.max_watched_seconds || 0;
+      sessionStorage.setItem(`pending_progress_${activeLessonRef.current.id}`, JSON.stringify({
+        last_watched_seconds: currentSeconds,
+        max_watched_seconds: Math.max(previousMax, currentSeconds),
+        duration: Math.floor(duration),
+        completed: false,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.error('Error saving progress to sessionStorage:', e);
+    }
+  };
+
+  // Flush pending progress from sessionStorage on mount
+  useEffect(() => {
+    if (!activeLesson?.id) return;
+    const pending = sessionStorage.getItem(`pending_progress_${activeLesson.id}`);
+    if (pending) {
+      try {
+        const data = JSON.parse(pending);
+        if (data.timestamp && Date.now() - data.timestamp < 30000) {
+          saveProgress(data.last_watched_seconds, data.duration || 0);
+        }
+        sessionStorage.removeItem(`pending_progress_${activeLesson.id}`);
+      } catch (e) {
+        sessionStorage.removeItem(`pending_progress_${activeLesson.id}`);
+      }
+    }
+  }, [activeLesson?.id]);
+
   const checkMilestones = (percent: number, seconds: number) => {
     const milestones = [25, 50, 75, 100];
     milestones.forEach(m => {
@@ -192,16 +245,25 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
       playerRef.current = new window.YT.Player('yt-player-frame', {
         events: {
           onReady: () => {
-            logAnalyticsEvent('video_started');
+            logAnalyticsEventRef.current('video_started');
+
+            // Forzar play explícito (el autoplay vía URL suele ser bloqueado por navegadores)
+            try {
+              playerRef.current.playVideo();
+            } catch (e) {
+              console.warn('YouTube playVideo() en onReady falló:', e);
+            }
             
-            if (activeLessonProgress && activeLessonProgress.last_watched_seconds > 0) {
-              playerRef.current.seekTo(activeLessonProgress.last_watched_seconds, true);
+            if (activeLessonProgressRef.current && activeLessonProgressRef.current.last_watched_seconds > 0) {
+              playerRef.current.seekTo(activeLessonProgressRef.current.last_watched_seconds, true);
             }
 
             // Sync volume setting
-            playerRef.current.setVolume(playerVolume);
-            if (playerMuted) playerRef.current.mute();
+            playerRef.current.setVolume(playerVolumeRef.current);
+            if (playerMutedRef.current) playerRef.current.mute();
 
+            // Limpiar intervalo previo antes de crear uno nuevo
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
             // Intervalo de alta frecuencia (250ms) para barra de progreso suave
             progressTimerRef.current = setInterval(() => {
               if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
@@ -213,7 +275,7 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
                 // UPSERT cada 15 segundos
                 const currentSec = Math.floor(currentTime);
                 if (currentSec !== lastSavedTimeRef.current && currentSec % 15 === 0) {
-                  saveProgress(currentTime, duration);
+                  saveProgressRef.current(currentTime, duration);
                 }
               }
             }, 250);
@@ -223,26 +285,26 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
             if (state === 1) { // PLAYING
               setIsPlayingState(true);
               setShowOverlay(false);
-              logAnalyticsEvent('video_resumed', `At: ${Math.floor(playerRef.current.getCurrentTime())}s`);
+              logAnalyticsEventRef.current('video_resumed', `At: ${Math.floor(playerRef.current.getCurrentTime())}s`);
             } else if (state === 2) { // PAUSED
               setIsPlayingState(false);
               setShowOverlay(true);
               const currentTime = playerRef.current.getCurrentTime();
               const duration = playerRef.current.getDuration();
-              logAnalyticsEvent('video_paused', `At: ${Math.floor(currentTime)}s`);
-              saveProgress(currentTime, duration);
+              logAnalyticsEventRef.current('video_paused', `At: ${Math.floor(currentTime)}s`);
+              saveProgressRef.current(currentTime, duration);
             } else if (state === 0) { // ENDED
               setIsPlayingState(false);
               setShowOverlay(true);
               const duration = playerRef.current.getDuration();
-              saveProgress(duration, duration, true);
+              saveProgressRef.current(duration, duration, true);
             }
           },
           onError: (event: any) => {
             const errorCode = event.data;
             if ([100, 101, 150].includes(errorCode)) {
               setVideoUnavailable(true);
-              logAnalyticsEvent('video_missing', `Error Code: ${errorCode}`);
+              logAnalyticsEventRef.current('video_missing', `Error Code: ${errorCode}`);
             }
           }
         }
@@ -274,7 +336,7 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
         try {
           const currentTime = playerRef.current.getCurrentTime();
           const duration = playerRef.current.getDuration();
-          saveProgress(currentTime, duration);
+          saveProgressRef.current(currentTime, duration);
         } catch (e) {}
         playerRef.current.destroy();
       }
@@ -294,14 +356,14 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
   // 6. Sincronización al descargar la página (Page Unload)
   useEffect(() => {
     const handleUnload = () => {
-      if (activeLesson?.youtube_id && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+      if (activeLessonRef.current?.youtube_id && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
         const currentTime = playerRef.current.getCurrentTime();
         const duration = playerRef.current.getDuration();
-        saveProgress(currentTime, duration);
-      } else if (!activeLesson?.youtube_id && videoRef.current) {
+        saveProgressToSessionStorage(currentTime, duration);
+      } else if (!activeLessonRef.current?.youtube_id && videoRef.current) {
         const currentTime = videoRef.current.currentTime;
         const duration = videoRef.current.duration;
-        saveProgress(currentTime, duration);
+        saveProgressToSessionStorage(currentTime, duration);
       }
     };
     
@@ -309,13 +371,15 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
     };
-  }, [activeLesson?.id]);
+  }, []); // Vacío porque usamos refs para evitar stale closures
 
   // R2 Video Event Handlers
   const handleR2Play = () => {
     setIsPlayingState(true);
     logAnalyticsEvent('video_started');
     
+    // Limpiar intervalo previo para evitar duplicados
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     progressTimerRef.current = setInterval(() => {
       if (videoRef.current) {
         const current = videoRef.current.currentTime;
@@ -557,7 +621,7 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
                   className="w-full h-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   referrerPolicy="strict-origin-when-cross-origin"
-                  sandbox="allow-scripts allow-same-origin allow-presentation"
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-autoplay"
                   allowFullScreen
                 />
               </div>
