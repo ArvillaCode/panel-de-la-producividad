@@ -47,12 +47,13 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null); // Fullscreen container
 
   // Refs para evitar stale closures en efectos
-  const saveProgressRef = useRef(saveProgress);
+  // NOTA: usar null en lugar de funciones aun no definidas (evita Temporal Dead Zone)
+  const saveProgressRef = useRef<any>(null);
   const onProgressUpdateRef = useRef(onProgressUpdate);
   const activeLessonRef = useRef(activeLesson);
   const activeLessonProgressRef = useRef(activeLessonProgress);
   const setVideoErrorRef = useRef(setVideoError);
-  const logAnalyticsEventRef = useRef(logAnalyticsEvent);
+  const logAnalyticsEventRef = useRef<any>(null);
   const playerVolumeRef = useRef(playerVolume);
   const playerMutedRef = useRef(playerMuted);
   useEffect(() => { saveProgressRef.current = saveProgress; }, [saveProgress]);
