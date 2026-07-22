@@ -167,17 +167,12 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
         <div className="flex items-center justify-between h-20 px-6 border-b border-white/10">
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-4'}`}>
             <img 
-              src={BRANDING.logo} 
+              src={isCollapsed ? BRANDING.favicon : BRANDING.logo}
               alt={BRANDING.name} 
-              width="480"
-              height="129"
+              width={isCollapsed ? 48 : 480}
+              height={isCollapsed ? 48 : 129}
               className={`h-10 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'mx-auto' : ''} dark:invert brightness-110`}
             />
-            {!isCollapsed && (
-              <span className="text-xl font-black text-white tracking-tighter italic neon-glow">
-                {BRANDING.name.toUpperCase()}
-              </span>
-            )}
           </div>
           <button
             onClick={() => setSidebarOpen(false)}

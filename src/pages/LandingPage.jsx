@@ -448,9 +448,6 @@ const LandingHeader = ({ activeSection, onNavigate, mobileOpen, setMobileOpen })
             className="h-10 md:h-11 w-auto object-contain brightness-0 invert"
             fetchpriority="high"
           />
-          <span className="ml-3 text-xl md:text-2xl font-black tracking-tighter italic text-white truncate">
-            {BRANDING.name}
-          </span>
         </a>
 
         <div className="hidden lg:flex items-center gap-2">
@@ -1252,9 +1249,6 @@ const LandingPage = () => {
               loading="lazy"
               className="h-10 w-auto object-contain brightness-0 invert"
             />
-            <span className="ml-3 text-xl font-black tracking-tighter italic text-white">
-              {BRANDING.name}
-            </span>
           </a>
 
           <nav aria-label="Legal y navegación">
