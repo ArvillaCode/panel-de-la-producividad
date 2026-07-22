@@ -7,6 +7,7 @@ const ParticlesBackground = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     let animationFrameId;
+    let lastFrame = 0;
 
     // Set canvas dimensions
     const setDimensions = () => {
@@ -55,7 +56,11 @@ const ParticlesBackground = () => {
       }
     };
     
-    const animate = () => {
+    const animate = (timestamp) => {
+      if (document.hidden) return;
+      animationFrameId = requestAnimationFrame(animate);
+      if (timestamp - lastFrame < 1000 / 30) return;
+      lastFrame = timestamp;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       for (let i = 0; i < particlesArray.length; i++) {
@@ -79,14 +84,23 @@ const ParticlesBackground = () => {
         }
       }
       
-      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    const handleVisibility = () => {
+      cancelAnimationFrame(animationFrameId);
+      if (!document.hidden) {
+        lastFrame = 0;
+        animationFrameId = requestAnimationFrame(animate);
+      }
     };
     
     init();
-    animate();
+    animationFrameId = requestAnimationFrame(animate);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       window.removeEventListener('resize', setDimensions);
+      document.removeEventListener('visibilitychange', handleVisibility);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

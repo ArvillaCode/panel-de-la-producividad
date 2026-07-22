@@ -8,6 +8,15 @@ const AuthContext = createContext();
 const OWN_PROFILE_FIELDS = ['name', 'avatar_url', 'timezone'];
 const pickAllowedFields = (data, allowedFields) =>
   Object.fromEntries(Object.entries(data || {}).filter(([key]) => allowedFields.includes(key)));
+const withTimeout = (request, message, timeout = 8000) => {
+  let timer;
+  return Promise.race([
+    Promise.resolve(request),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeout);
+    })
+  ]).finally(() => clearTimeout(timer));
+};
 
 // Función centralizada para el cálculo de fechas de suscripción de todos los planes
 export const calculatePlanDates = (plan, startDate = new Date()) => {
@@ -41,6 +50,7 @@ export const AuthProvider = ({ children }) => {
   const [users, setUsers] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [systemConfig, setSystemConfig] = useState(null);
+  const [profileLoadError, setProfileLoadError] = useState(null);
   const sessionSyncSequenceRef = useRef(0);
   const activeSessionUserIdRef = useRef(null);
 
@@ -206,6 +216,7 @@ export const AuthProvider = ({ children }) => {
         setProfile(null);
         setUsers([]);
         setNotifications([]);
+        setProfileLoadError(null);
         setLoading(false);
         return;
       }
@@ -218,6 +229,7 @@ export const AuthProvider = ({ children }) => {
         setUsers([]);
         setNotifications([]);
         setSystemConfig(null);
+        setProfileLoadError(null);
       }
       setUser(currentUser);
 
@@ -230,11 +242,7 @@ export const AuthProvider = ({ children }) => {
             .eq('id', currentUser.id)
             .single();
 
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
-          );
-
-          const result = await Promise.race([fetchPromise, timeoutPromise]);
+          const result = await withTimeout(fetchPromise, 'Profile fetch timeout');
           if (isStaleSync()) return;
           let profileData = result.data;
           let profileError = result.error;
@@ -242,11 +250,14 @@ export const AuthProvider = ({ children }) => {
           // Fallback seguro si faltan las columnas de plan en base de datos
           if (profileError && (profileError.code === '42703' || profileError.message?.includes('plan') || profileError.message?.includes('is_legacy_fallback'))) {
             console.warn('[AUTH] Perfil falló por columnas inexistentes. Reintentando consulta de compatibilidad...');
-            const compatResult = await supabase
-              .from('profiles')
-              .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
-              .eq('id', currentUser.id)
-              .single();
+            const compatResult = await withTimeout(
+              supabase
+                .from('profiles')
+                .select('id, email, name, role, avatar_url, status, is_approved, start_date, end_date, created_at, timezone')
+                .eq('id', currentUser.id)
+                .single(),
+              'Profile compatibility fetch timeout'
+            );
 
             if (isStaleSync()) return;
 
@@ -275,6 +286,7 @@ export const AuthProvider = ({ children }) => {
               });
               setProfile(null);
               setUser(null);
+              setProfileLoadError(null);
               activeSessionUserIdRef.current = null;
               setLoading(false);
               await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
@@ -311,22 +323,9 @@ export const AuthProvider = ({ children }) => {
               return;
             }
 
-            const metadata = currentUser.user_metadata || {};
-            setProfile({
-              id: currentUser.id,
-              email: currentUser.email,
-              name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
-              role: 'user',
-              avatar_url: metadata.avatar_url || '',
-              status: 'pending',
-              is_approved: false,
-              timezone: metadata.timezone || 'UTC',
-              start_date: metadata.start_date || null,
-              end_date: metadata.end_date || null,
-              plan: metadata.plan || 'annual',
-              is_legacy_fallback: metadata.is_legacy_fallback || false,
-              created_at: new Date().toISOString()
-            });
+            console.error('[AUTH] No se pudo validar el perfil:', profileError);
+            setProfile(null);
+            setProfileLoadError('No pudimos validar tu acceso con el servidor. Reintenta en unos segundos.');
             return;
           }
 
@@ -340,7 +339,10 @@ export const AuthProvider = ({ children }) => {
             try {
               console.log(`[AUTH] [LEGACY-REVERSION] Expiró plan de ${currentUser.email}. Revirtiendo a plan legacy de forma automática.`);
               
-              const { error: legacyError } = await supabase.rpc('apply_legacy_fallback');
+              const { error: legacyError } = await withTimeout(
+                supabase.rpc('apply_legacy_fallback'),
+                'Legacy fallback timeout'
+              );
               if (legacyError) throw legacyError;
               
               // Modificar datos locales para evitar bloqueos visuales en sesión actual
@@ -371,7 +373,7 @@ export const AuthProvider = ({ children }) => {
 
           // Guardar en caché y actualizar estado si ha cambiado
           localStorage.setItem(`cached_profile_${currentUser.id}`, JSON.stringify(profileData));
-          
+          setProfileLoadError(null);
           setProfile(profileData);
 
           if (userIsAdmin) {
@@ -381,21 +383,8 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
           if (isStaleSync()) return;
           console.warn('[AUTH] Error en revalidación de perfil en segundo plano:', err.message);
-          setProfile({
-            id: currentUser.id,
-            email: currentUser.email,
-            name: currentUser.email?.split('@')[0] || 'Usuario',
-            role: 'user',
-            avatar_url: '',
-            status: 'pending',
-            is_approved: false,
-            timezone: 'UTC',
-            start_date: null,
-            end_date: null,
-            plan: 'annual',
-            is_legacy_fallback: false,
-            created_at: new Date().toISOString()
-          });
+          setProfile(null);
+          setProfileLoadError('La validacion de tu sesion tardo demasiado o fallo. Comprueba tu conexion y reintenta.');
         } finally {
           if (!isStaleSync()) setLoading(false);
         }
@@ -416,18 +405,6 @@ export const AuthProvider = ({ children }) => {
     syncUserSessionRef.current = syncUserSession;
   }, [syncUserSession]);
 
-  // Failsafe para el estado de carga infinito
-  useEffect(() => {
-    let timer;
-    if (loading) {
-      timer = setTimeout(() => {
-        console.warn('[AUTH] Safety timeout: forzando loading=false para evitar spinner infinito');
-        setLoading(false);
-      }, 8000); // 8 segundos de margen
-    }
-    return () => clearTimeout(timer);
-  }, [loading]);
-
   // 1. Cargar configuración inicial (SOLO UNA VEZ)
   useEffect(() => {
     if (!user) return;
@@ -439,7 +416,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await withTimeout(
+          supabase.auth.getSession(),
+          'Initial session fetch timeout'
+        );
         
         if (error) {
           console.warn('[AUTH] Error en sesión inicial:', error.message);
@@ -471,45 +451,42 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.error('[AUTH] Critical initial session fetch error:', err);
+        setProfileLoadError('No pudimos validar tu sesion con el servidor. Reintenta en unos segundos.');
         setLoading(false);
       }
     };
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // FAIL-SAFE CORTACIRCUITOS: Timeout de liberación forzada de 8 segundos para INITIAL_SESSION/SIGNED_IN
-      const escapeTimeout = setTimeout(() => {
-        console.warn(`[AUTH] FAIL-SAFE ACTIVADO: Forzando liberación de interfaz tras 8 segundos en evento: ${event}`);
-        setLoading(false);
-      }, 8000);
+    let authSyncTimer;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[AUTH] Evento auth: ${event}`);
+      clearTimeout(authSyncTimer);
 
-      try {
-        console.log(`[AUTH] Evento auth: ${event}`);
-        
-        // Manejo ultra-defensivo de estados de sesión nula o salida
-        if (event === 'SIGNED_OUT' || !session) {
-          activeSessionUserIdRef.current = null;
-          setUser(null);
-          setProfile(null);
-          setUsers([]);
-          setNotifications([]);
-          setLoading(false);
-          clearTimeout(escapeTimeout);
-          return;
-        }
-
-        // Sincronizar datos si hay sesión usando la referencia mutable estable
-        await syncUserSessionRef.current(session);
-        clearTimeout(escapeTimeout);
-      } catch (err) {
-        console.error('[AUTH] Excepción crítica capturada en onAuthStateChange:', err);
+      if (event === 'SIGNED_OUT' || !session) {
+        sessionSyncSequenceRef.current += 1;
+        activeSessionUserIdRef.current = null;
+        setUser(null);
+        setProfile(null);
+        setUsers([]);
+        setNotifications([]);
+        setProfileLoadError(null);
         setLoading(false);
-        clearTimeout(escapeTimeout);
+        return;
       }
+
+      // Evita ejecutar consultas de Supabase dentro del callback de auth.
+      authSyncTimer = setTimeout(() => {
+        syncUserSessionRef.current(session).catch((err) => {
+          console.error('[AUTH] Excepción crítica capturada en onAuthStateChange:', err);
+          setProfileLoadError('No pudimos validar tu acceso con el servidor. Reintenta en unos segundos.');
+          setLoading(false);
+        });
+      }, 0);
     });
 
     return () => {
+      clearTimeout(authSyncTimer);
       if (subscription) subscription.unsubscribe();
     };
   }, []); // Array de dependencias vacío para registrar el listener EXACTAMENTE UNA VEZ
@@ -524,8 +501,14 @@ export const AuthProvider = ({ children }) => {
       if (checking) return;
       checking = true;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          'Session revalidation timeout'
+        );
         await syncUserSessionRef.current(session);
+      } catch (err) {
+        console.warn('[AUTH] No se pudo revalidar la sesion:', err.message);
+        setProfileLoadError('No pudimos revalidar tu acceso con el servidor. Reintenta en unos segundos.');
       } finally {
         checking = false;
       }
@@ -591,6 +574,7 @@ export const AuthProvider = ({ children }) => {
     activeSessionUserIdRef.current = null;
     setUser(null);
     setProfile(null);
+    setProfileLoadError(null);
     window.location.href = '/login';
   };
 
@@ -953,6 +937,7 @@ export const AuthProvider = ({ children }) => {
     hasPremiumAccess,
     notifications,
     systemConfig,
+    profileLoadError,
     login,
     loginWithOtp,
     verifyOtpCode,

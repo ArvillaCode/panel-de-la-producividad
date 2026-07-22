@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import SettingsModal from './user/SettingsModal.jsx';
 import SuggestionModal from './user/SuggestionModal.jsx';
 import AgentGuide from './user/AgentGuide';
+import { BRANDING } from '../constants/branding';
 
 const AgentPanel = () => {
   const [agents, setAgents] = useState([]);
@@ -350,9 +351,11 @@ const AgentPanel = () => {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
-              <img 
-                src="https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/Sin%20fondo%20letras%20negras.png" 
-                alt="Logo" 
+              <img
+                src={BRANDING.logo}
+                alt={BRANDING.name}
+                width="480"
+                height="129"
                 className="h-10 w-auto object-contain dark:invert brightness-110"
               />
             </div>

@@ -16,8 +16,8 @@ const PendingApproval = () => {
         <img
           src={BRANDING.logo}
           alt={BRANDING.name}
-          width={180}
-          height={48}
+          width={480}
+          height={129}
           className="mx-auto mb-8 h-12 w-auto object-contain brightness-0 invert"
         />
 

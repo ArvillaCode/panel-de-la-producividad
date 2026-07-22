@@ -29,6 +29,15 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showVisuals, setShowVisuals] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px) and (prefers-reduced-motion: no-preference)');
+    const updateVisuals = () => setShowVisuals(media.matches);
+    updateVisuals();
+    media.addEventListener('change', updateVisuals);
+    return () => media.removeEventListener('change', updateVisuals);
+  }, []);
 
   useEffect(() => {
     try {
@@ -137,6 +146,8 @@ const AdminLogin = () => {
                 <img 
                   src={BRANDING.logo} 
                   alt={BRANDING.name} 
+                  width="480"
+                  height="129"
                   className="h-12 w-auto object-contain dark:brightness-0 dark:invert"
                 />
               </div>
@@ -286,7 +297,7 @@ const AdminLogin = () => {
         <div className="hidden lg:flex w-7/12 relative bg-[#02040a] flex-col justify-between p-12 overflow-hidden items-center">
           
           {/* Partículas de Fondo */}
-          <ParticlesBackground />
+          {showVisuals && <ParticlesBackground />}
 
           {/* Gradientes Decorativos */}
           <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
@@ -294,7 +305,7 @@ const AdminLogin = () => {
 
           {/* Contenido Visual Interactivo */}
           <div className="relative z-10 w-full max-w-lg mt-auto mb-auto">
-            <TechVisualizer />
+            {showVisuals && <TechVisualizer />}
           </div>
 
           <div className="relative z-10 w-full text-center">

@@ -1,7 +1,7 @@
 export const BRANDING = {
-  logo: 'https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/Sin%20fondo%20letras%20negras.png',
-  logoWhite: 'https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/Sin%20fondo%20letras%20negras.png', // Placeholder por ahora
-  favicon: 'https://krtthtzljlyewlngaklo.supabase.co/storage/v1/object/public/images/Sin%20fondo%20letras%20negras.png',
+  logo: '/assets/upfunnel-logo.webp',
+  logoWhite: '/assets/upfunnel-logo.webp',
+  favicon: '/assets/favicon-48.png',
   name: 'Upfunnel',
   slogan: 'Delega tu esfuerzo, potencia tus resultados'
 };

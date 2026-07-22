@@ -23,7 +23,7 @@ export interface Module {
 export async function fetchCourses(isAdmin: boolean): Promise<Course[]> {
   let query = supabase
     .from('academy_courses')
-    .select('*')
+    .select('id, title, description, thumbnail_url, category, is_premium, is_published, slug, created_at')
     .order('created_at', { ascending: false });
 
   if (!isAdmin) {
@@ -35,7 +35,7 @@ export async function fetchCourses(isAdmin: boolean): Promise<Course[]> {
   return data || [];
 }
 
-export async function fetchModulesAndLessons(courseId: string, isAdmin: boolean): Promise<any[]> {
+export async function fetchModulesAndLessons(courseId: string, _isAdmin: boolean): Promise<any[]> {
   // 1. Obtener módulos
   const { data: modulesData, error: modulesError } = await supabase
     .from('academy_modules')
@@ -46,33 +46,22 @@ export async function fetchModulesAndLessons(courseId: string, isAdmin: boolean)
 
   if (modulesError) throw modulesError;
 
-  const moduleIds = (modulesData || []).map((mod: any) => mod.id);
-  const lessonsById = new Map<string, any>();
+  const moduleIds = (modulesData || []).map((module: any) => module.id);
 
-  // 2. Obtener lecciones asociadas a módulos
-  if (moduleIds.length > 0) {
-    const { data: lessonsByModule, error: lessonsByModuleError } = await supabase
-      .from('academy_lessons')
-      .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id, youtube_id, youtube_title, youtube_duration_seconds, youtube_thumbnail_url, require_completion, minimum_watch_percent')
-      .in('module_id', moduleIds)
-      .order('order_index', { ascending: true });
-
-    if (lessonsByModuleError) throw lessonsByModuleError;
-    (lessonsByModule || []).forEach((lesson: any) => lessonsById.set(String(lesson.id), lesson));
-  }
-
-  // 3. Obtener lecciones asociadas directamente al curso (lecciones huérfanas)
-  const { data: lessonsByCourse, error: lessonsByCourseError } = await supabase
+  // Una sola consulta cubre lecciones con modulo y lecciones huerfanas.
+  let lessonsQuery = supabase
     .from('academy_lessons')
     .select('id, title, description, video_path, order_index, materiales, is_visible, thumbnail_url, module_id, course_id, youtube_id, youtube_title, youtube_duration_seconds, youtube_thumbnail_url, require_completion, minimum_watch_percent')
-    .eq('course_id', courseId)
     .order('order_index', { ascending: true });
 
-  if (lessonsByCourseError) throw lessonsByCourseError;
-  (lessonsByCourse || []).forEach((lesson: any) => lessonsById.set(String(lesson.id), lesson));
+  lessonsQuery = moduleIds.length > 0
+    ? lessonsQuery.or(`course_id.eq.${courseId},module_id.in.(${moduleIds.join(',')})`)
+    : lessonsQuery.eq('course_id', courseId);
 
-  const allLessons = Array.from(lessonsById.values());
-  return [modulesData || [], allLessons];
+  const { data: lessonsData, error: lessonsError } = await lessonsQuery;
+
+  if (lessonsError) throw lessonsError;
+  return [modulesData || [], lessonsData || []];
 }
 
 export async function saveGlobalAcademySettings(

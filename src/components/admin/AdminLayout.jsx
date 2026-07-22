@@ -169,6 +169,8 @@ const AdminLayout = ({ children, currentPage = 'dashboard' }) => {
             <img 
               src={BRANDING.logo} 
               alt={BRANDING.name} 
+              width="480"
+              height="129"
               className={`h-10 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'mx-auto' : ''} dark:invert brightness-110`}
             />
             {!isCollapsed && (

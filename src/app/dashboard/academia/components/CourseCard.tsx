@@ -31,17 +31,32 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onSelect
 }) => {
   const src = academyMediaUrl(course.thumbnail_url);
-  const fallback = 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=800';
+  const fallback = '/assets/academy-placeholder.svg';
+  const hasAdminActions = isAdmin && isEditMode;
 
   return (
     <div
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (hasAdminActions) return;
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      role={hasAdminActions ? undefined : 'button'}
+      tabIndex={hasAdminActions ? undefined : 0}
       className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer hover:-translate-y-2 active:scale-[0.98] active:shadow-md"
     >
       <div className="aspect-[16/9] relative overflow-hidden">
         <img
           src={src || fallback}
           alt={course.title}
+          width="800"
+          height="450"
+          loading="lazy"
+          decoding="async"
           onError={(e) => {
             if ((e.target as HTMLImageElement).src !== fallback) {
               (e.target as HTMLImageElement).src = fallback;
@@ -85,9 +100,22 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-2">{course.description}</p>
         <div className="mt-6 flex items-center justify-between">
           <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">Mastery Level</span>
-          <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-sm">
-            Entrar <Plus className="w-4 h-4" />
-          </div>
+          {hasAdminActions ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect();
+              }}
+              className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-sm"
+            >
+              Entrar <Plus className="w-4 h-4" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-sm">
+              Entrar <Plus className="w-4 h-4" />
+            </div>
+          )}
         </div>
       </div>
     </div>

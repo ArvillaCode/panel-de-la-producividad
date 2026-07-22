@@ -1,25 +1,25 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import ComingSoon from './pages/ComingSoon';
-import AgentPanel from './components/AgentPanel';
 import AdminLogin from './pages/admin/AdminLogin';
-import ReleaseHistory from './pages/ReleaseHistory';
 import { useAuth } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { ToastProvider } from './context/ToastContext';
-import ReleaseAutoNotification from './components/user/ReleaseAutoNotification';
-import Policies from './pages/Policies';
-import Privacy from './pages/Privacy';
-import Support from './pages/Support';
-import GlobalBanner from './components/user/GlobalBanner';
-import AcademiaPage from './app/dashboard/academia/page';
-import LessonCreator from './app/dashboard/academia/admin/page';
-import PendingApproval from './pages/PendingApproval';
-import Documentation from './pages/Documentation';
 import './App.css';
 
-// Lazy load heavy admin views to decouple Recharts, D3, and Lucide packages from the initial bundle
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const ComingSoon = lazy(() => import('./pages/ComingSoon'));
+const AgentPanel = lazy(() => import('./components/AgentPanel'));
+const ReleaseHistory = lazy(() => import('./pages/ReleaseHistory'));
+const Policies = lazy(() => import('./pages/Policies'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Support = lazy(() => import('./pages/Support'));
+const PendingApproval = lazy(() => import('./pages/PendingApproval'));
+const Documentation = lazy(() => import('./pages/Documentation'));
+const AcademiaPage = lazy(() => import('./app/dashboard/academia/page'));
+const LessonCreator = lazy(() => import('./app/dashboard/academia/admin/page'));
+const ReleaseAutoNotification = lazy(() => import('./components/user/ReleaseAutoNotification'));
+const GlobalBanner = lazy(() => import('./components/user/GlobalBanner'));
+
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminAgents = lazy(() => import('./pages/admin/AdminAgents'));
@@ -29,6 +29,22 @@ const AdminReleases = lazy(() => import('./pages/admin/AdminReleases'));
 const AdminLogs = lazy(() => import('./pages/admin/AdminLogs'));
 const AdminFinance = lazy(() => import('./pages/admin/AdminFinance'));
 const AdminBanners = lazy(() => import('./pages/admin/AdminBanners'));
+
+const ProfileValidationError = ({ message }) => (
+  <main className="min-h-screen bg-[#020203] text-white flex items-center justify-center p-6">
+    <section className="max-w-lg text-center space-y-5">
+      <h1 className="text-2xl font-black uppercase">No pudimos validar tu acceso</h1>
+      <p className="text-gray-400">{message}</p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="px-6 py-3 rounded-xl bg-neon-teal text-deep-dark font-black uppercase text-xs tracking-widest"
+      >
+        Reintentar
+      </button>
+    </section>
+  </main>
+);
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -78,7 +94,7 @@ const DomainRestrictedRoute = ({ children, appOnly = false }) => {
 
 // 2. Componente de Rutas Protegidas (Optimizado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { isAuthenticated, isAdmin, profile, loading } = useAuth();
+  const { isAuthenticated, isAdmin, profile, loading, profileLoadError } = useAuth();
 
   if (loading) {
     return (
@@ -90,6 +106,8 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
+  if (profileLoadError) return <ProfileValidationError message={profileLoadError} />;
+
   if (!profile) return <Navigate to="/login?error=PerfilNoDisponible" replace />;
 
   if (profile.is_approved !== true || profile.status !== 'active') {
@@ -100,9 +118,25 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   return children;
 };
 
+const PendingApprovalRoute = () => {
+  const { isAuthenticated, isAdmin, profile, loading, profileLoadError } = useAuth();
+
+  if (loading) {
+    return <div className="min-h-screen bg-[#020203] flex items-center justify-center"><div className="premium-spinner"></div></div>;
+  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (profileLoadError) return <ProfileValidationError message={profileLoadError} />;
+  if (!profile) return <Navigate to="/login?error=PerfilNoDisponible" replace />;
+  if (profile.is_approved === true && profile.status === 'active') {
+    return <Navigate to={isAdmin ? '/admin/dashboard' : '/'} replace />;
+  }
+
+  return <PendingApproval />;
+};
+
 // 3. Componente Home (Selector Landing/App)
 const Home = () => {
-  const { isAuthenticated, profile, isAdmin, loading } = useAuth();
+  const { isAuthenticated, profile, isAdmin, loading, profileLoadError } = useAuth();
   const isAppDomain = window.location.hostname.includes('app.') || 
                       window.location.hostname === 'localhost' ||
                       window.location.hostname === '127.0.0.1' ||
@@ -111,6 +145,8 @@ const Home = () => {
 
   if (loading) return <div className="min-h-screen bg-[#020203] flex items-center justify-center"><div className="premium-spinner"></div></div>;
   if (!isAppDomain) return <LandingPage />;
+
+  if (profileLoadError) return <ProfileValidationError message={profileLoadError} />;
 
   if (isAuthenticated) {
     if (!profile) return <AdminLogin />;
@@ -134,12 +170,12 @@ function App() {
         <Router>
           <div className="App min-h-screen w-full pointer-events-auto">
             <AppErrorBoundary>
-              {/* Todas las capas globales solo se activan si hay sesión */}
+              {/* Las capas globales no deben bloquear el render de la ruta. */}
               {isAuthenticated && (
-                <>
+                <Suspense fallback={null}>
                   <ReleaseAutoNotification />
                   <GlobalBanner />
-                </>
+                </Suspense>
               )}
 
               <Suspense fallback={
@@ -168,7 +204,7 @@ function App() {
                 <Route path="/politicas" element={<Policies />} />
                 <Route path="/privacidad" element={<Privacy />} />
                 <Route path="/soporte" element={<Support />} />
-                <Route path="/dashboard/espera-aprobacion" element={<PendingApproval />} />
+                <Route path="/dashboard/espera-aprobacion" element={<PendingApprovalRoute />} />
                 <Route path="/documentacion" element={<Documentation />} />
 
                 {/* Academia */}

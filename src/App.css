@@ -2,6 +2,14 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('/assets/inter-latin.woff2') format('woff2');
+}
+
 /* Premium Dark Glass Theme & Neon Accents */
 @layer base {
   body {

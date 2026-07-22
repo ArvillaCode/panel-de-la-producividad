@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 const TechVisualizer = () => {
   const canvasRef = useRef(null);
@@ -8,6 +8,7 @@ const TechVisualizer = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let animationFrameId;
+    let lastFrame = 0;
 
     const setCanvasSize = () => {
       const parent = canvas.parentElement;
@@ -26,7 +27,11 @@ const TechVisualizer = () => {
       color: Math.random() > 0.5 ? 'rgba(45, 212, 191, ' : 'rgba(147, 51, 234, ' // Neon teal or Purple
     }));
 
-    const render = () => {
+    const render = (timestamp) => {
+      if (document.hidden) return;
+      animationFrameId = requestAnimationFrame(render);
+      if (timestamp - lastFrame < 1000 / 30) return;
+      lastFrame = timestamp;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Nebulosa background (radial gradients moving slowly)
@@ -73,13 +78,22 @@ const TechVisualizer = () => {
         }
       });
 
-      animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    const handleVisibility = () => {
+      cancelAnimationFrame(animationFrameId);
+      if (!document.hidden) {
+        lastFrame = 0;
+        animationFrameId = requestAnimationFrame(render);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(render);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       window.removeEventListener('resize', setCanvasSize);
+      document.removeEventListener('visibilitychange', handleVisibility);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

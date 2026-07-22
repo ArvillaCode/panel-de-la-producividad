@@ -442,8 +442,8 @@ const LandingHeader = ({ activeSection, onNavigate, mobileOpen, setMobileOpen })
           <img
             src={BRANDING.logo}
             alt=""
-            width={48}
-            height={48}
+            width={480}
+            height={129}
             aria-hidden="true"
             className="h-10 md:h-11 w-auto object-contain brightness-0 invert"
             fetchpriority="high"
@@ -1247,8 +1247,8 @@ const LandingPage = () => {
             <img
               src={BRANDING.logo}
               alt=""
-              width={48}
-              height={48}
+              width={480}
+              height={129}
               loading="lazy"
               className="h-10 w-auto object-contain brightness-0 invert"
             />

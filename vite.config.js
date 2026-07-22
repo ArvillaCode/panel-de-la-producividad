@@ -15,5 +15,19 @@ export default defineConfig({
   },
   preview: {
     allowedHosts
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('@supabase')) return 'supabase'
+          if (id.includes('react-dom') || id.includes('react-router') || /node_modules[\\/]react[\\/]/.test(id)) {
+            return 'react-vendor'
+          }
+          return undefined
+        }
+      }
+    }
   }
 })
