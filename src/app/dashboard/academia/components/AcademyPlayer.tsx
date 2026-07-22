@@ -14,8 +14,46 @@ interface AcademyPlayerProps {
   nextLesson?: Lesson | null;
 }
 
-let ytScriptLoading = false;
-let ytScriptLoaded = false;
+let youtubeApiPromise: Promise<void> | null = null;
+
+const loadYouTubeApi = () => {
+  if (window.YT?.Player) return Promise.resolve();
+  if (youtubeApiPromise) return youtubeApiPromise;
+
+  youtubeApiPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    const previousReady = window.onYouTubeIframeAPIReady;
+    const script = existingScript || document.createElement('script');
+    const timeout = window.setTimeout(() => {
+      script.remove();
+      youtubeApiPromise = null;
+      reject(new Error('La API de YouTube no respondio a tiempo.'));
+    }, 10000);
+
+    window.onYouTubeIframeAPIReady = () => {
+      window.clearTimeout(timeout);
+      try {
+        if (typeof previousReady === 'function') previousReady();
+      } finally {
+        resolve();
+      }
+    };
+
+    script.addEventListener('error', () => {
+      window.clearTimeout(timeout);
+      script.remove();
+      youtubeApiPromise = null;
+      reject(new Error('No se pudo cargar la API de YouTube.'));
+    }, { once: true });
+
+    if (!existingScript) {
+      script.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(script);
+    }
+  });
+
+  return youtubeApiPromise;
+};
 
 export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
   activeLesson,
@@ -56,12 +94,10 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
   const logAnalyticsEventRef = useRef<any>(null);
   const playerVolumeRef = useRef(playerVolume);
   const playerMutedRef = useRef(playerMuted);
-  useEffect(() => { saveProgressRef.current = saveProgress; }, [saveProgress]);
   useEffect(() => { onProgressUpdateRef.current = onProgressUpdate; }, [onProgressUpdate]);
   useEffect(() => { activeLessonRef.current = activeLesson; }, [activeLesson]);
   useEffect(() => { activeLessonProgressRef.current = activeLessonProgress; }, [activeLessonProgress]);
   useEffect(() => { setVideoErrorRef.current = setVideoError; }, [setVideoError]);
-  useEffect(() => { logAnalyticsEventRef.current = logAnalyticsEvent; }, [logAnalyticsEvent]);
   useEffect(() => { playerVolumeRef.current = playerVolume; }, [playerVolume]);
   useEffect(() => { playerMutedRef.current = playerMuted; }, [playerMuted]);
 
@@ -181,6 +217,9 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
     checkMilestones(percent, currentSeconds);
   };
 
+  useEffect(() => { saveProgressRef.current = saveProgress; }, [saveProgress]);
+  useEffect(() => { logAnalyticsEventRef.current = logAnalyticsEvent; }, [logAnalyticsEvent]);
+
   // Respaldo síncrono para beforeunload (sessionStorage es síncrono, navigator.sendBeacon no)
   const saveProgressToSessionStorage = (currentTime: number, duration: number) => {
     if (!activeLessonRef.current?.id) return;
@@ -237,16 +276,18 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
   useEffect(() => {
     if (!activeLesson?.youtube_id || !isPlaying) return;
 
+    let cancelled = false;
+
     const initPlayer = () => {
+      if (cancelled) return;
       if (!window.YT || !window.YT.Player) {
-        setTimeout(initPlayer, 100);
         return;
       }
 
       playerRef.current = new window.YT.Player('yt-player-frame', {
         events: {
           onReady: () => {
-            logAnalyticsEventRef.current('video_started');
+            logAnalyticsEventRef.current?.('video_started');
 
             // Forzar play explícito (el autoplay vía URL suele ser bloqueado por navegadores)
             try {
@@ -276,7 +317,7 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
                 // UPSERT cada 15 segundos
                 const currentSec = Math.floor(currentTime);
                 if (currentSec !== lastSavedTimeRef.current && currentSec % 15 === 0) {
-                  saveProgressRef.current(currentTime, duration);
+                  saveProgressRef.current?.(currentTime, duration);
                 }
               }
             }, 250);
@@ -286,50 +327,43 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
             if (state === 1) { // PLAYING
               setIsPlayingState(true);
               setShowOverlay(false);
-              logAnalyticsEventRef.current('video_resumed', `At: ${Math.floor(playerRef.current.getCurrentTime())}s`);
+              logAnalyticsEventRef.current?.('video_resumed', `At: ${Math.floor(playerRef.current.getCurrentTime())}s`);
             } else if (state === 2) { // PAUSED
               setIsPlayingState(false);
               setShowOverlay(true);
               const currentTime = playerRef.current.getCurrentTime();
               const duration = playerRef.current.getDuration();
-              logAnalyticsEventRef.current('video_paused', `At: ${Math.floor(currentTime)}s`);
-              saveProgressRef.current(currentTime, duration);
+              logAnalyticsEventRef.current?.('video_paused', `At: ${Math.floor(currentTime)}s`);
+              saveProgressRef.current?.(currentTime, duration);
             } else if (state === 0) { // ENDED
               setIsPlayingState(false);
               setShowOverlay(true);
               const duration = playerRef.current.getDuration();
-              saveProgressRef.current(duration, duration, true);
+              saveProgressRef.current?.(duration, duration, true);
             }
           },
           onError: (event: any) => {
             const errorCode = event.data;
             if ([100, 101, 150].includes(errorCode)) {
               setVideoUnavailable(true);
-              logAnalyticsEventRef.current('video_missing', `Error Code: ${errorCode}`);
+              logAnalyticsEventRef.current?.('video_missing', `Error Code: ${errorCode}`);
             }
           }
         }
       });
     };
 
-    if (!window.YT) {
-      if (!ytScriptLoading) {
-        ytScriptLoading = true;
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-        
-        window.onYouTubeIframeAPIReady = () => {
-          ytScriptLoaded = true;
-          initPlayer();
-        };
-      }
-    } else {
-      initPlayer();
-    }
+    loadYouTubeApi()
+      .then(initPlayer)
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('[ACADEMY] YouTube API error:', error);
+          setVideoErrorRef.current(true);
+        }
+      });
 
     return () => {
+      cancelled = true;
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
       }
@@ -337,7 +371,7 @@ export const AcademyPlayer: React.FC<AcademyPlayerProps> = ({
         try {
           const currentTime = playerRef.current.getCurrentTime();
           const duration = playerRef.current.getDuration();
-          saveProgressRef.current(currentTime, duration);
+          saveProgressRef.current?.(currentTime, duration);
         } catch (e) {}
         playerRef.current.destroy();
       }

@@ -136,7 +136,7 @@ function validateUpload({ key, contentType, size }, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const corsHeaders = getCorsHeaders(request, env);
     const url = new URL(request.url);
 
@@ -155,6 +155,23 @@ export default {
       const keyMatch = key.match(/^academy\/([a-z]+)\/[a-zA-Z0-9_\.\-]+$/);
       if (!keyMatch || !ALLOWED_FOLDERS.has(keyMatch[1])) {
         return jsonResponse(request, env, 400, { error: 'invalid_key' });
+      }
+
+      // Los banners son publicos e inmutables. Cachearlos con una clave estable
+      // evita que la firma temporal de R2 provoque un MISS en cada solicitud.
+      const isCacheableBanner = keyMatch[1] === 'banners' && !request.headers.has('Range');
+      const cacheKey = isCacheableBanner
+        ? new Request(`${url.origin}${url.pathname}?key=${encodeURIComponent(key)}`)
+        : null;
+
+      if (cacheKey) {
+        const cached = await caches.default.match(cacheKey);
+        if (cached) {
+          const headers = new Headers(cached.headers);
+          Object.entries(corsHeaders).forEach(([name, value]) => headers.set(name, value));
+          headers.set('X-Media-Cache', 'HIT');
+          return new Response(cached.body, { status: cached.status, headers });
+        }
       }
 
       try {
@@ -214,10 +231,17 @@ export default {
           responseHeaders.set('Content-Length', mediaRes.headers.get('Content-Length'));
         }
 
-        return new Response(mediaRes.body, {
+        const response = new Response(mediaRes.body, {
           status: mediaRes.status, // Esto será 206 en Range Requests, o 200 en descarga completa
           headers: responseHeaders
         });
+
+        if (cacheKey && mediaRes.status === 200) {
+          response.headers.set('X-Media-Cache', 'MISS');
+          ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+        }
+
+        return response;
       } catch (error) {
         console.error('[R2_MEDIA] Fetch failed:', error);
         return jsonResponse(request, env, 500, { error: 'fetch_failed' });

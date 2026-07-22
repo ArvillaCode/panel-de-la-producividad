@@ -17,12 +17,62 @@ import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { uploadToAcademyR2, academyMediaUrl } from '../../lib/academyR2Upload';
 
+const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
+const TARGET_BANNER_BYTES = 300 * 1024;
+const MAX_BANNER_BYTES = 500 * 1024;
+
+const canvasToBlob = (canvas, quality) => new Promise((resolve, reject) => {
+  canvas.toBlob(
+    blob => blob ? resolve(blob) : reject(new Error('No se pudo comprimir la imagen.')),
+    'image/webp',
+    quality
+  );
+});
+
+const optimizeBannerImage = async (file) => {
+  if (file.type === 'image/webp' && file.size <= TARGET_BANNER_BYTES) return file;
+
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { alpha: true });
+  let scale = Math.min(1, 1600 / bitmap.width, 900 / bitmap.height);
+  let quality = 0.84;
+  let blob = null;
+
+  try {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      blob = await canvasToBlob(canvas, quality);
+
+      if (blob.size <= TARGET_BANNER_BYTES) break;
+      if (quality > 0.6) quality -= 0.08;
+      else {
+        scale *= 0.82;
+        quality = 0.76;
+      }
+    }
+  } finally {
+    bitmap.close();
+  }
+
+  if (!blob || blob.size > MAX_BANNER_BYTES) {
+    throw new Error('La imagen no pudo optimizarse por debajo de 500 KB. Usa un diseño mas simple.');
+  }
+
+  const baseName = file.name.replace(/\.[^.]+$/, '') || 'banner';
+  return new File([blob], `${baseName}.webp`, { type: 'image/webp' });
+};
+
 const AdminBanners = () => {
   const { toast } = useToast();
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [formData, setFormData] = useState({
     image_url: '',
@@ -63,35 +113,34 @@ const AdminBanners = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Tipo de archivo no permitido. Usa JPG, PNG, WebP o GIF.');
+      toast.error('Tipo de archivo no permitido. Usa JPG, PNG o WebP.');
       e.target.value = '';
       return;
     }
 
-    // Límite estricto de 2MB
-    const maxSizeBytes = 2 * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      toast.error('La imagen supera el límite máximo permitido de 2MB.');
+    if (file.size > MAX_SOURCE_BYTES) {
+      toast.error('La imagen original supera el limite de 12 MB.');
       e.target.value = '';
       return;
     }
 
     setIsUploading(true);
     try {
-      // Subir a Cloudflare R2
-      const remotePath = await uploadToAcademyR2(file, 'banners');
+      const optimizedFile = await optimizeBannerImage(file);
+      const remotePath = await uploadToAcademyR2(optimizedFile, 'banners');
       const publicUrl = academyMediaUrl(remotePath);
 
-      setFormData({ ...formData, image_url: publicUrl });
-      setImageError(false); // Limpiar error de validación
-      toast.success('Imagen cargada correctamente en Cloudflare R2');
+      setFormData(current => ({ ...current, image_url: publicUrl }));
+      setImageError(false);
+      toast.success(`Imagen optimizada a ${Math.ceil(optimizedFile.size / 1024)} KB y cargada en R2`);
     } catch (err) {
       console.error('Detailed Cloudflare R2 Error:', err);
       toast.error('Error al subir a R2: ' + (err.message || 'Error desconocido de storage'));
     } finally {
       setIsUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -123,16 +172,27 @@ const AdminBanners = () => {
   };
 
   const toggleBannerStatus = async (id, currentStatus) => {
+    if (updatingId !== null) return;
+    const nextStatus = !currentStatus;
+    setUpdatingId(id);
+    setBanners(current => current.map(banner =>
+      banner.id === id ? { ...banner, is_active: nextStatus } : banner
+    ));
+
     const { error } = await supabase
       .from('banners')
-      .update({ is_active: !currentStatus })
+      .update({ is_active: nextStatus })
       .eq('id', id);
 
     if (error) {
+      setBanners(current => current.map(banner =>
+        banner.id === id ? { ...banner, is_active: currentStatus } : banner
+      ));
       toast.error('Error al actualizar estado');
     } else {
-      fetchBanners();
+      toast.success(nextStatus ? 'Banner activado' : 'Banner desactivado');
     }
+    setUpdatingId(null);
   };
 
   const deleteBanner = async (id) => {
@@ -178,7 +238,7 @@ const AdminBanners = () => {
             <h3 className="text-white font-black uppercase italic tracking-tighter">Especificaciones Recomendadas</h3>
             <p className="text-gray-400 text-sm mt-1">
               Para una visualización perfecta en todas las pantallas, usa imágenes de <span className="text-blue-400 font-bold">1200x600px</span>. 
-              El peso ideal debe ser menor a <span className="text-blue-400 font-bold">200KB</span> para garantizar que cargue instantáneamente a los 3 segundos.
+              La imagen se convierte automaticamente a WebP y se optimiza para abrir apenas este lista.
             </p>
           </div>
         </div>
@@ -192,10 +252,12 @@ const AdminBanners = () => {
             {(banners || []).map((banner) => (
               <div key={banner.id} className="glass-card overflow-hidden group border-white/10 flex flex-col">
                 <div className="relative aspect-[2/1] bg-white/5 overflow-hidden">
-                  <img 
-                    src={banner.image_url} 
-                    alt="Banner Preview" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                   <img
+                     src={banner.image_url}
+                     alt="Banner Preview"
+                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                     loading="lazy"
+                     decoding="async"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                     <button 
@@ -226,6 +288,7 @@ const AdminBanners = () => {
 
                   <button
                     onClick={() => toggleBannerStatus(banner.id, banner.is_active)}
+                    disabled={updatingId !== null}
                     className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                       banner.is_active 
                         ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
@@ -284,7 +347,7 @@ const AdminBanners = () => {
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <label className="cursor-pointer p-4 bg-white/10 backdrop-blur-md rounded-2xl text-white font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-all">
                           Cambiar Imagen
-                          <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                          <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFileUpload} />
                         </label>
                       </div>
                     </>
@@ -295,9 +358,9 @@ const AdminBanners = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-xs font-black text-white uppercase tracking-widest">Arrastra o haz clic</p>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase mt-1">PNG, JPG hasta 2MB</p>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase mt-1">PNG, JPG o WebP hasta 12 MB</p>
                       </div>
-                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleFileUpload} />
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/jpeg,image/png,image/webp" onChange={handleFileUpload} />
                     </>
                   )}
                 </div>

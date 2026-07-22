@@ -33,57 +33,16 @@ export const calculatePlanDates = (plan, startDate = new Date()) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    try {
-      const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
-      if (storageKey) {
-        const sessionData = JSON.parse(localStorage.getItem(storageKey));
-        if (sessionData && sessionData.user) {
-          return sessionData.user;
-        }
-      }
-    } catch (e) {
-      console.warn('[AUTH] Error loading initial user from cache:', e);
-    }
-    return null;
-  });
-
-  const [profile, setProfile] = useState(() => {
-    try {
-      const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
-      if (storageKey) {
-        const sessionData = JSON.parse(localStorage.getItem(storageKey));
-        if (sessionData && sessionData.user) {
-          const cached = localStorage.getItem(`cached_profile_${sessionData.user.id}`);
-          if (cached) {
-            return JSON.parse(cached);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[AUTH] Error loading initial profile from cache:', e);
-    }
-    return null;
-  });
-
-  const [loading, setLoading] = useState(() => {
-    try {
-      const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
-      if (storageKey) {
-        const sessionData = JSON.parse(localStorage.getItem(storageKey));
-        if (sessionData && sessionData.user) {
-          const cached = localStorage.getItem(`cached_profile_${sessionData.user.id}`);
-          if (cached) {
-            return false;
-          }
-        }
-      }
-    } catch (e) {}
-    return true;
-  });
+  // La sesion persistida se valida contra Supabase antes de autorizar rutas.
+  // Un perfil cacheado nunca debe conservar acceso tras eliminar una cuenta.
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [systemConfig, setSystemConfig] = useState(null);
+  const sessionSyncSequenceRef = useRef(0);
+  const activeSessionUserIdRef = useRef(null);
 
   const isAuthenticated = !!user;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'core_admin';
@@ -237,35 +196,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const syncUserSession = useCallback(async (session) => {
+    const syncSequence = ++sessionSyncSequenceRef.current;
+    const isStaleSync = () => syncSequence !== sessionSyncSequenceRef.current;
+
     try {
       if (!session) {
+        activeSessionUserIdRef.current = null;
         setUser(null);
         setProfile(null);
+        setUsers([]);
+        setNotifications([]);
         setLoading(false);
         return;
       }
 
       const currentUser = session.user;
-      setUser(currentUser);
-
-      // --- ESTRATEGIA SWR (Stale-While-Revalidate) ---
-      // 1. Cargar el perfil desde la caché local de forma inmediata para 0ms de latencia percibida
-      let cachedProfile = null;
-      let hasCached = false;
-      try {
-        const cachedStr = localStorage.getItem(`cached_profile_${currentUser.id}`);
-        if (cachedStr) {
-          cachedProfile = JSON.parse(cachedStr);
-          if (cachedProfile && cachedProfile.id === currentUser.id) {
-            setProfile(cachedProfile);
-            setLoading(false); // ¡Liberar la interfaz inmediatamente!
-            hasCached = true;
-            console.log('[AUTH] [SWR] Perfil cargado instantáneamente desde la caché local:', cachedProfile.email);
-          }
-        }
-      } catch (e) {
-        console.warn('[AUTH] Error leyendo perfil inicial de caché:', e);
+      if (activeSessionUserIdRef.current !== currentUser.id) {
+        activeSessionUserIdRef.current = currentUser.id;
+        setLoading(true);
+        setProfile(null);
+        setUsers([]);
+        setNotifications([]);
+        setSystemConfig(null);
       }
+      setUser(currentUser);
 
       // 2. Realizar la petición de red a Supabase para revalidar los datos
       const fetchProfilePromise = async () => {
@@ -276,13 +230,12 @@ export const AuthProvider = ({ children }) => {
             .eq('id', currentUser.id)
             .single();
 
-          // Tiempo de timeout para la petición de red (reducido a 2.5s si ya tenemos caché para no colgar el background, o 4s si no tenemos caché)
-          const timeoutMs = hasCached ? 2500 : 4000;
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timeout')), timeoutMs)
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
           );
 
           const result = await Promise.race([fetchPromise, timeoutPromise]);
+          if (isStaleSync()) return;
           let profileData = result.data;
           let profileError = result.error;
 
@@ -295,6 +248,8 @@ export const AuthProvider = ({ children }) => {
               .eq('id', currentUser.id)
               .single();
 
+            if (isStaleSync()) return;
+
             if (!compatResult.error && compatResult.data) {
               profileData = {
                 ...compatResult.data,
@@ -306,6 +261,29 @@ export const AuthProvider = ({ children }) => {
           }
 
           if (profileError || !profileData) {
+            const isNotFoundError = profileError && (
+              profileError.code === 'PGRST116' ||
+              profileError.message?.includes('PGRST116')
+            );
+
+            if (isNotFoundError) {
+              console.warn('[AUTH] El perfil ya no existe. Revocando la sesion local.');
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-') || key.startsWith('cached_profile_')) {
+                  localStorage.removeItem(key);
+                }
+              });
+              setProfile(null);
+              setUser(null);
+              activeSessionUserIdRef.current = null;
+              setLoading(false);
+              await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+              if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login?error=CuentaEliminada';
+              }
+              return;
+            }
+
             // Verificar si es un error de autenticación
             const isAuthError = profileError && (
               profileError.status === 401 ||
@@ -325,6 +303,7 @@ export const AuthProvider = ({ children }) => {
               });
               sessionStorage.clear();
               await supabase.auth.signOut();
+              activeSessionUserIdRef.current = null;
               setUser(null);
               setProfile(null);
               setLoading(false);
@@ -332,36 +311,22 @@ export const AuthProvider = ({ children }) => {
               return;
             }
 
-            // Si es otro error de red/timeout y no tenemos caché, usar fallback
-            if (!hasCached) {
-              const metadata = currentUser.user_metadata || {};
-              const fallbackProfile = {
-                id: currentUser.id,
-                email: currentUser.email,
-                name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
-                role: 'user',
-                avatar_url: metadata.avatar_url || '',
-                status: 'pending',
-                is_approved: false,
-                timezone: metadata.timezone || 'UTC',
-                start_date: metadata.start_date || null,
-                end_date: metadata.end_date || null,
-                plan: metadata.plan || 'annual',
-                is_legacy_fallback: metadata.is_legacy_fallback || false,
-                created_at: new Date().toISOString()
-              };
-
-              const isNotFoundError = profileError && (profileError.code === 'PGRST116' || profileError.message?.includes('PGRST116'));
-              if (isNotFoundError) {
-                console.log('[AUTH] Perfil no encontrado. Creando perfil básico...');
-                supabase.from('profiles').insert(fallbackProfile).then(({ error: createError }) => {
-                  if (createError) console.error('[AUTH] Fallback profile creation failed:', createError.message);
-                }).catch(err => console.error('[AUTH] Excepción en fallback profile creation:', err));
-                setProfile(fallbackProfile);
-              } else {
-                setProfile(fallbackProfile);
-              }
-            }
+            const metadata = currentUser.user_metadata || {};
+            setProfile({
+              id: currentUser.id,
+              email: currentUser.email,
+              name: metadata.name || currentUser.email?.split('@')[0] || 'Usuario',
+              role: 'user',
+              avatar_url: metadata.avatar_url || '',
+              status: 'pending',
+              is_approved: false,
+              timezone: metadata.timezone || 'UTC',
+              start_date: metadata.start_date || null,
+              end_date: metadata.end_date || null,
+              plan: metadata.plan || 'annual',
+              is_legacy_fallback: metadata.is_legacy_fallback || false,
+              created_at: new Date().toISOString()
+            });
             return;
           }
 
@@ -375,14 +340,8 @@ export const AuthProvider = ({ children }) => {
             try {
               console.log(`[AUTH] [LEGACY-REVERSION] Expiró plan de ${currentUser.email}. Revirtiendo a plan legacy de forma automática.`);
               
-              // Actualizar base de datos de forma asíncrona y transparente
-              supabase.from('profiles').update({
-                plan: 'legacy',
-                end_date: null,
-                status: 'active'
-              }).eq('id', currentUser.id).then(({ error }) => {
-                if (error) console.error('[AUTH] [LEGACY-REVERSION] Falló actualización de reversión en Supabase:', error.message);
-              }).catch(err => console.error('[AUTH] [LEGACY-REVERSION] Excepción en reversión:', err));
+              const { error: legacyError } = await supabase.rpc('apply_legacy_fallback');
+              if (legacyError) throw legacyError;
               
               // Modificar datos locales para evitar bloqueos visuales en sesión actual
               profileData.plan = 'legacy';
@@ -402,6 +361,7 @@ export const AuthProvider = ({ children }) => {
             if (isExpired) reason = 'Tu suscripción ha expirado. Contacta a soporte para renovar.';
 
             console.warn(`[AUTH] Acceso denegado a ${currentUser.email}: ${reason}`);
+            activeSessionUserIdRef.current = null;
             setProfile(null);
             setUser(null);
             await supabase.auth.signOut();
@@ -412,52 +372,39 @@ export const AuthProvider = ({ children }) => {
           // Guardar en caché y actualizar estado si ha cambiado
           localStorage.setItem(`cached_profile_${currentUser.id}`, JSON.stringify(profileData));
           
-          // Solo actualizar el estado si los datos recibidos son distintos del caché
-          // para evitar renders innecesarios.
-          if (!hasCached || JSON.stringify(cachedProfile) !== JSON.stringify(profileData)) {
-            setProfile(profileData);
-          }
+          setProfile(profileData);
 
           if (userIsAdmin) {
             fetchUsers();
           }
 
         } catch (err) {
+          if (isStaleSync()) return;
           console.warn('[AUTH] Error en revalidación de perfil en segundo plano:', err.message);
-          // Si falló la red pero ya teníamos caché, no pasa nada.
-          // Si no teníamos caché, intentamos cargar el caché como fallback o usamos el perfil básico.
-          if (!hasCached) {
-            const fallbackProfile = {
-              id: currentUser.id,
-              email: currentUser.email,
-              name: currentUser.email?.split('@')[0] || 'Usuario',
-              role: 'user',
-              avatar_url: '',
-              status: 'pending',
-              is_approved: false,
-              timezone: 'UTC',
-              start_date: null,
-              end_date: null,
-              plan: 'annual',
-              is_legacy_fallback: false,
-              created_at: new Date().toISOString()
-            };
-            setProfile(fallbackProfile);
-          }
+          setProfile({
+            id: currentUser.id,
+            email: currentUser.email,
+            name: currentUser.email?.split('@')[0] || 'Usuario',
+            role: 'user',
+            avatar_url: '',
+            status: 'pending',
+            is_approved: false,
+            timezone: 'UTC',
+            start_date: null,
+            end_date: null,
+            plan: 'annual',
+            is_legacy_fallback: false,
+            created_at: new Date().toISOString()
+          });
         } finally {
-          setLoading(false);
+          if (!isStaleSync()) setLoading(false);
         }
       };
 
-      // Si ya tenemos datos en caché, ejecutamos la revalidación en segundo plano (asíncrona y sin bloquear el hilo principal)
-      if (hasCached) {
-        fetchProfilePromise();
-      } else {
-        // Si no hay caché, esperamos el resultado para evitar parpadeos vacíos en el primer ingreso
-        await fetchProfilePromise();
-      }
+      await fetchProfilePromise();
 
     } catch (e) {
+      if (isStaleSync()) return;
       console.error('[AUTH] Critical sync error:', e);
       setLoading(false);
     }
@@ -542,8 +489,11 @@ export const AuthProvider = ({ children }) => {
         
         // Manejo ultra-defensivo de estados de sesión nula o salida
         if (event === 'SIGNED_OUT' || !session) {
+          activeSessionUserIdRef.current = null;
           setUser(null);
           setProfile(null);
+          setUsers([]);
+          setNotifications([]);
           setLoading(false);
           clearTimeout(escapeTimeout);
           return;
@@ -563,6 +513,37 @@ export const AuthProvider = ({ children }) => {
       if (subscription) subscription.unsubscribe();
     };
   }, []); // Array de dependencias vacío para registrar el listener EXACTAMENTE UNA VEZ
+
+  // Detectar revocaciones mientras la aplicacion permanece abierta. El gate RLS
+  // bloquea los datos inmediatamente; esta revalidacion tambien expulsa la UI.
+  useEffect(() => {
+    if (!user) return;
+
+    let checking = false;
+    const revalidateAccess = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await syncUserSessionRef.current(session);
+      } finally {
+        checking = false;
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') revalidateAccess();
+    };
+
+    window.addEventListener('focus', revalidateAccess);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const accessInterval = setInterval(revalidateAccess, 30000);
+
+    return () => {
+      window.removeEventListener('focus', revalidateAccess);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      clearInterval(accessInterval);
+    };
+  }, [user?.id]);
 
   // 3. Intervalo de notificaciones (separado)
   useEffect(() => {
@@ -607,6 +588,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem(`cached_profile_${user.id}`);
     }
     await supabase.auth.signOut();
+    activeSessionUserIdRef.current = null;
     setUser(null);
     setProfile(null);
     window.location.href = '/login';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -14,67 +14,134 @@ const GlobalBanner = () => {
   const { isAuthenticated, isAdmin, profile } = useAuth();
   const [banner, setBanner] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [hasShown, setHasShown] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const loadSequenceRef = useRef(0);
   const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   useEffect(() => {
-    // Si no está autenticado, es admin o está en rutas de administración, no mostrar
-    if (!isAuthenticated || isAdmin || profile?.role === 'admin' || location.pathname.startsWith('/admin')) {
+    if (!isAuthenticated || !profile?.id || isAdmin || isAdminRoute) {
+      setBanner(null);
+      setIsVisible(false);
       return;
     }
 
-    let timer;
+    let cancelled = false;
+    let preloadImage = null;
+
+    const prepareBanner = async (data, sequence) => {
+      if (cancelled || sequence !== loadSequenceRef.current) return;
+      if (!data?.image_url) {
+        setBanner(null);
+        setIsVisible(false);
+        return;
+      }
+
+      const version = data.display_version || data.activated_at || data.created_at || 1;
+      const shownKey = `banner_shown_${data.id}_${version}`;
+      if (localStorage.getItem(shownKey) === 'true') {
+        setBanner(null);
+        setIsVisible(false);
+        return;
+      }
+
+      setImageError(false);
+      setIsVisible(false);
+      preloadImage = new Image();
+      preloadImage.decoding = 'async';
+      preloadImage.src = data.image_url;
+
+      try {
+        if (typeof preloadImage.decode === 'function') {
+          await preloadImage.decode();
+        } else {
+          await new Promise((resolve, reject) => {
+            preloadImage.onload = resolve;
+            preloadImage.onerror = reject;
+          });
+        }
+      } catch (error) {
+        if (!cancelled && sequence === loadSequenceRef.current) {
+          console.error('[BANNER] Error al precargar la imagen:', data.image_url, error);
+          setImageError(true);
+          setBanner(null);
+        }
+        return;
+      }
+
+      if (cancelled || sequence !== loadSequenceRef.current) return;
+      setBanner({ ...data, shownKey });
+      setIsVisible(true);
+      localStorage.setItem(shownKey, 'true');
+    };
 
     const getBanner = async () => {
-      const { data, error } = await supabase
+      const sequence = ++loadSequenceRef.current;
+      let result = await supabase
         .from('banners')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false })
+        .order('activated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (data && !error) {
-        const bannerShownKey = `banner_shown_${data.id}`;
-        if (localStorage.getItem(bannerShownKey) === 'true') {
-          return; // Ya se mostró en este dispositivo
-        }
-
-        setBanner(data);
-        // Timer de 3 segundos para mostrar
-        timer = setTimeout(() => {
-          setIsVisible(true);
-          setHasShown(true);
-          localStorage.setItem(bannerShownKey, 'true');
-        }, 3000);
+      // Compatibilidad durante el despliegue previo a la migracion de banners.
+      if (result.error?.code === '42703' || result.error?.message?.includes('activated_at')) {
+        result = await supabase
+          .from('banners')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
       }
+
+      if (cancelled || sequence !== loadSequenceRef.current) return;
+      if (result.error) {
+        console.error('[BANNER] Error consultando banner activo:', result.error);
+        return;
+      }
+      await prepareBanner(result.data, sequence);
     };
 
-    if (!hasShown) {
-      getBanner();
-    }
+    getBanner();
+
+    const channel = supabase
+      .channel(`global-banner-${profile.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'banners'
+      }, getBanner)
+      .subscribe();
+
+    window.addEventListener('focus', getBanner);
 
     return () => {
-      if (timer) clearTimeout(timer);
+      cancelled = true;
+      loadSequenceRef.current += 1;
+      if (preloadImage) preloadImage.src = '';
+      window.removeEventListener('focus', getBanner);
+      supabase.removeChannel(channel);
     };
-  }, [isAuthenticated, hasShown, isAdmin, profile, location.pathname]);
+  }, [isAuthenticated, isAdmin, isAdminRoute, profile?.id]);
 
   const handleClose = () => {
     setIsVisible(false);
   };
 
-  // REGLA DE ORO: Si no hay banner, no debe ser visible o hay un error de imagen, NO RENDERIZAR NADA.
-  // Esto evita que el div "fixed inset-0" bloquee los clics.
   if (!isAuthenticated || !isVisible || !banner || imageError) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-500 pointer-events-auto"
+      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 sm:p-6 bg-black/85 sm:backdrop-blur-sm animate-in fade-in duration-300 motion-reduce:animate-none pointer-events-auto"
       onClick={handleClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Promocion"
     >
       <div 
-        className="relative w-full max-w-4xl glass-card overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border-white/10 animate-in zoom-in-95 slide-in-from-bottom-10 duration-700 ease-out"
+        className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-[#0b0c10] shadow-2xl border border-white/10 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Banner Content */}
@@ -83,16 +150,19 @@ const GlobalBanner = () => {
             src={banner.image_url} 
             alt="Promoción Especial" 
             className="w-full h-full object-cover"
-            onError={() => {
-              console.error('[BANNER] Error al cargar la imagen promocional:', banner.image_url);
-              setImageError(true);
-            }}
+             onError={() => {
+               console.error('[BANNER] Error al cargar la imagen promocional:', banner.image_url);
+               localStorage.removeItem(banner.shownKey);
+               setImageError(true);
+               setIsVisible(false);
+             }}
           />
           
           {/* Close Button */}
           <button 
-            onClick={handleClose}
-            className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full backdrop-blur-md transition-all z-10 border border-white/10"
+           onClick={handleClose}
+            className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-black text-white rounded-full transition-colors z-10 border border-white/10"
+            aria-label="Cerrar promocion"
           >
             <X className="w-6 h-6" />
           </button>

@@ -30,6 +30,41 @@ const AdminLogs = lazy(() => import('./pages/admin/AdminLogs'));
 const AdminFinance = lazy(() => import('./pages/admin/AdminFinance'));
 const AdminBanners = lazy(() => import('./pages/admin/AdminBanners'));
 
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('[APP] Error de render no controlado:', error, info);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <main className="min-h-screen bg-[#020203] text-white flex items-center justify-center p-6">
+        <section className="max-w-lg text-center space-y-5">
+          <h1 className="text-2xl font-black uppercase">No pudimos abrir esta pantalla</h1>
+          <p className="text-gray-400">Recarga la aplicacion. Si el problema continua, contacta a soporte.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 rounded-xl bg-neon-teal text-deep-dark font-black uppercase text-xs tracking-widest"
+          >
+            Recargar
+          </button>
+        </section>
+      </main>
+    );
+  }
+}
+
 // 1. Componente de Restricción de Dominio (Restaurado)
 const DomainRestrictedRoute = ({ children, appOnly = false }) => {
   const isAppDomain = window.location.hostname.includes('app.') || 
@@ -53,15 +88,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     );
   }
 
-  // Bypass global incondicional para la sección de Gestión de Usuarios si es un administrador autenticado
-  const isUserManagement = window.location.pathname === '/admin/users';
-  if (isUserManagement && isAuthenticated && isAdmin) {
-    return children;
-  }
-
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  if (!adminOnly && !isAdmin && profile && (profile.is_approved !== true || profile.status !== 'active')) {
+  if (!profile) return <Navigate to="/login?error=PerfilNoDisponible" replace />;
+
+  if (profile.is_approved !== true || profile.status !== 'active') {
     return <Navigate to="/dashboard/espera-aprobacion" replace />;
   }
 
@@ -82,7 +113,9 @@ const Home = () => {
   if (!isAppDomain) return <LandingPage />;
 
   if (isAuthenticated) {
-    if (!isAdmin && profile && (profile.is_approved !== true || profile.status !== 'active')) {
+    if (!profile) return <AdminLogin />;
+
+    if (profile.is_approved !== true || profile.status !== 'active') {
       return <PendingApproval />;
     }
 
@@ -100,20 +133,21 @@ function App() {
       <ToastProvider>
         <Router>
           <div className="App min-h-screen w-full pointer-events-auto">
-            {/* Todas las capas globales solo se activan si hay sesión */}
-            {isAuthenticated && (
-              <>
-                <ReleaseAutoNotification />
-                <GlobalBanner />
-              </>
-            )}
+            <AppErrorBoundary>
+              {/* Todas las capas globales solo se activan si hay sesión */}
+              {isAuthenticated && (
+                <>
+                  <ReleaseAutoNotification />
+                  <GlobalBanner />
+                </>
+              )}
 
-            <Suspense fallback={
-              <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center">
-                <div className="premium-spinner"></div>
-              </div>
-            }>
-              <Routes>
+              <Suspense fallback={
+                <div className="min-h-screen bg-[#020203] flex flex-col items-center justify-center">
+                  <div className="premium-spinner"></div>
+                </div>
+              }>
+                <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/coming-soon" element={<ComingSoon />} />
                 <Route path="/login" element={<AdminLogin />} />
@@ -143,8 +177,9 @@ function App() {
 
                 <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
+                </Routes>
+              </Suspense>
+            </AppErrorBoundary>
           </div>
         </Router>
       </ToastProvider>
