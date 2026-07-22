@@ -235,19 +235,19 @@ const AdminDashboard = () => {
     <AdminLayout currentPage="dashboard">
       <div className="space-y-8 pb-10">
         {/* Welcome Section */}
-        <div className="glass-card bg-deep-dark/40 p-10 border border-white/5 relative overflow-hidden group animate-fade-in-up">
+        <div className="glass-card bg-deep-dark/40 p-6 md:p-10 border border-white/5 relative overflow-hidden group animate-fade-in-up">
           <div className="absolute top-0 right-0 w-96 h-96 bg-neon-teal/10 rounded-full -mr-32 -mt-32 blur-[100px] group-hover:scale-110 transition-transform duration-1000"></div>
           <div className="relative z-10 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Sparkles className="w-8 h-8 text-neon-teal neon-glow" />
                 <span className="text-neon-teal font-black uppercase tracking-[0.3em] text-xs">Ecosistema Premium</span>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                 <select 
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  className="bg-deep-dark/50 border border-white/10 text-white text-xs font-bold rounded-xl px-4 py-2 outline-none focus:border-neon-teal transition-colors"
+                  className="min-w-0 flex-1 sm:flex-none bg-deep-dark/50 border border-white/10 text-white text-xs font-bold rounded-xl px-4 py-2 outline-none focus:border-neon-teal transition-colors"
                 >
                   <option value="all">Todo el tiempo</option>
                   <option value="7days">Últimos 7 días</option>
@@ -257,14 +257,14 @@ const AdminDashboard = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neon-teal/10 text-neon-teal border border-neon-teal/20 hover:bg-neon-teal/20 transition-all duration-300 text-xs font-black uppercase tracking-widest disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-neon-teal/10 text-neon-teal border border-neon-teal/20 hover:bg-neon-teal/20 transition-all duration-300 text-xs font-black uppercase tracking-widest disabled:opacity-50"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  Actualizar
+                  <span className="hidden sm:inline">Actualizar</span>
                 </button>
               </div>
             </div>
-            <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
               Control Maestro, <span className="neon-text">{profile?.name || 'Líder'}</span>
             </h1>
             <p className="text-gray-500 dark:text-gray-400 text-lg max-w-2xl font-medium">
